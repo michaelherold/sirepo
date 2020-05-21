@@ -1,0 +1,472 @@
+{
+    "models": {
+        "SPNTRK": {
+            "KSO": "0",
+            "S_X": 0,
+            "S_Y": 0,
+            "S_Z": 1
+        },
+        "SRLOSS": {
+            "KSR": "0",
+            "applyToAll": "0",
+            "keyword": "BEND"
+        },
+        "beamlines": [
+            {
+                "angle": 1.0471975511965976,
+                "count": 1,
+                "distance": 0.5235987755982987,
+                "id": 1,
+                "items": [
+                    4
+                ],
+                "length": 0.5235987755982988,
+                "name": "BL1"
+            }
+        ],
+        "bunch": {
+            "D0": 1,
+            "DP": 0,
+            "DPF": 1,
+            "DPR": 0,
+            "DT": 0,
+            "DY": 0,
+            "DZ": 0,
+            "FNAME": "",
+            "FNAME2": "",
+            "FNAME3": "",
+            "IP1": 1,
+            "IP2": 999,
+            "IPStep": 1,
+            "IT1": 1,
+            "IT2": 999,
+            "ITStep": 1,
+            "InitC": "0",
+            "KD": "2",
+            "KP": "2",
+            "KT": "2",
+            "KX": "2",
+            "KY": "2",
+            "KZ": "2",
+            "P0": 0,
+            "PF": 1,
+            "PR": 0,
+            "SF": 1,
+            "SR": 0,
+            "T0": 0,
+            "TAG": "*",
+            "TF": 1,
+            "TR": 0,
+            "TiF": 1,
+            "TiR": 0,
+            "X0": 0,
+            "Y0": 0,
+            "YF": 1,
+            "YR": 0,
+            "Z0": 0,
+            "ZF": 1,
+            "ZR": 0,
+            "alpha_X": 0,
+            "alpha_Y": 0,
+            "alpha_Z": 0,
+            "beta_X": 1,
+            "beta_Y": 1,
+            "beta_Z": 1,
+            "coordinates": [
+                {
+                    "D": 1,
+                    "P": 0,
+                    "T": 0,
+                    "X": 0,
+                    "Y": 0.129248888074,
+                    "Z": 0,
+                    "type": "particleCoordinate"
+                }
+            ],
+            "emit_X": 1e-06,
+            "emit_Y": 1e-06,
+            "emit_Z": 1e-06,
+            "match_twiss_parameters": "0",
+            "method": "OBJET2.1",
+            "n_cutoff2_X": 0,
+            "n_cutoff2_Y": 0,
+            "n_cutoff2_Z": 0,
+            "n_cutoff_X": 3,
+            "n_cutoff_Y": 3,
+            "n_cutoff_Z": 3,
+            "particleCount": 1000,
+            "particleCount2": 1,
+            "particleSelector": "1",
+            "rigidity": 64.62444403717986,
+            "type": "bunch"
+        },
+        "bunchAnimation": {
+            "aspectRatio": "1",
+            "colorMap": "contrast",
+            "fieldRange": {
+                "D1": [
+                    0.0,
+                    0.0
+                ],
+                "DPR": [
+                    0.0,
+                    0.0
+                ],
+                "DPRo": [
+                    0.0,
+                    0.0
+                ],
+                "Do1": [
+                    0.0,
+                    0.0
+                ],
+                "ENEKI": [
+                    200000.0,
+                    200000.0
+                ],
+                "ENEKIo": [
+                    200000.0,
+                    200000.0
+                ],
+                "ENERG": [
+                    938472030.0,
+                    938472030.0
+                ],
+                "ENERGo": [
+                    938472030.0,
+                    938472030.0
+                ],
+                "IPASS": [
+                    1.0,
+                    61.0
+                ],
+                "IPASSo": [
+                    1.0,
+                    61.0
+                ],
+                "P": [
+                    0.0,
+                    0.0
+                ],
+                "Po": [
+                    0.0,
+                    0.0
+                ],
+                "RET": [
+                    0.0,
+                    0.0
+                ],
+                "RETo": [
+                    0.0,
+                    0.0
+                ],
+                "S": [
+                    0.0,
+                    8.256286262735127
+                ],
+                "SX": [
+                    0.0,
+                    0.0
+                ],
+                "SXo": [
+                    0.0,
+                    0.0
+                ],
+                "SY": [
+                    0.0,
+                    0.0
+                ],
+                "SYo": [
+                    0.0,
+                    0.0
+                ],
+                "SZ": [
+                    0.0,
+                    0.0
+                ],
+                "SZo": [
+                    0.0,
+                    0.0
+                ],
+                "So": [
+                    0.0,
+                    8.256286262735127
+                ],
+                "T": [
+                    -1.4281681691777348e-06,
+                    1.2960533256195506e-06
+                ],
+                "To": [
+                    -1.4281681691777348e-06,
+                    1.2960533256195506e-06
+                ],
+                "Y": [
+                    0.12924849136006447,
+                    0.1292488880735879
+                ],
+                "Yo": [
+                    0.12924849136006447,
+                    0.1292488880735879
+                ],
+                "Z": [
+                    0.0,
+                    0.0
+                ],
+                "Zo": [
+                    0.0,
+                    0.0
+                ],
+                "time": [
+                    0.0,
+                    1.3340369237389702e-06
+                ],
+                "to": [
+                    0.0,
+                    1.3340369237389702e-06
+                ]
+            },
+            "framesPerSecond": "2",
+            "histogramBins": 200,
+            "horizontalOffset": 0,
+            "horizontalSize": 0,
+            "isRunning": 0,
+            "notes": "",
+            "particleSelector": "all",
+            "plotRangeType": "fit",
+            "plotType": "3d",
+            "showAllFrames": "1",
+            "verticalOffset": 0,
+            "verticalSize": 0,
+            "x": "Y",
+            "y": "T"
+        },
+        "bunchAnimation2": {
+            "aspectRatio": "1",
+            "colorMap": "contrast",
+            "framesPerSecond": "2",
+            "histogramBins": 200,
+            "horizontalOffset": 0,
+            "horizontalSize": 0,
+            "isRunning": 0,
+            "notes": "",
+            "particleSelector": "all",
+            "plotRangeType": "fit",
+            "plotType": "3d",
+            "showAllFrames": "1",
+            "verticalOffset": 0,
+            "verticalSize": 0,
+            "x": "Z",
+            "y": "P"
+        },
+        "bunchReport1": {
+            "histogramBins": 200,
+            "notes": "",
+            "x": "Y",
+            "y": "T"
+        },
+        "bunchReport2": {
+            "histogramBins": 200,
+            "notes": "",
+            "x": "Z",
+            "y": "P"
+        },
+        "bunchReport3": {
+            "histogramBins": 200,
+            "notes": "",
+            "x": "Y",
+            "y": "Z"
+        },
+        "bunchReport4": {
+            "histogramBins": 200,
+            "notes": "",
+            "x": "S",
+            "y": "D1"
+        },
+        "elementStepAnimation": {
+            "aspectRatio": "0.5625",
+            "colorMap": "contrast",
+            "framesPerSecond": "2",
+            "histogramBins": 200,
+            "horizontalOffset": 0,
+            "horizontalSize": 0,
+            "isRunning": 0,
+            "notes": "",
+            "particleSelector": "all",
+            "plotRangeType": "none",
+            "plotType": "particle",
+            "showAllFrames": "0",
+            "verticalOffset": 0,
+            "verticalSize": 0,
+            "x": "X",
+            "y": "YDY"
+        },
+        "elements": [
+            {
+                "ACN": 0.5235987755982988,
+                "AT": 1.0471975511965976,
+                "B": 0,
+                "B_0": 5,
+                "CE_0": 0.1455,
+                "CE_1": 2.267,
+                "CE_2": -0.6395,
+                "CE_3": 1.1558,
+                "CE_4": 0,
+                "CE_5": 0,
+                "CL_0": 0,
+                "CL_1": 0,
+                "CL_2": 0,
+                "CL_3": 0,
+                "CL_4": 0,
+                "CL_5": 0,
+                "CS_0": 0.1455,
+                "CS_1": 2.267,
+                "CS_2": -0.6395,
+                "CS_3": 1.1558,
+                "CS_4": 0,
+                "CS_5": 0,
+                "G": 0,
+                "IL": 2,
+                "IORDRE": "2",
+                "KPOS": "2",
+                "LAM_E": 0,
+                "LAM_L": 0,
+                "LAM_S": 0,
+                "N": 0,
+                "NCE": 4,
+                "NCL": 0,
+                "NCS": 4,
+                "OMEGA_E": 0.5235987755982988,
+                "OMEGA_L": 0,
+                "OMEGA_S": -0.5235987755982988,
+                "R1_E": 10000,
+                "R1_L": 10000,
+                "R1_S": 10000,
+                "R2_E": 10000,
+                "R2_L": 10000,
+                "R2_S": 10000,
+                "R3": 0,
+                "RE": 0,
+                "RM": 0.5,
+                "RS": 0,
+                "Resol": 10,
+                "SHIFT_E": 0,
+                "SHIFT_L": 0,
+                "SHIFT_S": 0,
+                "TE": 0,
+                "THETA_E": 0,
+                "THETA_L": 0,
+                "THETA_S": 0,
+                "TS": 0,
+                "U1_E": -10000,
+                "U1_L": -10000,
+                "U1_S": -10000,
+                "U2_E": 10000,
+                "U2_L": 10000,
+                "U2_S": 10000,
+                "XI_E": 0,
+                "XI_L": 0,
+                "XI_S": 0,
+                "XPAS": 1,
+                "_id": 4,
+                "angle": 1.0471975511965976,
+                "l": 0.5235987755982988,
+                "name": "60 Degree Dipole",
+                "travelLength": 0.5235987755982988,
+                "type": "DIPOLE"
+            }
+        ],
+        "energyAnimation": {
+            "aspectRatio": "1",
+            "colorMap": "contrast",
+            "framesPerSecond": "2",
+            "histogramBins": 200,
+            "horizontalOffset": 0,
+            "horizontalSize": 0,
+            "isRunning": 0,
+            "notes": "",
+            "particleSelector": "all",
+            "plotRangeType": "none",
+            "plotType": "heatmap",
+            "showAllFrames": "1",
+            "verticalOffset": 0,
+            "verticalSize": 0,
+            "x": "ENERG",
+            "y": "time"
+        },
+        "opticsReport": {
+            "includeLattice": "1",
+            "notes": "",
+            "y1": "x",
+            "y2": "none",
+            "y3": "none"
+        },
+        "particle": {
+            "G": 0.0011596521811,
+            "M": 0.51099892,
+            "Q": -1.602176487e-19,
+            "Tau": 1e+99,
+            "particleType": "PROTON",
+            "type": "particle"
+        },
+        "particleAnimation": {
+            "aspectRatio": "0.75",
+            "isRunning": 0,
+            "notes": "",
+            "particleSelector": "all"
+        },
+        "particleCoordinate": {
+            "D": 1,
+            "P": 0,
+            "T": 0,
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+        },
+        "simulation": {
+            "activeBeamlineId": 1,
+            "documentationUrl": "",
+            "folder": "/",
+            "isExample": false,
+            "isInitialized": true,
+            "name": "Analytical Model of Dipole Field",
+            "notes": "",
+            "simulationId": "QDofiVio",
+            "simulationSerial": 1590075245823773,
+            "visualizationBeamlineId": 1
+        },
+        "simulationSettings": {
+            "ip": 1,
+            "npass": 61,
+            "type": "simulationSettings"
+        },
+        "tunesReport": {
+            "aspectRatio": "0.75",
+            "lastUpdateTime": 1590074888,
+            "notes": "",
+            "nuMax": 0.5,
+            "nuMin": 0,
+            "particleSelector": "all",
+            "plotAxis": "x",
+            "plotScale": "linear",
+            "showTunesReport": true,
+            "turnCount": 10000,
+            "turnStart": 0
+        },
+        "twissReport": {
+            "includeLattice": "1",
+            "notes": "",
+            "y1": "btx",
+            "y2": "bty",
+            "y3": "Dx"
+        },
+        "twissReport2": {
+            "includeLattice": "1",
+            "notes": "",
+            "y1": "btx",
+            "y2": "bty",
+            "y3": "Dx"
+        },
+        "twissSummaryReport": {}
+    },
+    "simulationType": "zgoubi"
+}

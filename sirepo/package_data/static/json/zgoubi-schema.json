@@ -1658,7 +1658,6 @@
                 ["Dipole Fringe Fields", [
                     [
                         ["Entrance", [
-                            "NCE",
                             "CE_0",
                             "CE_1",
                             "CE_2",
@@ -1670,7 +1669,6 @@
                             "SHIFT_E"
                         ]],
                         ["Exit", [
-                            "NCS",
                             "CS_0",
                             "CS_1",
                             "CS_2",
