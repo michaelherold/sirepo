@@ -40,6 +40,10 @@
             "longName": "Activait",
             "shortName": "Activait"
         },
+        "nuline": {
+            "longName": "NuLine",
+            "shortName": "NuLine"
+        },
         "opal": {
             "longName": "OPAL",
             "shortName": "OPAL"
