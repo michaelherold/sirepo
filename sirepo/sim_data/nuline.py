@@ -15,10 +15,6 @@ import sirepo.simulation_db
 class SimData(sirepo.sim_data.SimDataBase):
 
     @classmethod
-    def controls_madx_dir(cls):
-        return sirepo.simulation_db.simulation_dir('madx')
-
-    @classmethod
     def default_optimizer_settings(cls, madx):
         element_map = PKDict({e._id: e for e in madx.elements})
         targets = []
@@ -41,35 +37,11 @@ class SimData(sirepo.sim_data.SimDataBase):
         dm = data.models
         cls._init_models(
             dm,
-            (
-                'command_beam',
-                'command_twiss',
-                'dataFile',
-                'initialMonitorPositionsReport',
-            ),
         )
-        if 'externalLattice' in dm:
-            sirepo.sim_data.get_class('madx').fixup_old_data(dm.externalLattice)
-            if 'optimizerSettings' not in dm:
-                dm.optimizerSettings = cls.default_optimizer_settings(dm.externalLattice.models)
-
-        if dm.command_beam.gamma == 0 and 'pc' in dm.command_beam and dm.command_beam.pc > 0:
-            cls.update_beam_gamma(dm.command_beam)
-            dm.command_beam.pc = 0
-
-    @classmethod
-    def update_beam_gamma(cls, beam):
-        beam.gamma = ParticleEnergy.compute_energy(
-            'madx',
-            beam.particle,
-            beam,
-        ).gamma
 
     @classmethod
     def _compute_job_fields(cls, data, r, compute_model):
         res = []
-        if r == 'initialMonitorPositionsReport':
-            res = ['dataFile', 'externalLattice']
         return res
 
     @classmethod

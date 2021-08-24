@@ -1,0 +1,9 @@
+{
+    "models": {
+        "beamlineAutomation": {},
+        "simulation": {
+            "name": ""
+        }
+    },
+    "simulationType": "nuline"
+}
