@@ -21,10 +21,6 @@ SIREPO.app.config(() => {
 
 SIREPO.app.factory('nulineService', function(appState) {
     const self = {};
-    const mevToKg = 5.6096e26;
-    const defaultFactor = 100;
-    const elementaryCharge = 1.602e-19; // Coulomb
-
 
     self.computeModel = () => 'animation';
 
@@ -45,44 +41,11 @@ SIREPO.app.controller('BeamlineController', function(appState, nulineService, fr
     const self = this;
     self.appState = appState;
 
-
-    function dataFileChanged() {
-        requestSender.getApplicationData(
-            {
-                method: 'process_data_file',
-                filename: appState.clone(appState.models.simulation.dataFile),
-            },
-            function(data) {
-                srdbg('data from', appState.models.simulation.dataFile, data);
-                let dataNames = data.header.split(/\s+/).filter((w) => {
-                    return w != '#' && w != '';
-                });
-                srdbg('names', dataNames);
-                appState.models.beamlineSettings.settings = dataNames;
-                let dataVals = data.values;
-                srdbg('vals', dataVals);
-                appState.saveChanges('simulation');
-            });
-        /*
-        requestSender.statelessCompute(
-            appState,
-            {
-                method: 'process_data_file',
-                filename: appState.clone(appState.models.simulation.dataFile)
-            },
-            function(data) {
-                srdbg('data from', appState.models.simulation.dataFile, data);
-            });
-
-         */
-    }
-
     function windowResize() {
         self.colClearFix = $window.matchMedia('(min-width: 1600px)').matches
             ? 6 : 4;
     }
 
-    //TODO(pjm): init from template to allow listeners to register before data is received
     self.init = () => {
         if (! self.simState) {
             self.simState = persistentSimulation.initSimulationState(self);
@@ -101,7 +64,6 @@ SIREPO.app.controller('BeamlineController', function(appState, nulineService, fr
     };
 
     windowResize();
-    $scope.$on('dataFile.changed', dataFileChanged);
     $scope.$on('sr-window-resize', windowResize);
     $scope.$on('modelChanged', () => {});
     $scope.$on('cancelChanges', function(e, name) {
@@ -182,7 +144,42 @@ SIREPO.app.directive('beamlineImage', function(appState, nulineService, panelSta
 });
 
 
+SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panelState, requestSender, $scope) {
+
+    const model = appState.models[$scope.modelName];
+    const dataFileField = 'dataFile';
+
+    function dataFileChanged() {
+        requestSender.getApplicationData(
+            {
+                method: 'process_data_file',
+                filename: appState.clone(model[dataFileField]),
+                model: $scope.modelName,
+                field: dataFileField,
+            },
+            function(data) {
+                appState.models.beamlineSettings.settings = data.settings;
+                appState.models.beamlineImageReport.imageFile = data.img;
+                appState.saveChanges(['beamlineSettings', 'beamlineImageReport',]);
+            });
+    }
+
+    $scope.$on('beamlineDataFile.changed', dataFileChanged);
+    //$scope.watchFields = [
+    //    ['beamlineDataFile.dataFile',], dataFileChanged
+    //];
+
+});
+
+
 SIREPO.viewLogic('beamlineImageView', function(appState, nulineService, panelState, $scope) {
+
+    const model = appState.models[$scope.modelName];
+
+    function updateImage() {
+    }
+
+    $scope.$on('beamlineImage.changed', updateImage);
 
 });
 
@@ -192,7 +189,6 @@ SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService
         new SIREPO.DOM.UIAttribute('data-ng-model', 'model[field]'),
     ]);
 
-    srdbg("CLBSLDSDAS!!");
     return {
         restrict: 'A',
         scope: {
@@ -208,7 +204,6 @@ SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService
             sel.toTemplate(),
         ].join(''),
         controller: function($scope, $element) {
-            srdbg('BLS', $scope);
             sel.addOptions(appState.models.beamlineSettings.settings);
         },
     };
@@ -246,8 +241,8 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             '<tr>',
             '</tr>',
                 '<tr data-ng-repeat="item in loadItems()">',
-                    '<td>{{ item }}</td>',
-                    '<td>{{ item }}</td>',
+                    '<td>{{ item.name }}</td>',
+                    '<td>{{ item.value }}</td>',
                   '<td style="text-align: right">',
                     '<div class="sr-button-bar-parent">',
                         '<div class="sr-button-bar" data-ng-class="sr-button-bar-active" >',
@@ -306,7 +301,6 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             };
 
             $scope.loadItems = function() {
-                //srdbg('LOAD ITEMS', appState.models.simulation);
                 $scope.items = appState.models[$scope.modelName].settings;  //$scope.field;
                 return $scope.items;
             };

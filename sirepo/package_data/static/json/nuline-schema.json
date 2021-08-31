@@ -39,8 +39,7 @@
             "value": ["Value", "Float", 0.0]
         },
         "beamlineSettings": {
-            "settings": ["", "BeamlineSettings", []],
-            "values": ["", "BeamlineValues", []]
+            "settings": ["", "BeamlineSettings", []]
         },
         "beamlineDataFile": {
             "dataFile": ["Data File", "InputFile", ""]

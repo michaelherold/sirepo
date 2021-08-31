@@ -25,6 +25,7 @@ _COL_TAG = "col_headers"
 _DATAFILE_EXT = '.dat'
 _IMAGE_ERROR_SIG = " - "
 _IMAGE_PREFIX = 'exp739_IPTS_25282_scan'
+_GET_APP_DATA_METHODS = ['process_data_file',]
 
 
 def background_percent_complete(report, run_dir, is_running):
@@ -40,10 +41,11 @@ def background_percent_complete(report, run_dir, is_running):
 
 
 def get_application_data(data, **kwargs):
-    pkdp('GET APP DATA {}', data)
+    if data.method not in _GET_APP_DATA_METHODS:
+        raise RuntimeError('method={}: unknown application data method'.format(data.method))
     if data.method != 'process_data_file':
         return PKDict()
-    return process_data_file(data.filename, True)
+    return process_data_file(data.filename, data.model, data.field, True)
 
 
 def new_simulation(data, new_simulation_data):
@@ -63,42 +65,18 @@ def python_source_for_model(data, model):
     return _generate_parameters_file(data)
 
 
-def stateless_compute_process_data_file(data):
-    return process_data_file(data.filename, True)
-
-
-def process_data_file(filename, image_name_in_header):
-    p = _SIM_DATA.lib_file_abspath(
-        _SIM_DATA.lib_file_name_with_model_field('simulation', 'dataFile', filename)
-    )
-    with open(p, 'r') as ff:
-        image_name, header, header_index = _process_header(ff, image_name_in_header)
-
-    array_data = _get_array(p, header, header_index).reshape(1, )
-
+def process_data_file(filename, model, field, image_name_in_header):
+    txt = pkio.read_text(
+        _SIM_DATA.lib_file_write_path(
+            _SIM_DATA.lib_file_name_with_model_field(model, field, filename)
+        )
+    ).splitlines()
+    image_name, header, header_index = _process_header(txt, image_name_in_header, filename)
+    vals = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
-        header=header,
+        settings=[PKDict(name=n, value=vals[i]) for i, n in enumerate(header)],
         img=image_name,
-        values=array_data.tolist()
     )
-
-
-def _get_array(filename, header, header_index):
-    arr_dtype = _construct_dtype(header)
-    array_data = numpy.loadtxt(filename, dtype=arr_dtype, skiprows=header_index + 1)
-
-    return array_data
-
-
-def _construct_dtype(header):
-    # First item will be comment character
-    header_items = header.split()[1:]
-
-    dtype = []
-    for item in header_items:
-        dtype.append((item, float))
-
-    return dtype
 
 
 def _get_image_name_from_tag(line):
@@ -106,27 +84,21 @@ def _get_image_name_from_tag(line):
     return r.strip()
 
 
-def _get_image_name_from_filename(file):
-    digits = re.findall(r'\d+', file.name)
-
-    # int coversion removes leading 0s
-    return _IMAGE_PREFIX + str(int(digits[-1]))
-
-
-def _process_header(file_obj, image_name_in_header):
+def _process_header(lines, image_name_in_header, file_name):
     image_name = None
-    lines = file_obj.readlines()
-    for i, ln in enumerate(lines):
+    header = ''
+    column_header_index = 0
+    for i, l in enumerate(lines):
         if image_name_in_header:
-            if _IMAGE_TAG in ln:
-                image_name = _get_image_name_from_tag(ln)
-        if _COL_TAG in ln:
+            if _IMAGE_TAG in l:
+                image_name = _get_image_name_from_tag(l)
+        if _COL_TAG in l:
             column_header_index = i + 1
-            header = lines[column_header_index]
+            header = [x for x in lines[column_header_index].split() if x != '#']
             break
 
     if not image_name_in_header:
-        image_name = _get_image_name_from_filename(file_obj)
+        image_name = _IMAGE_PREFIX + str(int(re.findall(r'\d+', file_name)[-1]))
 
     return image_name, header, column_header_index
 
@@ -136,8 +108,6 @@ def write_parameters(data, run_dir, is_parallel):
         run_dir.join(template_common.PARAMETERS_PYTHON_FILE),
         _generate_parameters_file(data),
     )
-
-
 
 
 def _generate_parameters_file(data):
