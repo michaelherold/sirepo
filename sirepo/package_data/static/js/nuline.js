@@ -14,9 +14,6 @@ SIREPO.app.config(() => {
     ].join('');
     SIREPO.appReportTypes = [
     ].join('');
-    SIREPO.FILE_UPLOAD_TYPE = {
-        'beamlineDataFile-dataFile': '.dat',
-    };
 });
 
 SIREPO.app.factory('nulineService', function(appState) {
@@ -174,9 +171,11 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 SIREPO.viewLogic('beamlineImageView', function(appState, nulineService, panelState, $scope) {
 
+    srdbg('beamlineImageView');
     const model = appState.models[$scope.modelName];
 
     function updateImage() {
+        srdbg('UPDATE IMG', model);
     }
 
     $scope.$on('beamlineImage.changed', updateImage);
@@ -184,7 +183,7 @@ SIREPO.viewLogic('beamlineImageView', function(appState, nulineService, panelSta
 });
 
 
-SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService, panelState, $scope) {
+SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService, panelState) {
     let sel = new SIREPO.DOM.UISelect('', [
         new SIREPO.DOM.UIAttribute('data-ng-model', 'model[field]'),
     ]);
@@ -204,13 +203,20 @@ SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService
             sel.toTemplate(),
         ].join(''),
         controller: function($scope, $element) {
-            sel.addOptions(appState.models.beamlineSettings.settings);
+            //srdbg(appState.models.beamlineSettings.settings);
+            let opts = appState.models.beamlineSettings.settings.map(s => {
+                return new SIREPO.DOM.UISelectOption(null, s.name, s.name);
+            });
+            srdbg(opts);
+            sel.addOptions(opts);
         },
     };
 
 });
 
 SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, panelState) {
+
+
 
     return {
         restrict: 'A',
@@ -228,7 +234,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             '<table class="table table-hover">',
               '<colgroup>',
                 '<col style="width: 20ex">',
-                '<col style="width: 20ex">',
+                //'<col style="width: 20ex">',
               '</colgroup>',
               '<thead>',
                 '<tr>',
@@ -242,7 +248,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             '</tr>',
                 '<tr data-ng-repeat="item in loadItems()">',
                     '<td>{{ item.name }}</td>',
-                    '<td>{{ item.value }}</td>',
+                    '<td><input type="text" data-ng-model="item.value"></td>',
                   '<td style="text-align: right">',
                     '<div class="sr-button-bar-parent">',
                         '<div class="sr-button-bar" data-ng-class="sr-button-bar-active" >',
@@ -253,7 +259,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                 '</tr>',
             '</tbody>',
             '</table>',
-            '<button data-ng-click="addItem()" id="sr-new-bevel" class="btn btn-info btn-xs pull-right">Add Setting <span class="glyphicon glyphicon-plus"></span></button>',
+            //'<button data-ng-click="addItem()" id="sr-new-setting" class="btn btn-info btn-xs pull-right">Add Setting <span class="glyphicon glyphicon-plus"></span></button>',
         ].join(''),
         controller: function($scope, $element) {
             let isEditing = false;
@@ -280,6 +286,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             };
 
             $scope.deleteItem = function(item) {
+                return;
                 var index = itemIndex(item);
                 if (index < 0) {
                     return;
@@ -301,7 +308,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             };
 
             $scope.loadItems = function() {
-                $scope.items = appState.models[$scope.modelName].settings;  //$scope.field;
+                $scope.items = appState.models[$scope.modelName].settings;
                 return $scope.items;
             };
 
@@ -334,6 +341,8 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
 });
 
 SIREPO.app.directive('optimizerTable', function(appState, panelState) {
+
+
     return {
         restrict: 'A',
         scope: {},

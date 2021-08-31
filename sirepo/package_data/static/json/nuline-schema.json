@@ -16,7 +16,8 @@
     "enum": {
         "BeamlineAutomationModel": [
             ["activaitCentered26", "Activiait Centered Plan 26"]
-        ]
+        ],
+        "BeamlineSetting": []
     },
     "localRoutes": {
         "beamline": {
