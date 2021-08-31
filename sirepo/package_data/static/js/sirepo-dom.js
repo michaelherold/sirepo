@@ -243,6 +243,23 @@ class UIRawHTML {
     }
 }
 
+class UIImage extends UIElement {
+    constructor(id, src, width, height) {
+        super('img', id);
+        this.setSource(src);
+        this.setSize(width, height);
+    }
+
+    setSize(width, height) {
+        this.setAttribute('width', width);
+        this.setAttribute('height', height);
+    }
+
+    setSource(src) {
+        this.setAttribute('src', src);
+    }
+}
+
 class UIInput extends UIElement {
     constructor(id, type, initVal, attrs) {
         super('input', id, attrs);
@@ -619,6 +636,7 @@ SIREPO.DOM = {
     UIElement: UIElement,
     UIEnum: UIEnum,
     UIEnumOption: UIEnumOption,
+    UIImage: UIImage,
     UIInput: UIInput,
     UIRawHTML: UIRawHTML,
     UISelect: UISelect,

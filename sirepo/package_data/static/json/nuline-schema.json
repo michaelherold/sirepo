@@ -31,6 +31,9 @@
         "beamlineAutomation": {
             "mlModel": ["", "BeamlineAutomationModel", "activaitCentered26"]
         },
+        "beamlineImageReport": {
+            "imageFile": ["", "String", ""]
+        },
         "beamlineSetting": {
             "name": ["Name", "BeamlineSetting", ""],
             "value": ["Value", "Float", 0.0]
@@ -39,11 +42,8 @@
             "settings": ["", "BeamlineSettings", []],
             "values": ["", "BeamlineValues", []]
         },
-        "dataFile": {
-            "file": ["Data File", "InputFile", ""]
-        },
-        "imageReport": {
-            "imageFile": ["", "String", ""]
+        "beamlineDataFile": {
+            "dataFile": ["Data File", "InputFile", ""]
         },
         "optimizerSettings": {
             "method": ["Optimization Method", "OptimizationMethod", "nmead"]
@@ -77,6 +77,11 @@
                 ]]
             ]
         },
+        "beamlineImageReport": {
+            "title": "",
+            "advanced": [],
+            "basic": []
+        },
         "beamlineSetting": {
             "advanced": [
                 "name"
@@ -93,16 +98,12 @@
                 "settings"
             ]
         },
-        "dataFile": {
+        "beamlineDataFile": {
             "title": "Data File",
             "advanced": [],
             "basic": [
-                "simulation.dataFile"
+                "dataFile"
             ]
-        },
-        "imageReport": {
-            "advanced": [],
-            "basic": []
         },
         "simulationStatus": {
             "title": "Optimization Targets",
