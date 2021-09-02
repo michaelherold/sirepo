@@ -299,6 +299,74 @@ def url_safe_hash(value):
     return hashlib.md5(pkcompat.to_bytes(value)).hexdigest()
 
 
+def validate_safe_zip(zip_file_name, target_dir='.', *args):
+    """Determine whether a zip file is safe to extract from
+
+    Performs the following checks:
+
+        - Each file must end up at or below the target directory
+        - Files must be 100MB or smaller
+        - If possible to determine, disallow "non-regular" and executable files
+        - Existing files cannot be overwritten
+
+    Args:
+        zip_file_name (str): name of the zip file to examine
+        target_dir (str): name of the directory to extract into (default to current directory)
+        *args: list of validator functions taking a zip file as argument and returning True or False and a string
+    Throws:
+        AssertionError if any test fails, otherwise completes silently
+    """
+
+    import os
+    import zipfile
+
+    def path_is_sub_path(path, dir_name):
+        real_dir = os.path.realpath(dir_name)
+        end_path = os.path.realpath(real_dir + '/' + path)
+        return end_path.startswith(real_dir)
+
+    def file_exists_in_dir(file_name, dir_name):
+        return os.path.exists(os.path.realpath(dir_name + '/' + file_name))
+
+    def file_attrs_ok(attrs):
+
+        # ms-dos attributes only use two bytes and don't contain much useful info, so pass them
+        if attrs < 2 << 16:
+            return True
+
+        # UNIX file attributes live in the top two bytes
+        mask = attrs >> 16
+        # files: 0o0100000
+        # directories: 0o0040000
+        is_file = mask & 0o0100000
+        is_dir = mask & 0o0040000
+        is_file_or_dir = is_file | is_dir
+
+        # directories must be "executable" for them to get zipped (???)
+        no_exec = (mask & (0o0000100 | 0o0000010 | 0o0000001) == 0) | is_dir
+
+        return is_file_or_dir and no_exec
+
+    # 100MB
+    max_file_size = 100000000
+
+    zip_file = zipfile.ZipFile(zip_file_name)
+
+    for f in zip_file.namelist():
+        i = zip_file.getinfo(f)
+        s = i.file_size
+        attrs = i.external_attr
+
+        assert path_is_sub_path(f, target_dir), 'Cannot extract {} above target directory'.format(f)
+        assert s <= max_file_size, '{} too large ({} > {})'.format(f, str(s), str(max_file_size))
+        assert file_attrs_ok(attrs), '{} not a normal file or is executable'.format(f)
+        assert not file_exists_in_dir(f, target_dir), 'Cannot overwrite file {} in target directory {}'.format(f, target_dir)
+
+    for validator in args:
+        res, err_string = validator(zip_file)
+        assert res, '{} failed validator: {}'.format(os.path.basename(zip_file_name), err_string)
+
+
 def _raise(exc, fmt, *args, **kwargs):
     import werkzeug.exceptions
 

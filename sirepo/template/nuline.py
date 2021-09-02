@@ -5,6 +5,9 @@ u"""Controls execution template.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
 from __future__ import absolute_import, division, print_function
+
+import zipfile
+
 from pykern import pkio
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp
@@ -14,7 +17,7 @@ import numpy
 import re
 import sirepo.sim_data
 import sirepo.simulation_db
-import sirepo.template.madx
+import sirepo.util
 
 _SIM_DATA, SIM_TYPE, _SCHEMA = sirepo.sim_data.template_globals()
 _SUMMARY_CSV_FILE = 'summary.csv'
@@ -25,7 +28,6 @@ _COL_TAG = "col_headers"
 _DATAFILE_EXT = '.dat'
 _IMAGE_ERROR_SIG = " - "
 _IMAGE_PREFIX = 'exp739_IPTS_25282_scan'
-_GET_APP_DATA_METHODS = ['process_data_file',]
 
 
 def background_percent_complete(report, run_dir, is_running):
@@ -41,11 +43,7 @@ def background_percent_complete(report, run_dir, is_running):
 
 
 def get_application_data(data, **kwargs):
-    if data.method not in _GET_APP_DATA_METHODS:
-        raise RuntimeError('method={}: unknown application data method'.format(data.method))
-    if data.method != 'process_data_file':
-        return PKDict()
-    return process_data_file(data.filename, data.model, data.field, True)
+    return globals()[data.method](data)
 
 
 def new_simulation(data, new_simulation_data):
@@ -65,18 +63,44 @@ def python_source_for_model(data, model):
     return _generate_parameters_file(data)
 
 
-def process_data_file(filename, model, field, image_name_in_header):
+def _process_data_file(data):
     txt = pkio.read_text(
         _SIM_DATA.lib_file_write_path(
-            _SIM_DATA.lib_file_name_with_model_field(model, field, filename)
+            _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
         )
     ).splitlines()
-    image_name, header, header_index = _process_header(txt, image_name_in_header, filename)
+    image_name, header, header_index = _process_header(
+        txt,
+        data.image_name_in_header,
+        data.filename
+    )
     vals = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
         settings=[PKDict(name=n, value=vals[i]) for i, n in enumerate(header)],
         img=image_name,
     )
+
+
+def _process_zip_file(data):
+
+    def find_path_to_dir(dir_path):
+        pass
+
+    data_path = 'Datafiles'
+    img_path = 'Images'
+    if not data.filename:
+        return PKDict()
+    f = _SIM_DATA.lib_file_write_path(
+        _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
+    )
+    sirepo.util.validate_safe_zip(f)
+    d = {}
+    with zipfile.ZipFile(f) as z:
+        dp = [p for p in z.namelist() if data_path in p and not z.getinfo(p).is_dir()]
+        df = [pkio.py_path(p).basename for p in dp]
+        d = {k: dp[i] for i, k in enumerate(df)}
+
+    return PKDict(d)
 
 
 def _get_image_name_from_tag(line):
