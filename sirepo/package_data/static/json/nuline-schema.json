@@ -46,7 +46,7 @@
             "dataFile": ["Data File", "InputFile", ""]
         },
         "beamlineFileList": {
-            "fileList": ["Settings File", "FileList", []]
+            "fileList": ["Settings File", "FileList", ""]
         },
         "optimizerSettings": {
             "method": ["Optimization Method", "OptimizationMethod", "nmead"]

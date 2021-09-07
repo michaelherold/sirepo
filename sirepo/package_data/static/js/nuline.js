@@ -157,6 +157,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
     }
 
     function dataFileChanged() {
+        appState.models.beamlineImageReport.imageFile = '';
         requestSender.getApplicationData(
             {
                 method: '_process_zip_file',
@@ -165,7 +166,10 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
                 field: dataFileField,
             },
             function(data) {
-                srdbg('beamline data', data)
+                srdbg('beamline data', data);
+                //SIREPO.APP_SCHEMA.enum.FileList = Object.keys(data).map((k) => {
+                //    return [data[k], k];
+                //});
                 appState.models.beamlineFileList.fileList = data;
                 appState.saveChanges('beamlineFileList');
                 //appState.models.beamlineSettings.settings = data.settings;
@@ -184,7 +188,6 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 SIREPO.viewLogic('beamlineImageReportView', function(appState, nulineService, panelState, $scope) {
 
-    srdbg('beamlineImageReportView');
     const model = appState.models[$scope.modelName];
 
     function updateImage() {
@@ -377,9 +380,9 @@ SIREPO.app.directive('beamlineFileSelector', function(appState, nulineService, p
             function updateSelector() {
                 sel.clearChildren();
                 sel.addOptions(Object.keys($scope.field).map((k) => {
-                    return new SIREPO.DOM.UISelectOption('sr-beamline-file-options-' + k, k, $scope.field[k]);
+                    return new SIREPO.DOM.UIEnumOption(null, [k, $scope.field[k]]);
                 }));
-                $(sel.getIdSelector()).html(sel.toTemplate());
+                sel.update();
             }
 
             $scope.$on('beamlineFileList.changed', () => {

@@ -32,12 +32,11 @@ class UIAttribute {  //extends UIOutput {
 class UIElement {  //extends UIOutput {
     // tag name, id, attrs array
     // even though id is an attribute, give it its own parameter
+    // we will generate an id if one is not provided
     constructor(tag, id, attrs) {
         this.attrs = {};
         this.addAttributes(attrs || []);
-        if (id) {
-            this.addAttribute('id', id);
-        }
+        this.addAttribute('id', id ? id : `sr-${tag}-${Number.MAX_SAFE_INTEGER * Math.random()}`);
         this.children = [];
         this.id = id;
         this.parent = null;
@@ -203,6 +202,11 @@ class UIElement {  //extends UIOutput {
             s += c.toTemplate();
         }
         return s;
+    }
+
+    // ???
+    update() {
+        $(`${this.getIdSelector()}`).html(this.toTemplate());
     }
 }
 
