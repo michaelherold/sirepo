@@ -11,7 +11,7 @@ SIREPO.app.config(() => {
         '<div data-ng-switch-when="BeamlineSetting" class="col-sm-12">',
           '<div data-beamline-setting-selector="" data-field="model[field]" data-field-name="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
-        '<div data-ng-switch-when="FileList" class="col-sm-12">',
+        '<div data-ng-switch-when="FileList" class="col-sm-5">',
           '<div data-beamline-file-selector="" data-field="model[field]" data-field-name="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
     ].join('');
@@ -152,11 +152,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
     const model = appState.models[$scope.modelName];
     const dataFileField = 'dataFile';
 
-    function updateFileList() {
-
-    }
-
-    function dataFileChanged() {
+    function loadDataFile() {
         appState.models.beamlineImageReport.imageFile = '';
         requestSender.getApplicationData(
             {
@@ -167,10 +163,9 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
             },
             function(data) {
                 srdbg('beamline data', data);
-                //SIREPO.APP_SCHEMA.enum.FileList = Object.keys(data).map((k) => {
-                //    return [data[k], k];
-                //});
-                appState.models.beamlineFileList.fileList = data;
+                model.fileList = data;
+                appState.saveQuietly($scope.modelName);
+                appState.models.beamlineFileList.settingsFile = data[Object.keys(data)[0]];
                 appState.saveChanges('beamlineFileList');
                 //appState.models.beamlineSettings.settings = data.settings;
                 //appState.models.beamlineImageReport.imageFile = data.img;
@@ -178,7 +173,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
             });
     }
 
-    $scope.$on('beamlineDataFile.changed', dataFileChanged);
+    $scope.$on('beamlineDataFile.changed', loadDataFile);
     //$scope.watchFields = [
     //    ['beamlineDataFile.dataFile',], dataFileChanged
     //];
@@ -356,10 +351,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
 });
 
 SIREPO.app.directive('beamlineFileSelector', function(appState, nulineService, panelState) {
-    let sel = new SIREPO.DOM.UISelect('sr-beamline-file-selector', [
-        new SIREPO.DOM.UIAttribute('data-ng-model', 'model[field]'),
-    ]);
-    sel.addClasses('form-control');
+    let sel = SIREPO.DOM.UIEnum.empty('beamlineFiles', 'dropdown');
 
     return {
         restrict: 'A',
@@ -377,17 +369,22 @@ SIREPO.app.directive('beamlineFileSelector', function(appState, nulineService, p
         ].join(''),
         controller: function($scope, $element) {
 
+            $scope.selector = sel;
+
             function updateSelector() {
-                sel.clearChildren();
-                sel.addOptions(Object.keys($scope.field).map((k) => {
-                    return new SIREPO.DOM.UIEnumOption(null, [k, $scope.field[k]]);
-                }));
+                srdbg($scope.fieldName, 'FILES', $scope.model[$scope.fieldName]);
+                const f = appState.models.beamlineDataFile.fileList || [];
+                // just use SREnum directly?
+                let e = Object.keys(f).map((k) => {
+                    return [f[k], k];
+                });
+                sel.setEntries(e);
                 sel.update();
             }
 
             $scope.$on('beamlineFileList.changed', () => {
-                srdbg('FILES', $scope.field);
-                updateSelector();
+                //srdbg('FILES', $scope.model[$scope.fieldName]);
+                //updateSelector();
             });
 
             updateSelector();

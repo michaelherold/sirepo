@@ -46,7 +46,7 @@
             "dataFile": ["Data File", "InputFile", ""]
         },
         "beamlineFileList": {
-            "fileList": ["Settings File", "FileList", ""]
+            "settingsFile": ["Settings File", "FileList", ""]
         },
         "optimizerSettings": {
             "method": ["Optimization Method", "OptimizationMethod", "nmead"]
@@ -106,7 +106,7 @@
             "advanced": [],
             "basic": [
                 "dataFile",
-                "beamlineFileList.fileList"
+                "beamlineFileList.settingsFile"
             ]
         },
         "simulationStatus": {

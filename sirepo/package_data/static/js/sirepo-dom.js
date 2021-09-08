@@ -5,7 +5,7 @@ var srdbg = SIREPO.srdbg;
 
 // will get rid of angular stuff but need it initially
 
-class UIAttribute {  //extends UIOutput {
+class UIAttribute {
     constructor(name, value) {
         this.name = name;
         this.setValue(value);
@@ -277,50 +277,65 @@ class UIInput extends UIElement {
     }
 }
 
-class UIEnum extends UIInput {
+class UIEnum extends UIElement {
     static ENUM_LAYOUT_PROPS() {
         return {
             buttons: {
-                entryClass: UIEnumButton,
+                inputClass: UIEnumButton,
                 element: 'div',
                 elementClasses: 'btn-group',
             },
             dropdown: {
-                entryClass: UIEnumOption,
+                inputClass: UIEnumOption,
                 element: 'select',
                 elementClasses: 'form-control',
             },
         };
     }
 
+    // will need to know about the size of the columns etc. but for now just use number of
+    // entries
+    static autoLayout(srEnum) {
+        const lp = UIEnum.ENUM_LAYOUT_PROPS();
+        return srEnum.entries.length < 4 ? lp.buttons : lp.dropdown;
+    }
+
+    // for dynamic UI
+    static empty(name, layout) {
+        return new UIEnum(
+            new SIREPO.APP.SREnum(name, []),
+            layout
+        );
+    }
+
     static enumMatch(name) {
         return new UIMatch(name, new UIEnum(new SIREPO.APP.SREnum(name)));
     }
 
-    constructor(model) {
-        const lp = UIEnum.ENUM_LAYOUT_PROPS();
-        let props = lp[model.layout] || UIEnum.autoLayout(model);
-        super(props.element, `sr-${SIREPO.UTILS.camelToKebabCase(model.name)}`);
+    constructor(srEnum, layout) {
+        let props = layout ? UIEnum.ENUM_LAYOUT_PROPS()[layout] : UIEnum.autoLayout(srEnum);
+        super(props.element, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
+        this.srEnum = srEnum;
+        this.layout = layout;
+        this.layoutProps = props;
         this.addClasses(props.elementClasses);
-        if (model.layout === 'buttons') {
-            this.addAttribute('data-ng-model', 'model[field]');
-        }
-        for (let e of model.entries) {
-            this.addChild(new props.entryClass(e));
+        this.addAttribute('data-ng-model', 'model[field]');
+        for (let e in srEnum.entries) {
+            this.addChild(new props.inputClass(null, e));
         }
     }
 
-    // will need to know about the size of the columns etc. but for now just use number of
-    // entries
-    static autoLayout(model) {
-        const lp = UIEnum.ENUM_LAYOUT_PROPS();
-        if (model.entries.length < 4) {
-            return lp.buttons;
+
+    setEntries(schEntries) {
+        this.clearChildren();
+        this.srEnum.setEntries(schEntries);
+        for (let e in this.srEnum.entries) {
+            this.addChild(new this.layoutProps.inputClass(null, this.srEnum.entries[e]));
         }
-        else {
-            return lp.dropdown;
-        }
+        //this.update();
     }
+
+
 }
 
 class UIEnumButton extends UIElement {
@@ -365,8 +380,8 @@ class UISelectOption extends UIElement {
 }
 
 class UIEnumOption extends UISelectOption {
-    constructor(id, enumItem) {
-        super(id, `${enumItem[1]}`, `${enumItem[0]}`);
+    constructor(id, srEnum) {
+        super(id, srEnum.label, srEnum.value);
     }
 }
 
