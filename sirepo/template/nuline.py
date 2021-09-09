@@ -74,9 +74,9 @@ def _process_data_file(data):
         data.image_name_in_header,
         data.filename
     )
-    vals = [float(x) for x in txt[header_index + 1].split()]
+    s = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
-        settings=[PKDict(name=n, value=vals[i]) for i, n in enumerate(header)],
+        settings=[PKDict(name=n, value=s[i]) for i, n in enumerate(header)],
         img=image_name,
     )
 

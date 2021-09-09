@@ -34,14 +34,15 @@ class UIElement {  //extends UIOutput {
     // even though id is an attribute, give it its own parameter
     // we will generate an id if one is not provided
     constructor(tag, id, attrs) {
+        this.tag = tag;
         this.attrs = {};
         this.addAttributes(attrs || []);
-        this.addAttribute('id', id ? id : `sr-${tag}-${Number.MAX_SAFE_INTEGER * Math.random()}`);
+        this.id = this.srId(id);
+        this.addAttribute('id', this.id);
         this.children = [];
-        this.id = id;
         this.parent = null;
         this.siblings = [];
-        this.tag = tag;
+
         this.text = '';
     }
 
@@ -186,6 +187,10 @@ class UIElement {  //extends UIOutput {
         this.text = str;  //this.encode(str);
     }
 
+    srId(id) {
+        return id ? id : `sr-${this.tag}-${Math.round(Number.MAX_SAFE_INTEGER * Math.random())}`;
+    }
+
     toDOM() {
         return document.getElementById(this.id);
     }
@@ -204,9 +209,14 @@ class UIElement {  //extends UIOutput {
         return s;
     }
 
-    // ???
     update() {
         $(`${this.getIdSelector()}`).html(this.toTemplate());
+    }
+}
+
+class UIDiv extends UIElement {
+    constructor(id, attrs) {
+        super('div', id, attrs);
     }
 }
 
@@ -265,6 +275,35 @@ class UIImage extends UIElement {
 }
 
 class UIInput extends UIElement {
+
+    static getForm(element) {
+        return element.toDOM().form;
+    }
+
+    static getValue(element) {
+        return element.toDOM().value;
+    }
+
+    static addListener(element, eventType, fn) {
+        if (! element.listeners) {
+            element.listeners = {};
+        }
+        element.listeners[eventType] = fn;
+        element.toDOM().addEventListener(eventType, fn);
+    }
+
+    static removeListener(element, eventType, fn) {
+        element.toDOM().removeEventListener(eventType, fn);
+        delete element.listeners[eventType];
+    }
+
+    static destroy() {
+        for (let e in this.listeners) {
+            UIInput.removeListener(e, this.listeners[e]);
+        }
+        this.listeners = null;
+    }
+
     constructor(id, type, initVal, attrs) {
         super('input', id, attrs);
         this.addAttribute('type', type);
@@ -272,8 +311,24 @@ class UIInput extends UIElement {
         this.addSibling(new UIWarning());
     }
 
+    addListener(eventType, fn) {
+        UIInput.addListener(this, eventType, fn);
+    }
+
+    destroy() {
+        UIInput.destroy();
+    }
+
+    getForm() {
+        return UIInput.getForm(this);
+    }
+
     getValue() {
-        return this.toDOM().value;
+        return UIInput.getValue(this);
+    }
+
+    removeListener(eventType, fn) {
+        UIInput.removeListener(this, eventType, fn);
     }
 }
 
@@ -282,13 +337,15 @@ class UIEnum extends UIElement {
         return {
             buttons: {
                 inputClass: UIEnumButton,
-                element: 'div',
+                parentElement: 'div',
                 elementClasses: 'btn-group',
+                superclass: UIDiv,
             },
             dropdown: {
                 inputClass: UIEnumOption,
-                element: 'select',
+                parentElement: 'select',
                 elementClasses: 'form-control',
+                superclass: UISelect,
             },
         };
     }
@@ -314,17 +371,31 @@ class UIEnum extends UIElement {
 
     constructor(srEnum, layout) {
         let props = layout ? UIEnum.ENUM_LAYOUT_PROPS()[layout] : UIEnum.autoLayout(srEnum);
-        super(props.element, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
+        super(props.parentElement, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
         this.srEnum = srEnum;
         this.layout = layout;
         this.layoutProps = props;
         this.addClasses(props.elementClasses);
-        this.addAttribute('data-ng-model', 'model[field]');
         for (let e in srEnum.entries) {
             this.addChild(new props.inputClass(null, e));
         }
     }
 
+    addListener(eventType, fn) {
+        UIInput.addListener(this, eventType, fn);
+    }
+
+    destroy() {
+        UIInput.destroy();
+    }
+
+    getForm() {
+       return UIInput.getForm(this);
+    }
+
+    getValue() {
+        return UIInput.getValue(this);
+    }
 
     setEntries(schEntries) {
         this.clearChildren();
@@ -332,9 +403,16 @@ class UIEnum extends UIElement {
         for (let e in this.srEnum.entries) {
             this.addChild(new this.layoutProps.inputClass(null, this.srEnum.entries[e]));
         }
-        //this.update();
     }
 
+
+    setOnChange(fn) {
+        this.addListener('change', fn);
+    }
+
+    setValue(v) {
+        this.toDOM().value = v;
+    }
 
 }
 
