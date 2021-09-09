@@ -151,8 +151,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
     const model = appState.models[$scope.modelName];
     const dataFileField = 'dataFile';
-    $scope.model = model;
-    //srdbg('sf', $scope.modelName, appState.models.beamlineSettingsFile);
+    let dataFile = model[dataFileField];
 
     function loadDataFile() {
         srdbg('LDF');
@@ -168,19 +167,17 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
             },
             function(data) {
                 appState.models.beamlineSettingsFileList.fileList = data;
-                let k0 = Object.keys(data)[0];
-                let d0 = data[k0];
-                srdbg('K0', k0, 'D0', d0);
-                //appState.models.beamlineSettingsFile.settingsFile = data[Object.keys(data)[0]];
-                //srdbg('sf', appState.models.beamlineSettingsFile);
                 appState.saveChanges('beamlineSettingsFileList');
-                //appState.saveChanges('beamlineSettingsFile');
             });
     }
 
     $scope.$on('beamlineDataFile.changed', () => {
-        srdbg('BLDF CH');
-        loadDataFile();
+        // this model and the settings file selector are in the same view, so it will
+        // get changed regardless of whether dataFile changed
+        if (dataFile !== model[dataFileField]) {
+            loadDataFile();
+        }
+        dataFile = model[dataFileField];
     });
     //$scope.$watch('model.dataFile', (n, o, s) => {
     //    srdbg('DF CH', n, o);
@@ -384,14 +381,14 @@ SIREPO.app.directive('beamlineSettingsFileSelector', function(appState, nulineSe
             sel.toTemplate(),
         ].join(''),
         controller: function($scope, $element) {
+
             function selChanged() {
                 $scope.$apply(
                     $scope.model[$scope.field] = sel.getValue()
                 );
             }
-            $scope.$on('beamlineSettingsFileList.saved', () => {
-                updateSelector();
-            });
+
+            $scope.$on('beamlineSettingsFileList.saved', updateSelector);
 
             $scope.$on('$destroy', () => {
                 sel.destroy();
