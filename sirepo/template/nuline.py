@@ -63,12 +63,31 @@ def python_source_for_model(data, model):
     return _generate_parameters_file(data)
 
 
-def _process_data_file(data):
-    txt = pkio.read_text(
-        _SIM_DATA.lib_file_write_path(
+def _lib_file_path(data):
+    return _SIM_DATA.lib_file_write_path(
             _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
         )
-    ).splitlines()
+
+
+def _get_image(data):
+    import base64
+    from pykern import pkcompat
+
+    with zipfile.ZipFile(_lib_file_path(data), 'r') as z:
+        dp = [p for p in z.namelist() if 'Images' in p and data.path in p][0]
+        img = pkcompat.from_bytes(base64.urlsafe_b64encode(z.read(dp)))
+
+    return PKDict(
+        src=img
+    )
+
+
+def _get_settings(data):
+    from pykern import pkcompat
+
+    f = _lib_file_path(data)
+    with zipfile.ZipFile(f, 'r') as z:
+        txt = pkcompat.from_bytes(z.read(data.path)).splitlines()
     image_name, header, header_index = _process_header(
         txt,
         data.image_name_in_header,
@@ -83,20 +102,13 @@ def _process_data_file(data):
 
 def _process_zip_file(data):
 
-    def find_path_to_dir(dir_path):
-        pass
-
-    data_path = 'Datafiles'
-    img_path = 'Images'
     if not data.filename:
         return PKDict()
-    f = _SIM_DATA.lib_file_write_path(
-        _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
-    )
+    f = _lib_file_path(data)
     sirepo.util.validate_safe_zip(f)
     d = {}
-    with zipfile.ZipFile(f) as z:
-        dp = [p for p in z.namelist() if data_path in p and not z.getinfo(p).is_dir()]
+    with zipfile.ZipFile(f, 'r') as z:
+        dp = [p for p in z.namelist() if 'Datafiles' in p and not z.getinfo(p).is_dir()]
         df = [pkio.py_path(p).basename for p in dp]
         d = {k: dp[i] for i, k in enumerate(df)}
 
