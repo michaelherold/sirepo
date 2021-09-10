@@ -1,10 +1,49 @@
 class SRApp {
+
+    static SCHEMA_TYPES() {
+        // order matters, as model requires enum and view requies model
+        return {
+            enum: SREnum,
+            model: SRModel,
+            view: SRView,
+        }
+    }
+
     constructor(name, schema) {
         this.name = name;
-        this.enums = {};
-        for (let e in schema.enum) {
-            this.enums[e] = new SREnum(e, schema.enum[e]);
+
+        const types = SRApp.SCHEMA_TYPES();
+        for (let t of Object.keys(types)) {
+            this[t] = {};
+            for (let x in schema[t]) {
+                this[t][x] = new types[t](this, x, schema[t][x]);
+            }
         }
+    }
+}
+
+class SRModel {
+    constructor(app, name, schema) {
+        this.name = name;
+        this.fields = {};
+        for (let f in schema) {
+            this.fields[f] = SRField(app, f, schema[f]);
+        }
+    }
+}
+
+
+class SRView {
+    constructor(app, name, schema) {
+        this.name = name;
+        this.pages = {};
+    }
+}
+
+class SRField {
+    constructor(app, name, schema) {
+        this.name = name;
+        this.value = null;
     }
 }
 
