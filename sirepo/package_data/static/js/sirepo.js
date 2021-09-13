@@ -490,6 +490,9 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
     };
 
     self.deepEquals = function(v1, v2) {
+        if (v1 === v2) {
+            return true;
+        }
         if (angular.isArray(v1) && angular.isArray(v2)) {
             if (v1.length != v2.length) {
                 return false;
@@ -1198,7 +1201,10 @@ SIREPO.app.factory('frameCache', function(appState, panelState, requestSender, $
             ? 1000 / parseInt(appState.models[modelName].framesPerSecond || 2)
             : 0;
         var requestFunction = function() {
-            panelState.setLoading(modelName, true);
+            if (SIREPO.SLOW_ANIMATION) {
+                // some apps like SRW may take a long time to process a frame
+                panelState.setLoading(modelName, true);
+            }
             requestSender.sendRequest(
                 {
                     'routeName': 'simulationFrame',
