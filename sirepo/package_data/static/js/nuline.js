@@ -16,6 +16,7 @@ SIREPO.app.config(() => {
         '</div>',
     ].join('');
     SIREPO.appReportTypes = [
+        '<div data-ng-switch-when="beamlineImage" data-beamline-image="" data-model-name="{{ modelKey }}"></div>',
     ].join('');
     SIREPO.FILE_UPLOAD_TYPE = {
         'beamlineDataFile-dataFile': '.h5,.hdf5,.zip',
@@ -34,7 +35,6 @@ SIREPO.app.factory('nulineService', function(appState) {
                 appState.models.simulationStatus.animation.state
             ) < 0;
     };
-
 
     appState.setAppService(self);
     return self;
@@ -124,29 +124,28 @@ SIREPO.viewLogic('beamlineAutomationView', function(appState, nulineService, pan
 
 
 SIREPO.app.directive('beamlineImage', function(appState, nulineService, panelState, $scope) {
-    let img = new SIREPO.DOM.UIImage('sr-beamline-img');
+    let img = new SIREPO.DOM.UIImage('sr-beamline-img', '', 128, 128);
 
     return {
         restrict: 'A',
         scope: {
-            field: '=',
-            modelName: '=',
+            modelName: '@',
         },
         template: [
-            '<div class="col-sm-12">',
-                '<div class="panel-heading clearfix">',
-                img.toTemplate(),
-                '</div>',
-            '</div>'
+            img.toTemplate(),
         ].join(''),
         controller: function($scope, $element) {
-
+            srdbg('BLI');
+            const model = appState.models[$scope.modelName];
             function updateImage() {
-
+                img.src = model.imageSource;
+                img.update();
             }
             $scope.$on('beamlineSettings.changed', () => {
-
+                updateImage();
             });
+
+            updateImage();
         },
     };
 
@@ -308,7 +307,8 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                     },
                     function(data) {
                         $scope.model[$scope.field] = data.settings;
-                        appState.models.beamlineImageReport.imageFile = data.img;
+                        appState.models.beamlineImageReport.imageFile = data.imageFile;
+                        appState.models.beamlineImageReport.imageSource = data.imageSource;
                         appState.saveChanges([$scope.modelName, 'beamlineImageReport'], () => {
                             $scope.loadItems();
                         })

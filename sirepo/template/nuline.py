@@ -83,20 +83,25 @@ def _get_image(data):
 
 
 def _get_settings(data):
+    import base64
     from pykern import pkcompat
 
     f = _lib_file_path(data)
     with zipfile.ZipFile(f, 'r') as z:
         txt = pkcompat.from_bytes(z.read(data.path)).splitlines()
-    image_name, header, header_index = _process_header(
-        txt,
-        data.image_name_in_header,
-        data.filename
-    )
+        image_name, header, header_index = _process_header(
+            txt,
+            data.image_name_in_header,
+            data.filename
+        )
+        dp = [p for p in z.namelist() if image_name in p][0]
+        src = pkcompat.from_bytes(base64.urlsafe_b64encode(z.read(dp)))
+
     s = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
         settings=[PKDict(name=n, value=s[i]) for i, n in enumerate(header)],
-        img=image_name,
+        imageFile=image_name,
+        imageSource=src
     )
 
 
