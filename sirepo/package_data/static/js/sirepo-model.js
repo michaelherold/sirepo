@@ -27,7 +27,7 @@ class SRModel {
         this.name = name;
         this.fields = {};
         for (let f in schema) {
-            this.fields[f] = SRField(app, f, schema[f]);
+            this.fields[f] = new SRField(app, f, schema[f]);
         }
     }
 }
@@ -41,10 +41,26 @@ class SRView {
 }
 
 class SRField {
+
     constructor(app, name, schema) {
+        const INDEX_LABEL = 0;
+        const INDEX_TYPE = 1;
+        const INDEX_DEFAULT_VALUE = 2;
+        const INDEX_TOOL_TIP = 3;
+        const INDEX_MIN = 4;
+        const INDEX_MAX = 5;
+
         this.name = name;
-        this.value = null;
+
+        this.label = schema[INDEX_LABEL];
+        this.max = schema[INDEX_MAX];
+        this.min = schema[INDEX_MIN];
+        this.value = schema[INDEX_DEFAULT_VALUE];
+        this.toolTip = schema[INDEX_TOOL_TIP];
+        this.type = schema[INDEX_TYPE];
     }
+
+
 }
 
 // takes an array of the form [<value>, <label>]

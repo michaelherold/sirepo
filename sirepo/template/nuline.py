@@ -84,6 +84,7 @@ def _get_image(data):
 
 def _get_settings(data):
     import base64
+    import mimetypes
     from pykern import pkcompat
 
     f = _lib_file_path(data)
@@ -95,12 +96,14 @@ def _get_settings(data):
             data.filename
         )
         dp = [p for p in z.namelist() if image_name in p][0]
-        src = pkcompat.from_bytes(base64.urlsafe_b64encode(z.read(dp)))
+        # Note: do not use urlsafe_b64encode()
+        src = pkcompat.from_bytes(base64.b64encode(z.read(dp)))
 
     s = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
         settings=[PKDict(name=n, value=s[i]) for i, n in enumerate(header)],
         imageFile=image_name,
+        imageType=mimetypes.guess_type(dp)[0],
         imageSource=src
     )
 

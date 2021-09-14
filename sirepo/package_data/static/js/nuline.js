@@ -8,9 +8,9 @@ SIREPO.app.config(() => {
         '<div data-ng-switch-when="BeamlineSettings" class="col-sm-12">',
           '<div data-beamline-settings-table="" data-field="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
-        '<div data-ng-switch-when="BeamlineSetting" class="col-sm-12">',
-          '<div data-beamline-setting-selector="" data-field="model[field]" data-field-name="field" data-model="model" data-model-name="modelName"></div>',
-        '</div>',
+        //'<div data-ng-switch-when="BeamlineSetting" class="col-sm-12">',
+        //  '<div data-beamline-setting-selector="" data-field="model[field]" data-field-name="field" data-model="model" data-model-name="modelName"></div>',
+        //'</div>',
         '<div data-ng-switch-when="FileList" class="col-sm-5">',
           '<div data-beamline-settings-file-selector="" data-field="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
@@ -123,35 +123,6 @@ SIREPO.viewLogic('beamlineAutomationView', function(appState, nulineService, pan
 });
 
 
-SIREPO.app.directive('beamlineImage', function(appState, nulineService, panelState, $scope) {
-    let img = new SIREPO.DOM.UIImage('sr-beamline-img', '', 128, 128);
-
-    return {
-        restrict: 'A',
-        scope: {
-            modelName: '@',
-        },
-        template: [
-            img.toTemplate(),
-        ].join(''),
-        controller: function($scope, $element) {
-            srdbg('BLI');
-            const model = appState.models[$scope.modelName];
-            function updateImage() {
-                img.src = model.imageSource;
-                img.update();
-            }
-            $scope.$on('beamlineSettings.changed', () => {
-                updateImage();
-            });
-
-            updateImage();
-        },
-    };
-
-});
-
-
 SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panelState, requestSender, $scope) {
 
     const model = appState.models[$scope.modelName];
@@ -187,31 +158,31 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 });
 
+SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
+    let img = new SIREPO.DOM.UIImage('sr-beamline-img', '');
 
-SIREPO.viewLogic('beamlineImageReportView', function(appState, nulineService, panelState, $scope) {
-
-    const model = appState.models[$scope.modelName];
-
-    function updateImage() {
-        srdbg('UPDATE IMG', model);
-        requestSender.getApplicationData(
-            {
-                method: '_get_image',
-                field: 'dataFile',
-                filename: appState.clone(appState.models.beamlineDataFile.dataFile),
-                model: 'beamlineDataFile',
-                path: model.imageFile,
-            },
-            function(data) {
-
+    return {
+        restrict: 'A',
+        scope: {
+            modelName: '@',
+        },
+        template: [
+            img.toTemplate(),
+        ].join(''),
+        controller: function ($scope) {
+            const model = appState.models[$scope.modelName];
+            function updateImage() {
+                img.setSource(`data:${model.imageSource ? model.imageSource : 'image/png'};base64,${model.imageSource}`);
+                img.update();
+            }
+            $scope.$on('beamlineSettings.changed', () => {
+                updateImage();
             });
 
-    }
-
-    $scope.$on('beamlineImageReport.changed', updateImage);
-
+            updateImage();
+        },
+    };
 });
-
 
 SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService, panelState) {
     let sel = new SIREPO.DOM.UISelect('', [
@@ -303,12 +274,13 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                         filename: appState.clone(appState.models.beamlineDataFile.dataFile),
                         model: 'beamlineDataFile',
                         path: appState.models.beamlineSettingsFile.settingsFile,
-                        image_name_in_header: false,
+                        image_name_in_header: true,
                     },
                     function(data) {
                         $scope.model[$scope.field] = data.settings;
                         appState.models.beamlineImageReport.imageFile = data.imageFile;
                         appState.models.beamlineImageReport.imageSource = data.imageSource;
+                        appState.models.beamlineImageReport.imageType = data.imageType;
                         appState.saveChanges([$scope.modelName, 'beamlineImageReport'], () => {
                             $scope.loadItems();
                         })

@@ -210,7 +210,11 @@ class UIElement {  //extends UIOutput {
     }
 
     update() {
-        $(`${this.getIdSelector()}`).html(this.toTemplate());
+        $(`${this.getIdSelector()}`).replaceWith(this.toTemplate());
+        // must re-add listeners
+        for (let e in (this.listeners || {}) ) {
+            this.toDOM().addEventListener(e, this.listeners[e]);
+        }
     }
 }
 
@@ -258,10 +262,16 @@ class UIRawHTML {
 }
 
 class UIImage extends UIElement {
-    constructor(id, src, width, height) {
-        super('img', id);
-        this.setSource(src);
-        this.setSize(width, height);
+    constructor(id, src, width=null, height=null) {
+        super('img', id, [
+            new UIAttribute('src', src),
+        ]);
+        if (width) {
+            this.addAttribute('width', width);
+        }
+        if (height) {
+            this.addAttribute('height', height);
+        }
     }
 
     setSize(width, height) {
@@ -560,6 +570,7 @@ class SVGPath extends UIElement {
             p += 'z';
         }
         this.getAttr('d').setValue(p);
+        super.update();  // ???
     }
 
 }
@@ -585,6 +596,7 @@ class SVGRect extends UIElement {
         for (let n of ['x', 'y', 'width', 'height', 'style']) {
             this.addAttribute(n, this[n]);
         }
+        super.update();  // ???
     }
 
 }
@@ -716,6 +728,7 @@ class SVGTable extends SVGGroup {
             this.headerOffset + this.numRows * this.cellHeight,
             this.borderStyle
         );
+        super.update();  // ???
     }
 
 }
