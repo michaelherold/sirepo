@@ -5,12 +5,24 @@ var srdbg = SIREPO.srdbg;
 
 // will get rid of angular stuff but need it initially
 
+/**
+ * HTML attribute (<element name="value">...)
+ */
 class UIAttribute {
+    /**
+     * @param {string} name - name of the attribute
+     * @param {string} value - value of the attribute
+     */
     constructor(name, value) {
         this.name = name;
         this.setValue(value);
     }
 
+    /**
+     * Builds a template string from an array of UIAttributes
+     * @param arr {[UIAttribute]} - array of attributes
+     * @returns {string} - template string
+     */
     static attrsToTemplate(arr) {
         let s = '';
         for (let attr of arr) {
@@ -19,93 +31,157 @@ class UIAttribute {
         return s;
     }
 
+    /**
+     * Sets the value of this attribute
+     * @param value {string} - value of the attribute
+     */
     setValue(value) {
         this.value = value;
     }
 
+    /**
+     * Builds the template string for this attribure
+     * @returns {string} - template string
+     */
     toTemplate() {
         //return `${this.encode(this.name)}="${this.encode(this.value)}"`;
         return `${this.name}="${this.value}"`;
     }
 }
 
+/**
+ * HTML Element (<element> text </element>)
+ */
 class UIElement {  //extends UIOutput {
-    // tag name, id, attrs array
-    // even though id is an attribute, give it its own parameter
-    // we will generate an id if one is not provided
-    constructor(tag, id, attrs) {
+    /**
+     * @param {string} tag - tag name for this element
+     * @param {string} [id] - id for this element. The class will generate an id if one is not provided
+     * @param {[UIAttribute]} [attrs] - array of UIAttributes. If "id" is among them, it will be overwitten by the id param
+     */
+    constructor(tag, id=null, attrs=[]) {
         this.tag = tag;
+
+        /** @member {Object<string:UIAttribute>} - dictionary of attributes keyed by name */
         this.attrs = {};
-        this.addAttributes(attrs || []);
         this.id = this.srId(id);
-        this.addAttribute('id', this.id);
+
+        /** @member {[UIElement]} - arrray of child elements */
         this.children = [];
+
+        /** @member {UIElement} - parent of this element */
         this.parent = null;
+
+        /** @member {[UIElement]} - array of sibling elements */
         this.siblings = [];
 
+        this.addAttributes(attrs);
+        this.addAttribute('id', this.id);
+
+        /** @member {string} - inner text of this element */
         this.text = '';
     }
 
+    /**
+     * Add an attribute, or set its value if it already exists
+     * @param {string} name - attribute name
+     * @param {string} value - attribute value
+     */
     addAttribute(name, value) {
-        let a = this.getAttr(name);
-        if (! a) {
-            a = new UIAttribute(name, value);
-            this.attrs[name] = a;
-        }
-        a.setValue(value);
+        this.addUIAttribute(new UIAttribute(name, value));
     }
 
+    /**
+     * Add an array of UIAttributes
+     * @param {[UIAttribute]} arr - array of attributes
+     */
     addAttributes(arr) {
         for (let a of arr) {
-            this.addAttribute(a.name, a.value);
+            this.addUIAttribute(a);
         }
     }
 
+    /**
+     * Add a child element and all of its siblings. Sets this element as the parent
+     * @param {UIElement} el - the child element
+     */
     addChild(el) {
         el.parent = this;
         this.children.push(el);
-        for (let s of el.siblings || []) {
+        for (let s of el.siblings) {
             this.addChild(s);
         }
     }
 
+    /**
+     * Add an array of child elements
+     * @param {[UIElement]} arr - the child elements
+     */
     addChildren(arr) {
         for (let c of arr) {
             this.addChild(c);
         }
     }
 
-    // add a class to the existing list, or set it.  Can be space-delimited
-    // list
+    /**
+     * Add a class or classes to the existing list. Note that "class" is an attribute
+     * @param {string} cl - whitespace-delimited list of classes
+     */
     addClasses(cl) {
         let a = this.getClasses();
         if (! a) {
             this.setClass(cl);
             return;
         }
-        let arr = a.value.split(' ');
-        if (arr.indexOf(cl) >= 0) {
-            return;
-        }
-        arr.push(...cl.split(' '));
+        let arr = a.value.split(/(\s+)/);
+        let newArr = cl.split(/(\s+)/).filter((c) => {
+            return arr.indexOf(c) < 0;
+        });
+        arr.push(...newArr);
         this.setClass(arr.join(' '));
     }
 
+    /**
+     * Add a sibling element. Requires this element to have a defined parent
+     * @param {UIElement} el - the element to add
+     * @throws - if this element has no parent
+     */
     addSibling(el) {
-        if (this.parent) {
-            this.siblings.push(el);
-            this.parent.addChild(el);
+        if (! this.parent) {
+            throw new Error('Parent must be defined to add a sibling');
         }
+        this.siblings.push(el);
+        this.parent.addChild(el);
     }
 
+    /**
+     * Add or replace a UIAttribute
+     * @param {UIAttribute} attr - attribute
+     */
+    addUIAttribute(attr) {
+        this.attrs[attr.name] = attr;
+    }
+
+    /**
+     * Remove all children
+     */
     clearChildren() {
         this.children = [];
     }
 
+    /**
+     * Get an attribute by name, or null if none exists
+     * @param {string} name - name of the attribute
+     * @returns {UIAttribute} - attribute
+     */
     getAttr(name) {
         return this.attrs[name];
     }
 
+    /**
+     * Get the child with the given id, or null if no such child exists
+     * @param {string} id - the id of the child
+     * @returns {null|UIElement}
+     */
     getChild(id) {
         for (let x of this.children) {
             if (x.id === id) {
@@ -115,15 +191,27 @@ class UIElement {  //extends UIOutput {
         return null;
     }
 
-    // helper
+    /**
+     * Get the classes for this element as a UIAttribute
+     * @returns {UIAttribute}
+     */
     getClasses() {
         return this.getAttr('class');
     }
 
+    /**
+     * Get the jquery selector for the id of this element (that is '#<id>')
+     * @returns {string} - the selector
+     */
     getIdSelector() {
         return `#${this.id}`;
     }
 
+    /**
+     * Get the sibling with the given id, or null if no such sibling exists
+     * @param id
+     * @returns {null|UIElement}
+     */
     getSibling(id) {
         for (let x of this.siblings) {
             if (x.id === id) {
@@ -133,17 +221,18 @@ class UIElement {  //extends UIOutput {
         return null;
     }
 
-    // angular-specific - move to "gestalt"?
-    hasTransclude() {
-        return $(this.toDOM())
-            .find('div[data-ng-transclude] > div[data-ng-transclude]:not(:empty)')
-            .children().first().length > 0;
-    }
-
+    /**
+     * Remove the attribute with the given name
+     * @param {string} name - the name of the attribute to remove
+     */
     removeAttribute(name) {
         delete this.attrs[name];
     }
 
+    /**
+     * Remove the child with the given id
+     * @param {string} id - the id of the child to remove
+     */
     removeChild(id) {
         let c = this.getChild(id);
         if (c) {
@@ -151,13 +240,17 @@ class UIElement {  //extends UIOutput {
         }
     }
 
+    /**
+     * Remove the given class or classes from this element
+     * @param {string} cl - whitespace-delimited list of classes
+     */
     removeClasses(cl) {
         let a = this.getClasses();
         if (! a) {
             return;
         }
-        let arr = a.value.split(' ');
-        let clArr = cl.split(' ');
+        let arr = a.value.split(/(\s+)/);
+        let clArr = cl.split(/(\s+)/);
         for (let c of clArr) {
             let clIdx = arr.indexOf(c);
             if (clIdx >= 0) {
@@ -167,20 +260,32 @@ class UIElement {  //extends UIOutput {
         this.setClass(arr.join(' '));
     }
 
+    /**
+     * Remove the sibling with the given id
+     * @param {string} id - the id of the sibling to remove
+     */
     removeSibling(id) {
         let s = this.getSibling(id);
-        if (s) {
-            this.siblings.splice(this.children.indexOf(s), 1);
-            if (this.parent) {
-                this.parent.removeChild(id);
-            }
+        if (! s) {
+            return;
         }
+        this.siblings.splice(this.children.indexOf(s), 1);
+        this.parent.removeChild(id);
     }
 
+    /**
+     * Set the existing attribute with the given name to the given value
+     * @param {string} name - name of an existing attribute
+     * @param {string} val - new value of the attrribute
+     */
     setAttribute(name, val) {
         this.getAttr(name).setValue(val);
     }
 
+    /**
+     * Set the class attribute
+     * @param {string} cl - whitespace-delimited list of classes
+     */
     setClass(cl) {
         let a = this.getClasses();
         if (! a) {
@@ -190,18 +295,35 @@ class UIElement {  //extends UIOutput {
         a.setValue(cl);
     }
 
-    setText(str) {
-        this.text = str;  //this.encode(str);
+    /**
+     * Set the text of this element
+     * @param {string} text - text to set
+     */
+    setText(text) {
+        this.text = text;  //this.encode(str);
     }
 
+    /**
+     * Return the provided id, or a unique (enough) id based on the element tag if null
+     * @param {string} [id] - id value or null
+     * @returns {string} - same id value or new unique id
+     */
     srId(id) {
         return id ? id : `sr-${this.tag}-${Math.round(Number.MAX_SAFE_INTEGER * Math.random())}`;
     }
 
+    /**
+     * Get the DOM element for this UIElement. Note that this will be null if the element is not part of the document
+     * @returns {HTMLElement} - the DOM element
+     */
     toDOM() {
         return document.getElementById(this.id);
     }
 
+    /**
+     * Get the template string for this element
+     * @returns {string} - the template string
+     */
     toTemplate() {
         let t = this.tag;  //this.encode(this.tag);
         let s = `<${t} ${UIAttribute.attrsToTemplate(Object.values(this.attrs))}>`;
@@ -216,91 +338,145 @@ class UIElement {  //extends UIOutput {
         return s;
     }
 
+    /**
+     * Use jquery to replace the existing element in the document with the current template.
+     * Note that any listeners must be replaced
+     */
     update() {
         $(`${this.getIdSelector()}`).replaceWith(this.toTemplate());
-        // must re-add listeners
         for (let e in (this.listeners || {}) ) {
             this.toDOM().addEventListener(e, this.listeners[e]);
         }
     }
 }
 
+
+/**
+ * Convenience class for <div> elements
+ */
 class UIDiv extends UIElement {
+    /**
+     *
+     * @param {string} [id] - id for this div
+     * @param {[UIAttribute]} [attrs] - attributes for this div
+     */
     constructor(id, attrs) {
         super('div', id, attrs);
     }
 }
 
-// wrap an element with conditional element
-class UIMatch extends UIElement {
-    constructor(value, el) {
-        super('div', null, [
-            new UIAttribute('data-ng-switch-when', value),
-            new UIAttribute('data-ng-class', 'fieldClass'),
-        ]);
-        this.addChild(el);
-    }
-}
-
-
-// build selection DOM for an enum from the schema
-class UIWarning extends UIElement {
-    constructor(msg) {
-        super('div', null, [
+/**
+ * Div with warning text and class
+ */
+class UIWarning extends UIDiv {
+    /**
+     * @param {string} [id] - id for this warning
+     * @param {string} msg - the warning message
+     */
+    constructor(id, msg) {
+        super(id, [
             new UIAttribute('class', 'sr-input-warning')
         ]);
-        this.setMsg(msg || '');
+        this.setMsg(msg);
     }
 
+    /**
+     * Set the message for this warning
+     * @param {string} msg - the warning message
+     */
     setMsg(msg) {
         this.text = msg;
     }
 }
 
-// wrapper for html strings. No parsing (yet)
+/**
+ * Wrapper for html strings. No parsing (yet)
+ */
 class UIRawHTML {
+    /**
+     * @param {string} html - the html string
+     */
     constructor(html) {
         this.html = html;
     }
 
+    /**
+     * @returns {string} - the html string
+     */
     toTemplate() {
         return this.html;
     }
 }
 
+/**
+ * Convenience class for images
+ */
 class UIImage extends UIElement {
-    constructor(id, src, width=null, height=null) {
+    /**
+     * @param {string} [id] - id for this image
+     * @param {string} src - source for this image
+     * @param {number} [width] - width in pixels. Omit to use the native width of the source
+     * @param {number} [height] - height in pixels. Omit to use the native height of the source
+     */
+    constructor(id, src, width=0, height=0) {
         super('img', id, [
             new UIAttribute('src', src),
         ]);
         if (width) {
-            this.addAttribute('width', width);
+            this.setWidth(width);
         }
         if (height) {
-            this.addAttribute('height', height);
+            this.setHeight(height);
         }
     }
 
-    setSize(width, height) {
-        this.setAttribute('width', width);
-        this.setAttribute('height', height);
+    /**
+     * Set the height of this image
+     * @param {number} height - height in pixels
+     */
+    setHeight(height) {
+        this.addAttribute('height', `${height}`);
     }
 
+    /**
+     * Set the size of this image
+     * @param width
+     * @param height
+     */
+    setSize(width, height) {
+        this.setWidth(width);
+        this.setHeight(height);
+    }
+
+    /**
+     * Set the width of this image
+     * @param {number} width - width in pixels
+     */
+    setWidth(width) {
+        this.addAttribute('width', `${width}`);
+    }
+
+    /**
+     * Set the source of this image
+     * @param {string} src - source of this image
+     */
     setSource(src) {
         this.setAttribute('src', src);
     }
 }
 
+/**
+ * Convenience class for input elements. Includes static methods for getting DOM values for elements that
+ * have them but are not <input> (e.g. <select>). Also includes a UIWarning for use in validation
+ */
 class UIInput extends UIElement {
 
-    static getForm(element) {
-        return element.toDOM().form;
-    }
-
-    static getValue(element) {
-        return element.toDOM().value;
-    }
-
+    /**
+     * Add a listener for an input-like element. The listener is stored in a dict keyed by event type
+     * @param {UIElement} element- the element
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
     static addListener(element, eventType, fn) {
         if (! element.listeners) {
             element.listeners = {};
@@ -309,18 +485,52 @@ class UIInput extends UIElement {
         element.toDOM().addEventListener(eventType, fn);
     }
 
+    /**
+     * Clean up after an element, useful for preventing memory leaks.
+     * @param {UIElement} element - the element
+     */
+    static destroy(element) {
+        for (let e in element.listeners) {
+            UIInput.removeListener(e, element.listeners[e]);
+        }
+        element.listeners = null;
+    }
+
+    /**
+     * Get the form for an input-like element
+     * @param {UIElement} element - the element
+     * @returns {*} - the form
+     */
+    static getForm(element) {
+        return element.toDOM().form;
+    }
+
+    /**
+     * Get the value for an input-like element
+     * @param {UIElement} element - the element
+     * @returns {*} - the value
+     */
+    static getValue(element) {
+        return element.toDOM().value;
+    }
+
+    /**
+     * Remove a listener for an input-like element. Note the event type and the function are required
+     * @param {UIElement} element- the element
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
     static removeListener(element, eventType, fn) {
         element.toDOM().removeEventListener(eventType, fn);
         delete element.listeners[eventType];
     }
 
-    static destroy() {
-        for (let e in this.listeners) {
-            UIInput.removeListener(e, this.listeners[e]);
-        }
-        this.listeners = null;
-    }
-
+    /**
+     * @param {string} [id] - id for this input
+     * @param {string} type - input type
+     * @param {string} initVal - initial value for the input
+     * @param {[UIAttribute]} attrs - element attributes
+     */
     constructor(id, type, initVal, attrs) {
         super('input', id, attrs);
         this.addAttribute('type', type);
@@ -328,22 +538,43 @@ class UIInput extends UIElement {
         this.addSibling(new UIWarning());
     }
 
+    /**
+     * Add a listener for this element. The listener is stored in a dict keyed by event type
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
     addListener(eventType, fn) {
         UIInput.addListener(this, eventType, fn);
     }
 
+    /**
+     * Clean up after this element, useful for preventing memory leaks.
+     */
     destroy() {
         UIInput.destroy();
     }
 
+    /**
+     * Get the form for this element
+     * @returns {*} - the form
+     */
     getForm() {
         return UIInput.getForm(this);
     }
 
+    /**
+     * Get the value for thiis element
+     * @returns {*} - the value
+     */
     getValue() {
         return UIInput.getValue(this);
     }
 
+    /**
+     * Remove a listener for this element. Note the event type and the function are required
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
     removeListener(eventType, fn) {
         UIInput.removeListener(this, eventType, fn);
     }
@@ -378,12 +609,23 @@ class UIEnum extends UIElement {
 
     // will need to know about the size of the columns etc. but for now just use number of
     // entries
+    /**
+     *
+     * @param srEnum
+     * @returns {*}
+     */
     static autoLayout(srEnum) {
         const lp = UIEnum.ENUM_LAYOUT_PROPS();
         return srEnum.entries.length < 4 ? lp.buttons : lp.dropdown;
     }
 
     // for dynamic UI
+    /**
+     *
+     * @param name
+     * @param layout
+     * @returns {UIEnum}
+     */
     static empty(name, layout) {
         return new UIEnum(
             new SIREPO.APP.SREnum(name, []),
@@ -391,10 +633,19 @@ class UIEnum extends UIElement {
         );
     }
 
+    /**
+     * REMOVE? - angular
+     * @param name
+     * @returns {UIMatch}
+     */
     static enumMatch(name) {
         return new UIMatch(name, new UIEnum(new SIREPO.APP.SREnum(name)));
     }
 
+    /**
+     * @param srEnum
+     * @param layout
+     */
     constructor(srEnum, layout) {
         let props = layout ? UIEnum.ENUM_LAYOUT_PROPS(layout) : UIEnum.autoLayout(srEnum);
         super(props.parentElement, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
@@ -412,7 +663,7 @@ class UIEnum extends UIElement {
     }
 
     destroy() {
-        UIInput.destroy();
+        UIInput.destroy(this);
     }
 
     getForm() {
@@ -442,8 +693,15 @@ class UIEnum extends UIElement {
 
 }
 
+/**
+ * A <button> built from an SREnumEntry
+ */
 class UIEnumButton extends UIElement {
+    /**
+     * @param {SREnumEntry} enumItem -
+     */
     constructor(enumItem) {
+        //TODO(mvk): excise angularJS stuff
         let v = `${enumItem.value}`;
         super('button', null, [
             new UIAttribute('class', 'btn sr-enum-button'),
@@ -457,23 +715,47 @@ class UIEnumButton extends UIElement {
     }
 }
 
+/**
+ * Convenience class for a <select> element
+ */
 class UISelect extends UIElement {
+    /**
+     * @param {string} [id] - id for this select
+     * @param {[UIAttribute]} attrs - attributes for this select
+     * @param {[UISelectOption]} options - option elements for this select
+     */
     constructor(id, attrs, options=[]) {
         super('select', id, attrs);
-        this.addChildren(options);
+        this.addOptions(options);
     }
 
-    // sugar
+    /**
+     * Add an option to this select
+     * @param {UISelectOption} o - the option
+     */
     addOption(o) {
         this.addChild(o);
     }
 
+    /**
+     * Add an array of options to this select
+     * @param {[UISelectOption]} arr - the options
+     */
     addOptions(arr) {
         this.addChildren(arr);
     }
 }
 
+
+/**
+ * Convenience class for an <option> element
+ */
 class UISelectOption extends UIElement {
+    /**
+     * @param {string} [id] - id for this option
+     * @param {string} label - label for this option
+     * @param {*} value - value of this option
+     */
     constructor(id, label, value) {
         super('option', id, [
             new UIAttribute('label', label),
@@ -483,15 +765,29 @@ class UISelectOption extends UIElement {
     }
 }
 
+/**
+ * An <option> element built from an SREnumEntry
+ */
 class UIEnumOption extends UISelectOption {
-    constructor(id, srEnum) {
-        super(id, srEnum.label, srEnum.value);
+    /**
+     * @param id
+     * @param enumItem
+     */
+    constructor(id, enumItem) {
+        super(id, enumItem.label, enumItem.value);
     }
 }
 
 
+/**
+ * A <div> encapsulating a standard report
+ */
 class UIReport extends UIDiv {
 
+    /**
+     * @param id
+     * @param modelName
+     */
     constructor(id, modelName) {
             super(id);
             this.modelName = modelName;
@@ -628,7 +924,7 @@ class SVGPath extends UIElement {
             p += 'z';
         }
         this.getAttr('d').setValue(p);
-        super.update();  // ???
+        //super.update();  // ???
     }
 
 }
@@ -654,11 +950,15 @@ class SVGRect extends UIElement {
         for (let n of ['x', 'y', 'width', 'height', 'style']) {
             this.addAttribute(n, this[n]);
         }
-        super.update();  // ???
+        //super.update();  // ???
     }
 
 }
 
+
+/**
+ * Button with an SVG canvas for drawing shapes
+ */
 class SVGShapeButton extends UIElement {
     constructor(id, size, onclick) {
         super('button', id, [
@@ -675,7 +975,16 @@ class SVGShapeButton extends UIElement {
     }
 }
 
+/**
+ * SVG text element
+ */
 class SVGText extends UIElement {
+    /**
+     * @param id
+     * @param x
+     * @param y
+     * @param str
+     */
     constructor(id, x, y, str = '') {
         super('text', id, [
             new UIAttribute('x', x),
@@ -685,8 +994,23 @@ class SVGText extends UIElement {
     }
 }
 
-// fixed size
+/**
+ * A table with a fixed number of rows and columns rendered in SVG
+ */
 class SVGTable extends SVGGroup {
+    /**
+     * @param id
+     * @param x
+     * @param y
+     * @param cellWidth
+     * @param cellHeight
+     * @param cellPadding
+     * @param numRows
+     * @param numCols
+     * @param borderStyle
+     * @param doRoundBorder
+     * @param header
+     */
     constructor(id, x, y, cellWidth, cellHeight, cellPadding, numRows, numCols, borderStyle, doRoundBorder, header = []) {
         if (! numCols || ! numRows) {
             throw new Error(`Table must have at least 1 row and 1 column (${numRows} x ${numCols} given)`);
