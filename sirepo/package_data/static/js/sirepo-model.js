@@ -11,6 +11,7 @@ class SRApp {
 
     constructor(name, schema) {
         this.name = name;
+        this.panelState = new PanelState();
 
         const types = SRApp.SCHEMA_TYPES();
         for (let t of Object.keys(types)) {
@@ -121,7 +122,44 @@ class SREnum {
     }
 }
 
+class SRReport {
+
+    constructor(model) {
+    }
+}
+
+class PanelState {
+
+    constructor() {
+        this.panels = {};
+        this.queueItems = {};
+    }
+
+    getError(name) {
+        return this.getPanelValue(name, 'error');
+    }
+
+    getPanelValue(name, key) {
+        return (this.panels[name] || {})[key];
+    }
+
+    isLoading(name) {
+        return this.getPanelValue(name, 'loading') ? true : false;
+    };
+
+    isRunning(name) {
+        return false;
+    }
+
+    isHidden(name) {
+        return false;
+    }
+
+
+}
+
 SIREPO.APP = {
+    PanelState: PanelState,
     SRApp: SRApp,
     SREnum: SREnum,
 };

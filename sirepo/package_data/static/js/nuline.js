@@ -17,6 +17,7 @@ SIREPO.app.config(() => {
     ].join('');
     SIREPO.appReportTypes = [
         '<div data-ng-switch-when="beamlineImage" data-beamline-image="" data-model-name="{{ modelKey }}"></div>',
+        //'<div data-ng-switch-when="beamlineSettings" data-beamline-image="" data-model-name="{{ modelKey }}"></div>',
     ].join('');
     SIREPO.FILE_UPLOAD_TYPE = {
         'beamlineDataFile-dataFile': '.h5,.hdf5,.zip',
@@ -160,6 +161,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
     let img = new SIREPO.DOM.UIImage('sr-beamline-img', '');
+    let rpt = new SIREPO.DOM.UIReportHeatmap('sr-beamline-report', 'beamlineImageReport');
 
     return {
         restrict: 'A',
@@ -167,7 +169,8 @@ SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
             modelName: '@',
         },
         template: [
-            img.toTemplate(),
+            //img.toTemplate(),
+            rpt.toTemplate(),
         ].join(''),
         controller: function ($scope) {
             const model = appState.models[$scope.modelName];
@@ -176,10 +179,11 @@ SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
                 img.update();
             }
             $scope.$on('beamlineSettings.changed', () => {
-                updateImage();
+                appState.saveChanges('beamlineImageReport');
+                //updateImage();
             });
 
-            updateImage();
+            //updateImage();
         },
     };
 });
@@ -258,6 +262,21 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             //'<button data-ng-click="addItem()" id="sr-new-setting" class="btn btn-info btn-xs pull-right">Add Setting <span class="glyphicon glyphicon-plus"></span></button>',
         ].join(''),
         controller: function($scope, $element) {
+            const sss = [
+                '2theta',
+                'smpl_stk',
+                'bottom_rot',
+                's1',
+                'slit_pre_bt',
+                'slit_pre_rt',
+                'slit_pre_tp',
+                'slit_pre_lf',
+                'stl',
+                'stu',
+                'z_stage',
+                'vti',
+                'robot'
+            ]
             let isEditing = false;
             let itemModel = 'beamlineSetting';
             let watchedModels = [itemModel];

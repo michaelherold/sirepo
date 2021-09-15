@@ -42,6 +42,13 @@ def background_percent_complete(report, run_dir, is_running):
     )
 
 
+def extract_report_data(run_dir, sim_in):
+    pkdp('EXTRACT FOR {}', sim_in.report)
+    template_common.write_sequential_result(
+        _REPORTS[sim_in.report](sim_in)
+    )
+
+
 def get_application_data(data, **kwargs):
     return globals()[data.method](data)
 
@@ -64,9 +71,9 @@ def python_source_for_model(data, model):
 
 
 def _lib_file_path(data):
-    return _SIM_DATA.lib_file_write_path(
-            _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
-        )
+    return sirepo.simulation_db.simulation_lib_dir(SIM_TYPE).join(
+        _SIM_DATA.lib_file_name_with_model_field(data.model, data.field, data.filename)
+    )
 
 
 def _get_image(data):
@@ -75,11 +82,12 @@ def _get_image(data):
 
     with zipfile.ZipFile(_lib_file_path(data), 'r') as z:
         dp = [p for p in z.namelist() if 'Images' in p and data.path in p][0]
-        img = pkcompat.from_bytes(base64.urlsafe_b64encode(z.read(dp)))
+        return z.read(dp)
+        #img = pkcompat.from_bytes(base64.b64encode(z.read(dp)))
 
-    return PKDict(
-        src=img
-    )
+    #return PKDict(
+    #    src=img
+    #)
 
 
 def _get_settings(data):
@@ -154,12 +162,53 @@ def write_parameters(data, run_dir, is_parallel):
     )
 
 
+def _extract_beamline_image_report(data):
+    import PIL.Image
+    import io
+
+    img_bytes = _get_image(PKDict(
+        model='beamlineDataFile',
+        field='dataFile',
+        filename=data.models.beamlineDataFile.dataFile,
+        path=data.models.beamlineImageReport.imageFile
+    ))
+    img = PIL.Image.open(io.BytesIO(img_bytes))
+    img_data = numpy.array(img)
+    #intensity = [256 * 256 * x[0] + 256 * x[1] + x[2] for x in img_data]
+
+    intensity = []
+    max_intensity = 256 * 256 * 255 + 256 * 255 + 255
+    for x in img_data:
+        row = []
+        for y in x:
+            row.append((256 * 256 * int(y[0]) + 256 * int(y[1]) + int(y[2])) / max_intensity)
+        intensity.append(row)
+
+    title = 'Beam at'
+
+    return PKDict(
+        x_range=[0, img.size[0], img.size[0]],
+        y_range=[0, img.size[1], img.size[1]],
+        x_label='x',
+        y_label='y',
+        z_label='Intensity',
+        title=title,
+        z_matrix=intensity,
+        z_range=[0, int(numpy.max(intensity))],
+        summaryData={},
+    )
+
+
 def _generate_parameters_file(data):
     res, v = template_common.generate_parameters_file(data)
-    v.optimizerTargets = data.models.optimizerSettings.targets
-    v.summaryCSV = _SUMMARY_CSV_FILE
-    if data.get('report') == 'initialMonitorPositionsReport':
-        v.optimizerSettings_method = 'runOnce'
-    return res + template_common.render_jinja(SIM_TYPE, v)
+    #v.optimizerTargets = data.models.optimizerSettings.targets
+    #v.summaryCSV = _SUMMARY_CSV_FILE
+    #if data.get('report') == 'initialMonitorPositionsReport':
+    #    v.optimizerSettings_method = 'runOnce'
+    #return res + template_common.render_jinja(SIM_TYPE, v)
+    return res
 
 
+_REPORTS = PKDict(
+    beamlineImageReport=_extract_beamline_image_report
+)

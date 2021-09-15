@@ -133,6 +133,13 @@ class UIElement {  //extends UIOutput {
         return null;
     }
 
+    // angular-specific - move to "gestalt"?
+    hasTransclude() {
+        return $(this.toDOM())
+            .find('div[data-ng-transclude] > div[data-ng-transclude]:not(:empty)')
+            .children().first().length > 0;
+    }
+
     removeAttribute(name) {
         delete this.attrs[name];
     }
@@ -342,8 +349,17 @@ class UIInput extends UIElement {
     }
 }
 
+/**
+ * UI representation of an enumeration
+ */
 class UIEnum extends UIElement {
-    static ENUM_LAYOUT_PROPS() {
+    /**
+    * Gets a set of properties for representing the enum as either a set of buttons or a dropdown menu
+    *
+    * @param {string} layout 'buttons' | 'dropdown'
+    * @returns {dict} the associated properties
+    */
+    static ENUM_LAYOUT_PROPS(layout) {
         return {
             buttons: {
                 inputClass: UIEnumButton,
@@ -357,7 +373,7 @@ class UIEnum extends UIElement {
                 elementClasses: 'form-control',
                 superclass: UISelect,
             },
-        };
+        }[layout];
     }
 
     // will need to know about the size of the columns etc. but for now just use number of
@@ -380,7 +396,7 @@ class UIEnum extends UIElement {
     }
 
     constructor(srEnum, layout) {
-        let props = layout ? UIEnum.ENUM_LAYOUT_PROPS()[layout] : UIEnum.autoLayout(srEnum);
+        let props = layout ? UIEnum.ENUM_LAYOUT_PROPS(layout) : UIEnum.autoLayout(srEnum);
         super(props.parentElement, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
         this.srEnum = srEnum;
         this.layout = layout;
@@ -473,6 +489,48 @@ class UIEnumOption extends UISelectOption {
     }
 }
 
+
+class UIReport extends UIDiv {
+
+    constructor(id, modelName) {
+            super(id);
+            this.modelName = modelName;
+            this.addClasses('panel-body');
+
+            // should live in an SRApp
+            this.panelState = new PanelState();
+
+            this.plot = new UIDiv(null, [
+                new UIAttribute('data-model-name', this.modelName),
+                new UIAttribute('data-report-id', 'reportId'),
+            ]);
+        this.plot.addClasses('sr-plot')
+        this.addChild(this.plot);
+
+        /*
+        this.transclude = new UIDiv(null, [
+            new UIAttribute('data-ng-transclude', ''),
+        ]);
+        this.addChild(this.transclude);
+         */
+
+    }
+
+}
+
+class UIReport3D extends UIReport {
+    constructor(id , modelName) {
+        super(id, modelName);
+        this.plot.addAttribute( 'data-plot3d', '');
+    }
+}
+
+class UIReportHeatmap extends UIReport {
+    constructor(id , modelName) {
+        super(id, modelName);
+        this.plot.addAttribute( 'data-heatmap', '');
+    }
+}
 
 class SVGContainer extends UIElement {
     constructor(id, width, height) {
@@ -749,6 +807,9 @@ SIREPO.DOM = {
     UIImage: UIImage,
     UIInput: UIInput,
     UIRawHTML: UIRawHTML,
+    UIReport: UIReport,
+    UIReport3D: UIReport3D,
+    UIReportHeatmap: UIReportHeatmap,
     UISelect: UISelect,
     UISelectOption: UISelectOption,
     UIWarning: UIWarning,

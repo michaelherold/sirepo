@@ -5,6 +5,21 @@
         }
     },
     "constants": {
+        "defaultSettings": [
+            "2theta",
+            "smpl_stk",
+            "bottom_rot",
+            "s1",
+            "slit_pre_bt",
+            "slit_pre_rt",
+            "slit_pre_tp",
+            "slit_pre_lf",
+            "stl",
+            "stu",
+            "z_stage",
+            "vti",
+            "robot"
+        ]
     },
     "dynamicFiles": {
         "sirepoLibs": {
@@ -33,13 +48,16 @@
             "mlModel": ["", "BeamlineAutomationModel", "activaitCentered26"]
         },
         "beamlineImageReport": {
-            "imageFile": ["", "String", ""]
+            "colorMap": ["Color Map", "ColorMap", "viridis"],
+            "imageFile": ["", "String", ""],
+            "inProgressText": ["", "String", "Loading"]
         },
         "beamlineSetting": {
             "name": ["Name", "BeamlineSetting", ""],
             "value": ["Value", "Float", 0.0]
         },
         "beamlineSettings": {
+            "activeSettings": ["", "BeamlineSettings", []],
             "settings": ["", "BeamlineSettings", []]
         },
         "beamlineDataFile": {
@@ -85,8 +103,12 @@
         },
         "beamlineImageReport": {
             "title": "",
-            "advanced": [],
-            "basic": []
+            "advanced": [
+                "colorMap"
+            ],
+            "basic": [
+                "colorMap"
+            ]
         },
         "beamlineSetting": {
             "advanced": [
@@ -101,7 +123,7 @@
                 "settings"
             ],
             "basic": [
-                "settings"
+                "activeSettings"
             ]
         },
         "beamlineDataFile": {
