@@ -1283,7 +1283,6 @@ SIREPO.DOM = {
     SVGTable: SVGTable,
     SVGText: SVGText,
     UIAttribute: UIAttribute,
-    UIMatch: UIMatch,
     UIElement: UIElement,
     UIEnum: UIEnum,
     UIEnumOption: UIEnumOption,
