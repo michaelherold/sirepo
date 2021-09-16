@@ -617,12 +617,11 @@ class UIEnum extends UIElement {
         return srEnum.entries.length < 4 ? lp('buttons') : lp('dropdown');
     }
 
-    // for dynamic UI
     /**
-     *
-     * @param name
-     * @param layout
-     * @returns {UIEnum}
+     * Create an enum with no entries - useful for dynamic UI
+     * @param {string} name - name of this enum
+     * @param {string} layout - layout type ('button'|'dropdown')
+     * @returns {UIEnum} - the empty enum
      */
     static empty(name, layout) {
         return new UIEnum(
@@ -631,18 +630,10 @@ class UIEnum extends UIElement {
         );
     }
 
-    /**
-     * REMOVE? - angular
-     * @param name
-     * @returns {UIMatch}
-     */
-    static enumMatch(name) {
-        return new UIMatch(name, new UIEnum(new SIREPO.APP.SREnum(name)));
-    }
 
     /**
-     * @param srEnum
-     * @param layout
+     * @param {SREnum} srEnum - enum model
+     * @param {string} layout - layout type ('button'|'dropdown')
      */
     constructor(srEnum, layout) {
         let props = layout ? UIEnum.ENUM_LAYOUT_PROPS(layout) : UIEnum.autoLayout(srEnum);
@@ -656,22 +647,42 @@ class UIEnum extends UIElement {
         }
     }
 
+    /**
+     * Add a listener for this element. The listener is stored in a dict keyed by event type
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
     addListener(eventType, fn) {
         UIInput.addListener(this, eventType, fn);
     }
 
+    /**
+     * Clean up after this element, useful for preventing memory leaks.
+     */
     destroy() {
         UIInput.destroy(this);
     }
 
+    /**
+     * Get the form for this element
+     * @returns {*} - the form
+     */
     getForm() {
        return UIInput.getForm(this);
     }
 
+    /**
+     * Get the value for thiis element
+     * @returns {*} - the value
+     */
     getValue() {
         return UIInput.getValue(this);
     }
 
+    /**
+     * Set the enum entries
+     * @param {Object<string:SREnumEntry>} schEntries - dict of enum entries, keyed by name
+     */
     setEntries(schEntries) {
         this.clearChildren();
         this.srEnum.setEntries(schEntries);
@@ -681,10 +692,18 @@ class UIEnum extends UIElement {
     }
 
 
+    /**
+     * Set the onchange listener method
+     * @param {function} fn - the method to invoke
+     */
     setOnChange(fn) {
         this.addListener('change', fn);
     }
 
+    /**
+     * Set the DOM value
+     * @param {*} v - the value
+     */
     setValue(v) {
         this.toDOM().value = v;
     }
