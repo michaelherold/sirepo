@@ -607,16 +607,14 @@ class UIEnum extends UIElement {
         }[layout];
     }
 
-    // will need to know about the size of the columns etc. but for now just use number of
-    // entries
     /**
-     *
-     * @param srEnum
+     * Determine a layout for an enum. For now just use number of entries
+     * @param {SREnum} srEnum -
      * @returns {*}
      */
     static autoLayout(srEnum) {
-        const lp = UIEnum.ENUM_LAYOUT_PROPS();
-        return srEnum.entries.length < 4 ? lp.buttons : lp.dropdown;
+        const lp = UIEnum.ENUM_LAYOUT_PROPS;
+        return srEnum.entries.length < 4 ? lp('buttons') : lp('dropdown');
     }
 
     // for dynamic UI
@@ -785,8 +783,8 @@ class UIEnumOption extends UISelectOption {
 class UIReport extends UIDiv {
 
     /**
-     * @param id
-     * @param modelName
+     * @param {string} [id] - id for this div
+     * @param {string} modelName - name of the model for this report
      */
     constructor(id, modelName) {
             super(id);
@@ -814,51 +812,106 @@ class UIReport extends UIDiv {
 
 }
 
+/**
+ * 3d report
+ */
 class UIReport3D extends UIReport {
+    /**
+     * @param {string} [id] - id for this report
+     * @param {string} modelName - name of the model for this report
+     */
     constructor(id , modelName) {
         super(id, modelName);
         this.plot.addAttribute( 'data-plot3d', '');
     }
 }
 
+/**
+ * Heatmap report
+ */
 class UIReportHeatmap extends UIReport {
+    /**
+     * @param {string} [id] - id for this report
+     * @param {string} modelName - name of the model for this report
+     */
     constructor(id , modelName) {
         super(id, modelName);
         this.plot.addAttribute( 'data-heatmap', '');
     }
 }
 
+/**
+ * An <svg> element with given size
+ */
 class SVGContainer extends UIElement {
+    /**
+     *
+     * @param {string} [id] - id for this container
+     * @param {number} width - container width
+     * @param {number} height - container height
+     */
     constructor(id, width, height) {
         super('svg', id, [
-            new UIAttribute('width', width),
-            new UIAttribute('height', height),
+            new UIAttribute('width', `${width}`),
+            new UIAttribute('height', `${height}`),
         ]);
     }
 }
 
+/**
+ * A <g> element
+ */
 class SVGGroup extends UIElement {
+    /**
+     * @param {string} [id] - id for this group
+     */
     constructor(id) {
         super('g', id);
     }
 }
 
+/**
+ * A <path> element defined by an array of points
+ */
 class SVGPath extends UIElement {
+    /**
+     * @param {string} [id] - id for this path
+     * @param {[[number, number]]} points - points making up this path
+     * @param {[number, number]} offsets - offsets from the origin of the svg canvas
+     * @param {boolean} doClose - whether to automatically close the path
+     * @param {string} strokeColor - hex value (#rrggbb) of the stroke color or 'none'
+     * @param {string} fillColor - hex value (#rrggbb) of the fill color or 'none'
+     */
     constructor(id, points, offsets, doClose, strokeColor, fillColor) {
-        super('path', id);
+        super('path', id, [
+            new UIAttribute('d', ''),
+            new UIAttribute('fill', fillColor),
+            new UIAttribute('stroke', strokeColor),
+        ]);
         this.doClose = doClose;
         this.fillColor = fillColor;
         this.offsets = offsets;
         this.points = points;
-        this.scales = [1.0, 1.0];
         this.strokeColor = strokeColor;
 
-        this.addAttribute('d', '');
-        this.addAttribute('fill', fillColor);
-        this.addAttribute('stroke', strokeColor);
+        /** @member {[[number, number]]} - path points including offsets */
+        this.corners = [];
+
+        /** @member {[[number, number], [number,  number]]} - line segements connecting corners */
+        this.lines = [];
+
+        /** @member {[number, number]} - scale factor in each direction */
+        this.scales = [1.0, 1.0];
+
         this.update();
     }
 
+    /**
+     * Find the corner closest to the given coordinates
+     * @param {number} x - x position
+     * @param {number} y - y position
+     * @returns {null|[number, number]} - the closest corner or null if none found
+     */
     closestCorner(x, y) {
         let d = Number.MAX_VALUE;
         let closest = null;
@@ -872,10 +925,21 @@ class SVGPath extends UIElement {
         return closest;
     }
 
+    /**
+     * Find the lines containing the corner closest to the given coordinates
+     * @param {number} x - x position
+     * @param {number} y - y position
+     * @returns {[[number, number], [number,  number]]} - the closest lines
+     */
     closestLines(x, y) {
         return this.linesWithCorner(this.closestCorner(x, y));
     }
 
+    /**
+     * Get the lines that include the given corner
+     * @param {[number, number]} c - the corner of interest
+     * @returns {[[number, number], [number,  number]]} - the lines
+     */
     linesWithCorner(c) {
         let lines = [];
         for (let l of this.lines) {
@@ -886,6 +950,11 @@ class SVGPath extends UIElement {
         return lines;
     }
 
+    /**
+     * Scale and offset the point at the given index
+     * @param {number} i - point index
+     * @returns {[number, number]} - scaled and offset point
+     */
     pathPoint(i) {
         let p = [];
         for(let j of [0, 1]) {
@@ -894,20 +963,35 @@ class SVGPath extends UIElement {
         return p;
     }
 
+    /**
+     * Set the fill color
+     * @param {string} color - hex value (#rrggbb) of the fill color or 'none'
+     */
     setFill(color) {
         this.fillColor = color;
         this.setAttribute('fill', this.fillColor);
     }
 
+    /**
+     * Set the scale of this path in each direction
+     * @param {[number, number]} scales - the scales
+     */
     setScales(scales) {
         this.scales = scales;
     }
 
+    /**
+     * Set the stroke color
+     * @param {string} color - hex value (#rrggbb) of the stroke color or 'none'
+     */
     setStroke(color) {
         this.strokeColor = color;
         this.setAttribute('stroke', this.strokeColor);
     }
 
+    /**
+     * Update the path with the current params
+     */
     update() {
         let c = this.pathPoint(0);
         this.corners = [c];
@@ -923,13 +1007,26 @@ class SVGPath extends UIElement {
             this.lines.push([this.corners[this.corners.length - 1], this.corners[0]]);
             p += 'z';
         }
-        this.getAttr('d').setValue(p);
+        this.setAttribute('d', p);
         //super.update();  // ???
     }
 
 }
 
+/**
+ * A <rect> element
+ */
 class SVGRect extends UIElement {
+    /**
+     *
+     * @param {string} [id] - id for this rect
+     * @param {number} x - origin x
+     * @param {number} y - origin y
+     * @param {number} width - width of this rect
+     * @param {number} height - height of this rect
+     * @param {string} style - css style string
+     * @param {boolean} doRound - whether to round the corners of this rect
+     */
     constructor(id, x, y, width, height, style, doRound) {
         super('rect', id);
         if (doRound) {
@@ -941,6 +1038,14 @@ class SVGRect extends UIElement {
         this.update(x, y, width, height, style);
     }
 
+    /**
+     * Update this rect with the current params
+     * @param {number} x - origin x
+     * @param {number} y - origin y
+     * @param {number} width - width of this rect
+     * @param {number} height - height of this rect
+     * @param {string} style - css style string
+     */
     update(x, y, width, height, style) {
         this.x = x;
         this.y = y;
@@ -957,15 +1062,23 @@ class SVGRect extends UIElement {
 
 
 /**
- * Button with an SVG canvas for drawing shapes
+ * Square button with an SVG canvas for drawing shapes
  */
 class SVGShapeButton extends UIElement {
+    /**
+     * @param {string} [id] - id for this button
+     * @param {number} size - size of this button
+     * @param {string} onclick - name of method to call on button click
+     */
     constructor(id, size, onclick) {
+        //TODO(mvk) - remove angular, use listener
         super('button', id, [
-            new SIREPO.DOM.UIAttribute('data-ng-click', `${onclick}()`),
+            new UIAttribute('data-ng-click', `${onclick}()`),
         ]);
-        this.svg = new SIREPO.DOM.SVGContainer(`${id}-svg`, size, size);
+        this.svg = new SVGContainer(`${id}-svg`, size, size);
         this.addChild(this.svg);
+
+        /** @member {SVGPath} - shape to display */
         this.shape = null;
     }
 
@@ -980,17 +1093,17 @@ class SVGShapeButton extends UIElement {
  */
 class SVGText extends UIElement {
     /**
-     * @param id
-     * @param x
-     * @param y
-     * @param str
+     * @param {string} [id] - id of this text
+     * @param {number} x - origin x
+     * @param {number} y - origin y
+     * @param {string} text - text to set
      */
-    constructor(id, x, y, str = '') {
+    constructor(id, x, y, text = '') {
         super('text', id, [
-            new UIAttribute('x', x),
-            new UIAttribute('y', y),
+            new UIAttribute('x', `${x}`),
+            new UIAttribute('y', `${y}`),
         ]);
-        this.setText(str);
+        this.setText(text);
     }
 }
 
@@ -999,16 +1112,16 @@ class SVGText extends UIElement {
  */
 class SVGTable extends SVGGroup {
     /**
-     * @param id
-     * @param x
-     * @param y
-     * @param cellWidth
-     * @param cellHeight
-     * @param cellPadding
-     * @param numRows
-     * @param numCols
-     * @param borderStyle
-     * @param doRoundBorder
+     * @param {string} [id] - id of this table
+     * @param {number} x - origin x
+     * @param {number} y - origin y
+     * @param {number} cellWidth - width of a cell
+     * @param {number} cellHeight - height of a cell
+     * @param {number} cellPadding - padding around the text inn a cell
+     * @param {number} numRows - number of rows
+     * @param {number} numCols- number of rows
+     * @param {string} borderStyle - CSS style of this table's border
+     * @param {boolean} doRoundBorder - whether to round the corners of this table
      * @param header
      */
     constructor(id, x, y, cellWidth, cellHeight, cellPadding, numRows, numCols, borderStyle, doRoundBorder, header = []) {
@@ -1070,26 +1183,63 @@ class SVGTable extends SVGGroup {
         this.update(x, y);
     }
 
+    /**
+     * Id for the border
+     * @returns {string} - border id
+     */
     borderId() {
         return `${this.id}-border`;
     }
 
+    /**
+     * Id for a cell at the given indices
+     * @param {number} i - x index
+     * @param {number} j - y index
+     * @returns {string} - cell id
+     */
     cellId(i, j) {
         return `${this.id}-${i}-${j}`;
     }
 
+    /**
+     * Id for the border df a cell at the given indices
+     * @param {number} i - x index
+     * @param {number} j - y index
+     * @returns {string} - cell border id
+     */
     cellBorderId(i, j) {
         return `${this.cellId(i, j)}-border`;
     }
 
+    /**
+     * Get the DOM for the cell at the given indices
+     * @param {number} i - x index
+     * @param {number} j - y index
+     * @returns {*|jQuery|HTMLElement} - the cell DOM
+     */
     getCell(i, j) {
         return $(`#${this.cellId(i, j)}`);
     }
 
+    /**
+     * Get the DOM for the cell border at the given indices
+     * @param {number} i - x index
+     * @param {number} j - y index
+     * @returns {*|jQuery|HTMLElement} - the cell border DOM
+     */
     getCellBorder(i, j) {
         return $(`#${this.cellBorderId(i, j)}`);
     }
 
+    /**
+     * Set properties of the cell at the given indices
+     * @param {number} i - x index
+     * @param {number} j - y index
+     * @param {string} val - text in this cell
+     * @param {string} color - hex value (#rrggbb) of the cell background color or 'none'
+     * @param {number} opacity - opacity (0 - 1) of the cell background
+     * @param {number} borderWidth - border width of this cell
+     */
     setCell(i, j, val, color=null, opacity=0.0, borderWidth=1.0) {
         let cid  = this.cellId(i, j);
         let c = this.getChild(cid);
@@ -1097,11 +1247,20 @@ class SVGTable extends SVGGroup {
         this.getCellBorder(i, j).css('fill', color).css('fill-opacity', opacity).css('stroke-width', borderWidth);
     }
 
+    /**
+     * Set the border style of this table
+     * @param {string} style - CSS style string
+     */
     setBorderStyle(style) {
         this.borderStyle = style;
         this.update(this.x, this.y);
     }
 
+    /**
+     * Update this table with the latest params
+     * @param {number} x - origin x
+     * @param {number} y - origin y
+     */
     update(x, y) {
         this.border.update(
             x,
@@ -1110,7 +1269,7 @@ class SVGTable extends SVGGroup {
             this.headerOffset + this.numRows * this.cellHeight,
             this.borderStyle
         );
-        super.update();  // ???
+        //super.update();  // ???
     }
 
 }
