@@ -77,17 +77,9 @@ def _lib_file_path(data):
 
 
 def _get_image(data):
-    import base64
-    from pykern import pkcompat
-
     with zipfile.ZipFile(_lib_file_path(data), 'r') as z:
         dp = [p for p in z.namelist() if 'Images' in p and data.path in p][0]
         return z.read(dp)
-        #img = pkcompat.from_bytes(base64.b64encode(z.read(dp)))
-
-    #return PKDict(
-    #    src=img
-    #)
 
 
 def _get_settings(data):
@@ -184,7 +176,7 @@ def _extract_beamline_image_report(data):
             row.append((256 * 256 * int(y[0]) + 256 * int(y[1]) + int(y[2])) / max_intensity)
         intensity.append(row)
 
-    title = 'Beam at'
+    title = f'Beam at {pkio.py_path(data.models.beamlineSettingsFile.settingsFile).basename}'
 
     return PKDict(
         x_range=[0, img.size[0], img.size[0]],
