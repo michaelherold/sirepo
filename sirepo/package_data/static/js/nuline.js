@@ -221,6 +221,14 @@ SIREPO.app.directive('beamlineSettingSelector', function(appState, nulineService
 
 SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, panelState, requestSender) {
 
+    let table = new SIREPO.DOM.UITable('sr-beam-settings-table', [], 2);
+    table.addClasses('table table-hover');
+    table.setHeader([
+        'Setting Name',
+        'Setting Value',
+    ]);
+    table.setColumnStyles(['width: 20ex']);
+    //table.addRow(['POOP', new UIInput(null, 'text', 'POOP!')]);
 
     return {
         restrict: 'A',
@@ -231,6 +239,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
         },
 
         template: [
+            table.toTemplate(),
             '<table class="table table-hover">',
               '<colgroup>',
                 '<col style="width: 20ex">',

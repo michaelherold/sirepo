@@ -102,12 +102,12 @@ class UIElement {  //extends UIOutput {
 
     /**
      * Add a child element and all of its siblings. Sets this element as the parent
-     * @param {UIElement} el - the child element
+     * @param {UIElement} element - the child element
      */
-    addChild(el) {
-        el.parent = this;
-        this.children.push(el);
-        for (let s of el.siblings) {
+    addChild(element) {
+        element.parent = this;
+        this.children.push(element);
+        for (let s of element.siblings) {
             this.addChild(s);
         }
     }
@@ -142,15 +142,15 @@ class UIElement {  //extends UIOutput {
 
     /**
      * Add a sibling element. Requires this element to have a defined parent
-     * @param {UIElement} el - the element to add
+     * @param {UIElement} element - the element to add
      * @throws - if this element has no parent
      */
-    addSibling(el) {
+    addSibling(element) {
         if (! this.parent) {
             throw new Error('Parent must be defined to add a sibling');
         }
-        this.siblings.push(el);
-        this.parent.addChild(el);
+        this.siblings.push(element);
+        this.parent.addChild(element);
     }
 
     /**
@@ -471,6 +471,9 @@ class UIImage extends UIElement {
  */
 class UIInput extends UIElement {
 
+    //TODO(mvk) - add these static methods to input-like objects in a simple way, so we don't have
+    //to keep redefining them
+
     /**
      * Add a listener for an input-like element. The listener is stored in a dict keyed by event type
      * @param {UIElement} element- the element
@@ -535,7 +538,58 @@ class UIInput extends UIElement {
         super('input', id, attrs);
         this.addAttribute('type', type);
         this.addAttribute('value', initVal);
-        this.addSibling(new UIWarning());
+        //TODO(mvk): figure out how to add siblings (element must exist in DOM so addSibling() here fails
+        this.warning = new UIWarning();
+    }
+
+    /**
+     * Add a listener for this element. The listener is stored in a dict keyed by event type
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
+    addListener(eventType, fn) {
+        UIInput.addListener(this, eventType, fn);
+    }
+
+    /**
+     * Clean up after this element, useful for preventing memory leaks.
+     */
+    destroy() {
+        UIInput.destroy();
+    }
+
+    /**
+     * Get the form for this element
+     * @returns {*} - the form
+     */
+    getForm() {
+        return UIInput.getForm(this);
+    }
+
+    /**
+     * Get the value for thiis element
+     * @returns {*} - the value
+     */
+    getValue() {
+        return UIInput.getValue(this);
+    }
+
+    /**
+     * Remove a listener for this element. Note the event type and the function are required
+     * @param {string} eventType - event type such as 'change'
+     * @param {function} fn - the function to execute when seeing the event
+     */
+    removeListener(eventType, fn) {
+        UIInput.removeListener(this, eventType, fn);
+    }
+}
+
+/**
+ * <button> element
+ */
+class UIButton extends UIElement {
+    constructor(id, attrs) {
+        super(id, 'button', attrs);
     }
 
     /**
@@ -795,6 +849,91 @@ class UIEnumOption extends UISelectOption {
     }
 }
 
+/**
+ * <table> element with fixed number of columns
+ */
+class UITable extends UIElement {
+    /**
+     * @param {string} [id] - id for this div
+     * @param {[UIAttribute]} [attrs] - attributes for this div
+     * @param {number} numCols - number of columns
+     */
+    constructor(id, attrs, numCols=1) {
+        super('table', id, attrs);
+        this.numCols = numCols;
+        this.colGroup = new UIElement('colgroup');
+        this.addChild(this.colGroup);
+        for (let i = 0; i < this.numCols; ++i) {
+            this.colGroup.addChild(new UIElement('col'));
+        }
+        this.head = new UIElement('thead');
+        this.addChild(this.head);
+        this.headerRow = new UIElement('tr');
+        this.head.addChild(this.headerRow);
+        this.setHeader();
+        this.body = new UIElement('tbody');
+        this.addChild(this.body);
+    }
+
+    /**
+     * Add a row with the given text at the given position. Since the number of columns is fixed,
+     * this uses only the first numCols entries.
+     * @param {[string|UIElement]} textOrElementArr - array of text or elements for each column
+     */
+    addRow(textOrElementArr=[]) {
+        let r = new UIElement('tr');
+        this.applyArrayToCols(textOrElementArr, (x, i) => {
+            const td = new UIElement('td');
+            r.addChild(td);
+            const c = x || '';
+            if (c instanceof UIElement) {
+                td.addChild(c);
+            }
+            else {
+                td.setText(c);
+            }
+        });
+        this.body.addChild(r);
+    }
+
+    /**
+     * We often take an array to do something for each column. This invokes a function for each item in the
+     * array until we get to the end, or we reach the end of the columns, whichever comes first
+     * @param {[*]} arr - array of items
+     * @param {function} fn - the function to invoke. It must accept at least an item and an index
+     */
+    applyArrayToCols(arr, fn) {
+        for (let i = 0; i < Math.min(this.numCols, arr.length); ++i) {
+            fn(arr[i], i);
+        }
+    }
+
+    /**
+     * Set the style attributes for each column
+     * @param {[string]} styles - array of style strings
+     */
+    setColumnStyles(styles) {
+        this.applyArrayToCols(styles, (x, i) => {
+            this.colGroup.children[i].addAttribute('style', x);
+        });
+    }
+
+    /**
+     * Set the header text for each column. Since the number of columns is fixed, this uses only the first
+     * numCols entries.
+     * @param {[string]} text - array of strings to use as the header
+     */
+    setHeader(text=[]) {
+        this.headerRow.clearChildren();
+        this.applyArrayToCols(text, (x, i) => {
+            const th = new UIElement('th');
+            th.setText(x);
+            this.headerRow.addChild(th);
+        });
+    }
+
+
+}
 
 /**
  * A <div> encapsulating a standard report
@@ -1313,5 +1452,6 @@ SIREPO.DOM = {
     UIReportHeatmap: UIReportHeatmap,
     UISelect: UISelect,
     UISelectOption: UISelectOption,
+    UITable: UITable,
     UIWarning: UIWarning,
 };
