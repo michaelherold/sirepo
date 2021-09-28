@@ -43,7 +43,6 @@ def background_percent_complete(report, run_dir, is_running):
 
 
 def extract_report_data(run_dir, sim_in):
-    pkdp('EXTRACT FOR {}', sim_in.report)
     template_common.write_sequential_result(
         _REPORTS[sim_in.report](sim_in)
     )
@@ -78,13 +77,13 @@ def _lib_file_path(data):
 
 def _get_image(data):
     with zipfile.ZipFile(_lib_file_path(data), 'r') as z:
-        dp = [p for p in z.namelist() if 'Images' in p and data.path in p][0]
+        dp = [p for p in z.namelist() if data.path == pkio.py_path(p).purebasename][0]
         return z.read(dp)
 
 
 def _get_settings(data):
-    import base64
-    import mimetypes
+    #import base64
+    #import mimetypes
     from pykern import pkcompat
 
     f = _lib_file_path(data)
@@ -95,16 +94,17 @@ def _get_settings(data):
             data.image_name_in_header,
             data.filename
         )
-        dp = [p for p in z.namelist() if image_name in p][0]
+        # Returning the raw data can be useful for troubleshooting
+        #dp = [p for p in z.namelist() if image_name == pkio.py_path(p).purebasename][0]
         # Note: do not use urlsafe_b64encode()
-        src = pkcompat.from_bytes(base64.b64encode(z.read(dp)))
+        #src = pkcompat.from_bytes(base64.b64encode(z.read(dp)))
 
     s = [float(x) for x in txt[header_index + 1].split()]
     return PKDict(
         settings=[PKDict(name=n, value=s[i]) for i, n in enumerate(header)],
         imageFile=image_name,
-        imageType=mimetypes.guess_type(dp)[0],
-        imageSource=src
+        #imageType=mimetypes.guess_type(dp)[0],
+        #imageSource=src
     )
 
 
@@ -124,8 +124,11 @@ def _process_zip_file(data):
 
 
 def _get_image_name_from_tag(line):
-    l, r = line.split('=')
-    return r.strip()
+    # line is of the form '# scan_title = <image file name> <optional comment>'
+    return re.split(
+        r'\s+',
+        re.split(r'\s*=\s*', line)[1]
+    )[0]
 
 
 def _process_header(lines, image_name_in_header, file_name):
@@ -133,9 +136,8 @@ def _process_header(lines, image_name_in_header, file_name):
     header = ''
     column_header_index = 0
     for i, l in enumerate(lines):
-        if image_name_in_header:
-            if _IMAGE_TAG in l:
-                image_name = _get_image_name_from_tag(l)
+        if image_name_in_header and _IMAGE_TAG in l:
+            image_name = _get_image_name_from_tag(l)
         if _COL_TAG in l:
             column_header_index = i + 1
             header = [x for x in lines[column_header_index].split() if x != '#']
@@ -166,7 +168,6 @@ def _extract_beamline_image_report(data):
     ))
     img = PIL.Image.open(io.BytesIO(img_bytes))
     img_data = numpy.array(img)
-    #intensity = [256 * 256 * x[0] + 256 * x[1] + x[2] for x in img_data]
 
     intensity = []
     max_intensity = 256 * 256 * 255 + 256 * 255 + 255
@@ -176,9 +177,11 @@ def _extract_beamline_image_report(data):
             row.append((256 * 256 * int(y[0]) + 256 * int(y[1]) + int(y[2])) / max_intensity)
         intensity.append(row)
 
-    title = f'Beam at {pkio.py_path(data.models.beamlineSettingsFile.settingsFile).basename}'
+    title = data.models.beamlineImageReport.imageFile
 
     return PKDict(
+        aspectRatio=img.size[1] / img.size[0],
+        preserve_y=True,
         x_range=[0, img.size[0], img.size[0]],
         y_range=[0, img.size[1], img.size[1]],
         x_label='x',
