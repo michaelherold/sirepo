@@ -3066,7 +3066,11 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                 }
                 $scope.dataCleared = false;
                 aspectRatio = plotting.getAspectRatio($scope.modelName, json);
-                heatmap = plotting.safeHeatmap(appState.clone(json.z_matrix).reverse());
+                let z = appState.clone(json.z_matrix);
+                if (! json.preserve_y) {
+                    z = z.reverse();
+                }
+                heatmap = plotting.safeHeatmap(z);
                 globalMin = json.global_min;
                 globalMax = json.global_max;
                 select('.main-title').text(json.title);
