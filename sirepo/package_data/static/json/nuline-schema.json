@@ -48,7 +48,7 @@
             "mlModel": ["", "BeamlineAutomationModel", "activaitCentered26"]
         },
         "beamlineImageReport": {
-            "colorMap": ["Color Map", "ColorMap", "viridis"],
+            "colorMap": ["Color Map", "ColorMap", "grayscale"],
             "imageFile": ["", "String", ""],
             "inProgressText": ["", "String", "Loading"]
         },
