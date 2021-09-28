@@ -582,6 +582,15 @@ class UIInput extends UIElement {
     removeListener(eventType, fn) {
         UIInput.removeListener(this, eventType, fn);
     }
+
+    /**
+     * Set the onchange listener method
+     * @param {function} fn - the method to invoke
+     */
+    setOnChange(fn) {
+        this.addListener('change', fn);
+    }
+
 }
 
 /**
@@ -906,6 +915,22 @@ class UITable extends UIElement {
         for (let i = 0; i < Math.min(this.numCols, arr.length); ++i) {
             fn(arr[i], i);
         }
+    }
+
+    /**
+     * Remove all (body) rows from this table
+     */
+    clearRows() {
+        this.body.clearChildren();
+        this.update();
+    }
+
+    /**
+     * Remove the row at the given index
+     * @param index
+     */
+    removeRowAt(index) {
+        this.body.children.splice(index, 1);
     }
 
     /**

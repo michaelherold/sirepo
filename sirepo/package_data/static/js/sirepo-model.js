@@ -1,66 +1,88 @@
 class SRApp {
 
-    static SCHEMA_TYPES() {
-        // order matters, as model requires enum and view requies model
-        return {
-            enum: SREnum,
-            model: SRModel,
-            view: SRView,
+    constructor(name, schema) {
+        this.name = name;
+        this.enums = {};
+        this.models = {};
+        this.views = {};
+        this.panelState = new PanelState();
+
+        for (let x in schema.enum) {
+            this.enums[x] = new SREnum(x, schema.enum[x]);
+        }
+        for (let x in schema.model) {
+            this.models[x] = new SREnum(x, schema.model[x]);
+        }
+
+        // need the models to assign the correct fields
+        for (let x in schema.view) {
+            this.views[x] = new SRView(x, schema.view[x], models);
+        }
+
+    }
+}
+
+class SRModel {
+    constructor(name, schema) {
+        this.name = name;
+        this.fields = {};
+        for (let f in schema) {
+            this.fields[f] = new SRField(f, schema[f]);
+        }
+    }
+}
+
+
+/**
+ * Organized collection of fields
+ */
+class SRForm {
+
+    static getField(fieldName, defaultModel, models) {
+        for (let m of fieldName.split('.')) {
+
         }
     }
 
-    constructor(name, schema) {
-        this.name = name;
-        this.panelState = new PanelState();
-
-        const types = SRApp.SCHEMA_TYPES();
-        for (let t of Object.keys(types)) {
-            this[t] = {};
-            for (let x in schema[t]) {
-                this[t][x] = new types[t](this, x, schema[t][x]);
+    constructor(schema, defaultModel, models) {
+        this.pages = {};
+        this.fields = [];
+        for (let f of schema) {
+            if (f instanceof String) {
+                this.fields.push(getField(f, defaultModel, models));
+            }
+            if (f instanceof Array) {
+                this.pages[f[0]] = [];
             }
         }
     }
 }
 
-class SRModel {
-    constructor(app, name, schema) {
-        this.name = name;
-        this.fields = {};
-        for (let f in schema) {
-            this.fields[f] = new SRField(app, f, schema[f]);
-        }
-    }
-}
-
-
+/**
+ * Organized collection of forms
+ */
 class SRView {
-    constructor(app, name, schema) {
+    constructor(name, schema, models) {
         this.name = name;
-        this.pages = {};
+        this.model = model[schema.model || this.name];
+
+        this.title = schema.title;
+
+        this.basicForm = new SRForm(schema.basic, model, models);
+        this.advancedForm = new SRForm(schema.advanced, model, models);
     }
 }
 
 class SRField {
 
-    constructor(app, name, schema) {
-        const INDEX_LABEL = 0;
-        const INDEX_TYPE = 1;
-        const INDEX_DEFAULT_VALUE = 2;
-        const INDEX_TOOL_TIP = 3;
-        const INDEX_MIN = 4;
-        const INDEX_MAX = 5;
-
+    constructor(name, schema) {
         this.name = name;
 
-        this.label = schema[INDEX_LABEL];
-        this.max = schema[INDEX_MAX];
-        this.min = schema[INDEX_MIN];
-        this.value = schema[INDEX_DEFAULT_VALUE];
-        this.toolTip = schema[INDEX_TOOL_TIP];
-        this.type = schema[INDEX_TYPE];
+        const INDEX_TO_FIELD = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
+        for (let i = 0; i < INDEX_TO_FIELD.length; ++i) {
+            this[INDEX_TO_FIELD[i]] = schema[i] || null;
+        }
     }
-
 
 }
 
@@ -93,10 +115,10 @@ class SREnum {
     //    ],
     //    ...
     // }
-    constructor(name, schEntries) {
+    constructor(name, schema) {
         this.name = name;
         this.entries = {};
-        this.addEntries(schEntries);
+        this.addEntries(schema);
     }
 
     addEntry(schEnum) {
@@ -104,8 +126,8 @@ class SREnum {
         this.entries[e.label] = e;
     }
 
-    addEntries(schEntries) {
-        Object.assign(this.entries, SREnum.entriesFromSchema(schEntries));
+    addEntries(schema) {
+        Object.assign(this.entries, SREnum.entriesFromSchema(schema));
     }
 
     clearEntries() {
@@ -126,6 +148,23 @@ class SRReport {
 
     constructor(model) {
     }
+}
+
+
+/**
+ * Link a model and view
+ */
+class SRController {
+    /**
+     * @param {SRModel} model
+     * @param {SRView} view
+     */
+    constructor(model, view) {
+        this.model = model;
+        this.view = view;
+    }
+
+
 }
 
 class PanelState {
