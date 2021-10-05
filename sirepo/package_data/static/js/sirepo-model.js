@@ -2,6 +2,7 @@ class SRApp {
 
     constructor(name, schema) {
         this.name = name;
+        this.controllers = {};
         this.enums = {};
         this.models = {};
         this.views = {};

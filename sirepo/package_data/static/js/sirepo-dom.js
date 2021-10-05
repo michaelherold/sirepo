@@ -50,9 +50,80 @@ class UIAttribute {
 }
 
 /**
+ * Style attributes have the form 'name1: val1:;...'
+ * This class allows manipulation of its individual components
+ */
+class UIStyle {
+
+    /**
+     * Build a UIStyle from a string
+     * @param {string} val - the string
+     */
+    static fromString(val) {
+        let o = {};
+        for (let x of val.split(/\s*;\s*/)) {
+            const v = x.split(/\s*:\s*/);
+            o[v[0]] = o[v[1]];
+        }
+        return new UIStyle(o);
+    }
+
+    /**
+     * @param {{string:string}} obj - value of the attribute
+     */
+    constructor(obj) {
+        this.settings = obj || {};
+    }
+
+    getSetting(name) {
+        return this.settings[name];
+    }
+
+    removeSetting(name) {
+        delete this.settings[name];
+    }
+
+    setSetting(name, value) {
+        this.settings[name] = value;
+    }
+
+    toDict() {
+        return this.settings;
+    }
+
+    toAttr() {
+        return new UIAttribute('style', this.toString());
+    }
+
+    toString() {
+        srdbg('str from', this.settings);
+        let s = '';
+        for (let x in this.settings) {
+            s += `${x}: ${this.settings[x]}; `
+        }
+        return s;
+    }
+
+
+}
+
+/**
  * HTML Element (<element> text </element>)
  */
 class UIElement {  //extends UIOutput {
+
+    // no children
+    static fromDOM(dom) {
+        let el = new UIElement(dom.tagName, dom.getAttribute('id'));
+        for (let a of dom.attributes) {
+            el.addAttribute(a.name, a.value);
+        }
+        for (let c of dom.children) {
+            el.addChild(UIElement.fromDOM(c));
+        }
+        return el;
+    }
+
     /**
      * @param {string} tag - tag name for this element
      * @param {string} [id] - id for this element. The class will generate an id if one is not provided
@@ -180,12 +251,19 @@ class UIElement {  //extends UIOutput {
     /**
      * Get the child with the given id, or null if no such child exists
      * @param {string} id - the id of the child
+     * @param {boolean} [recurse] - the id of the child
      * @returns {null|UIElement}
      */
-    getChild(id) {
+    getChild(id, doRecurse=false) {
         for (let x of this.children) {
             if (x.id === id) {
-                return  x;
+                return x;
+            }
+            if (doRecurse) {
+                const c = x.getChild(id, true);
+                if (c) {
+                    return c;
+                }
             }
         }
         return null;
@@ -219,6 +297,50 @@ class UIElement {  //extends UIOutput {
             }
         }
         return null;
+    }
+
+    /**
+     * Get the contents of the style attribute
+     * @returns {null|UIStyle}
+     */
+    getStyle() {
+        const s = this.getAttr('style');
+        srdbg('STYLE', s);
+        return s ? UIStyle.fromString(s.value) :  null;
+    }
+
+    /**
+     * Get a specific style setting
+     * @param {string} name - the name of the setting
+     * @returns {null|{string}}
+     */
+    getStyleSetting(name) {
+        return this.getStyle().getSetting(name);
+    }
+
+     /**
+     * Hide this element - it remains in the DOM
+     */
+    hide() {
+        this.setStyleSetting('display', 'none');
+    }
+
+    show(displayType=null) {
+        let s = this.getStyle();
+        if (! s ) {
+            return;
+        }
+        const v = s.getSetting('display');
+        if (! v || v !== 'none') {
+            return;
+        }
+        if (! displayType) {
+            s.removeSetting('display');
+        }
+        else {
+            s.setSetting('display', displayType);
+        }
+        this.setStyle(s);
     }
 
     /**
@@ -274,6 +396,19 @@ class UIElement {  //extends UIOutput {
     }
 
     /**
+     * Remove a specific style setting
+     * @param {string} name - the name of the setting
+     */
+    removeStyleSetting(name) {
+        let s = this.getStyle();
+        if (! s) {
+            return;
+        }
+        s.removeSetting(name);
+        this.setStyle(s);
+    }
+
+    /**
      * Set the existing attribute with the given name to the given value
      * @param {string} name - name of an existing attribute
      * @param {string} val - new value of the attrribute
@@ -293,6 +428,26 @@ class UIElement {  //extends UIOutput {
             return;
         }
         a.setValue(cl);
+    }
+
+    /**
+     * Set the style, adding the attribute
+     * @param {UIStyle} style - the style to set
+     */
+    setStyle(style) {
+        this.addUIAttribute(style.toAttr());
+    }
+
+    /**
+     * Set a specific style setting
+     * @param {string} name - the name of the setting
+     * @param {string} value - the value of the setting
+     */
+    setStyleSetting(name, value) {
+        let s = this.getStyle() || new UIStyle();
+        s.setSetting(name, value);
+        srdbg('S', s);
+        this.setStyle(s);
     }
 
     /**
@@ -589,6 +744,14 @@ class UIInput extends UIElement {
      */
     setOnChange(fn) {
         this.addListener('change', fn);
+    }
+
+    /**
+     * Set the oninput listener method
+     * @param {function} fn - the method to invoke
+     */
+    setOnInput(fn) {
+        this.addListener('input', fn);
     }
 
 }
@@ -933,6 +1096,43 @@ class UITable extends UIElement {
         this.body.children.splice(index, 1);
     }
 
+
+    /**
+     * Get the cell (<td>) at the given index
+     * @return {UIElement} - the row
+     */
+    getCell(i, j) {
+        return this.getRow(i).children.filter(c => {
+            return c.tag === 'td';
+        })[j];
+    }
+
+    /**
+     * Get the rows from this table
+     * @return {UIElement} - the rows for this table
+     */
+    getRow(i) {
+        return this.getRows()[i];
+    }
+
+    /**
+     * Get the rows from this table
+     * @return {[UIElement]} - the rows for this table
+     */
+    getRows() {
+        return this.body.children.filter(c => {
+            return c.tag === 'tr';
+        });
+    }
+
+    /**
+     * Get the rows from this table
+     * @return {[UIElement]} - the rows for this table
+     */
+    getNumRows() {
+        return this.getRows().length;
+    }
+
     /**
      * Set the style attributes for each column
      * @param {[string]} styles - array of style strings
@@ -1020,6 +1220,16 @@ class UIReportHeatmap extends UIReport {
     constructor(id , modelName) {
         super(id, modelName);
         this.plot.addAttribute( 'data-heatmap', '');
+    }
+
+
+    addShape(shape) {
+        let svg = this.getSVG();
+
+    }
+
+    getSVG() {
+        return $(`${this.getIdSelector()} svg`);
     }
 }
 

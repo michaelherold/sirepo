@@ -5,7 +5,7 @@
         }
     },
     "constants": {
-        "defaultSettings": [
+        "defaultActiveSettings": [
             "2theta",
             "smpl_stk",
             "bottom_rot",
@@ -53,12 +53,13 @@
             "inProgressText": ["", "String", "Loading"]
         },
         "beamlineSetting": {
+            "isActive": ["Active", "Boolean", "0"],
             "name": ["Name", "BeamlineSetting", ""],
             "value": ["Value", "Float", 0.0]
         },
         "beamlineSettings": {
             "activeSettings": ["", "BeamlineSettings", []],
-            "settings": ["", "BeamlineSettings", []]
+            "settings": ["", "BeamlineSettingsList", []]
         },
         "beamlineDataFile": {
             "dataFile": ["Data File", "InputFile", ""]
