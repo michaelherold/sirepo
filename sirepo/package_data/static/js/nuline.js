@@ -3,6 +3,9 @@
 var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
+let appModel = new SRApp(SIREPO.APP_NAME, SIREPO.APP_SCHEMA);
+srdbg(appModel);
+
 SIREPO.app.config(() => {
     SIREPO.appFieldEditors += [
         '<div data-ng-switch-when="BeamlineSettingsList" class="col-sm-12">',

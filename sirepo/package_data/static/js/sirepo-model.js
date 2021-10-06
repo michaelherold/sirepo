@@ -11,16 +11,24 @@ class SRApp {
         for (let x in schema.enum) {
             this.enums[x] = new SREnum(x, schema.enum[x]);
         }
+
         for (let x in schema.model) {
-            this.models[x] = new SREnum(x, schema.model[x]);
+            this.models[x] = new SRModel(x, schema.model[x]);
         }
 
         // need the models to assign the correct fields
         for (let x in schema.view) {
-            this.views[x] = new SRView(x, schema.view[x], models);
+            this.views[x] = new SRView(x, schema.view[x], this.models);
+        }
+
+        // make controllers linking models and views
+        for (let x in this.views) {
+
         }
 
     }
+
+
 }
 
 class SRModel {
@@ -37,24 +45,39 @@ class SRModel {
 /**
  * Organized collection of fields
  */
-class SRForm {
-
-    static getField(fieldName, defaultModel, models) {
-        for (let m of fieldName.split('.')) {
-
+class SRPage {
+    constructor(schema, defaultModel, models) {
+        this.name = schema[0];
+        this.fields = [];
+        for (let f of schema[1]) {
+            this.fields.push(SRField.fromModelField(f, defaultModel, models));
         }
     }
+}
+
+
+/**
+ * Organized collection of fields
+ */
+class SRFieldGroup {
+
+}
+
+
+/**
+ * Organized collection of pages or fields
+ */
+class SRForm {
 
     constructor(schema, defaultModel, models) {
-        this.pages = {};
+        this.pages = [];
         this.fields = [];
         for (let f of schema) {
             if (f instanceof String) {
-                this.fields.push(getField(f, defaultModel, models));
+                this.fields.push(SRField.fromModelField(f, defaultModel, models));
+                continue;
             }
-            if (f instanceof Array) {
-                this.pages[f[0]] = [];
-            }
+            this.pages.push(new SRPage(f, defaultModel, models));
         }
     }
 }
@@ -63,26 +86,87 @@ class SRForm {
  * Organized collection of forms
  */
 class SRView {
+
+    static getField(fieldName, defaultModel, models) {
+        const m = fieldName.split('.');
+        if (m.length > 2) {
+            return SRView.getField(m.slice(1).join('.'), defaultModel, models);
+        }
+        if (m.length > 1) {
+            return models[m[0]][m[1]];
+        }
+        return defaultModel[m[0]];
+    }
+
     constructor(name, schema, models) {
         this.name = name;
-        this.model = model[schema.model || this.name];
+        this.model = models[schema.model || this.name];
+        this.controllers = {};
+        this.controllers[this.name] = new SRController(this.model, this);
 
         this.title = schema.title;
 
-        this.basicForm = new SRForm(schema.basic, model, models);
-        this.advancedForm = new SRForm(schema.advanced, model, models);
+        if (schema.basic) {
+            this.basicForm = new SRForm(schema.basic, this.model, models);
+        }
+        if (schema.advanced) {
+            this.advancedForm = new SRForm(schema.advanced, this.model, models);
+        }
+
+    }
+}
+
+
+class SRFieldDefinition {
+
+    static typeCheckers(type) {
+        const c = {
+            'Integer': v => {
+                if (isNaN(parseInt(v))) {
+                    throw new Error(`v=${v}: not an integer`)
+                }
+                return v;
+            },
+            // etc.
+        };
+        return c[type] || function (v) { return v; };
+    }
+
+    constructor(def) {
+        srdbg('bld def from', def);
+        const INDEX_TO_FIELD = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
+        for (let i = 0; i < INDEX_TO_FIELD.length; ++i) {
+            this[INDEX_TO_FIELD[i]] = def[i] || null;
+        }
+    }
+
+    checkType(val) {
+        return SRFieldDefinition.typeCheckers(this.type)(val);
     }
 }
 
 class SRField {
 
-    constructor(name, schema) {
-        this.name = name;
-
-        const INDEX_TO_FIELD = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
-        for (let i = 0; i < INDEX_TO_FIELD.length; ++i) {
-            this[INDEX_TO_FIELD[i]] = schema[i] || null;
+    static fromModelField(fieldName, defaultModel, models) {
+        const m = fieldName.split('.');
+        if (m.length > 2) {
+            return SRField.fromModelField(m.slice(1).join('.'), defaultModel, models);
         }
+        if (m.length > 1) {
+            return new SRField(m[1], models[m[0]]);
+        }
+        return new SRField(m[0], models[defaultModel]);
+    }
+
+    constructor(name, def) {
+        srdbg('bld f from', name, def);
+        this.name = name;
+        this.def = new SRFieldDefinition(def);
+        this.value = this.def.default;
+    }
+
+    setValue(val) {
+        this.value = this.def.checkType(val);
     }
 
 }
