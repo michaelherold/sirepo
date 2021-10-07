@@ -179,10 +179,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 });
 
 SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
-    // use img to view raw png data
-    //let img = new SIREPO.DOM.UIImage('sr-beamline-img', '');
     let rpt = new SIREPO.DOM.UIReportHeatmap('sr-beamline-report', 'beamlineImageReport');
-
 
     return {
         restrict: 'A',
@@ -190,22 +187,14 @@ SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
             modelName: '@',
         },
         template: [
-            //img.toTemplate(),
             rpt.toTemplate(),
         ].join(''),
         controller: function ($scope) {
             srdbg(rpt.getSVG());
             const model = appState.models[$scope.modelName];
-            function updateImage() {
-                img.setSource(`data:${model.imageSource ? model.imageSource : 'image/png'};base64,${model.imageSource}`);
-                img.update();
-            }
             $scope.$on('beamlineSettings.changed', () => {
                 appState.saveChanges('beamlineImageReport');
-                //updateImage();
             });
-
-            //updateImage();
         },
     };
 });

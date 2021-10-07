@@ -1169,13 +1169,10 @@ class UIReport extends UIDiv {
      * @param {string} [id] - id for this div
      * @param {string} modelName - name of the model for this report
      */
-    constructor(id, modelName) {
+    constructor(id, modelName, displayType) {
             super(id);
             this.modelName = modelName;
             this.addClasses('panel-body');
-
-            // should live in an SRApp
-            this.panelState = new PanelState();
 
             this.plot = new UIDiv(null, [
                 new UIAttribute('data-model-name', this.modelName),
@@ -1183,6 +1180,9 @@ class UIReport extends UIDiv {
             ]);
         this.plot.addClasses('sr-plot')
         this.addChild(this.plot);
+        if (displayType) {
+            this.plot.addAttribute( `data-${displayType}`, '');
+        }
 
         /*
         this.transclude = new UIDiv(null, [
@@ -1231,6 +1231,17 @@ class UIReportHeatmap extends UIReport {
     getSVG() {
         return $(`${this.getIdSelector()} svg`);
     }
+}
+
+class UIFramework {
+
+}
+
+/**
+ * angular.js stuff
+ */
+class UIFrameworkAngularJS extends UIFramework {
+
 }
 
 /**

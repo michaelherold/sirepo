@@ -83,6 +83,27 @@
             "settings": ["", "BeamlineSetting", ""]
         }
     },
+    "sections": {
+        "beamline": [
+            {
+                "placement": "top",
+                "view": "beamlineDataFile"
+            },
+            {
+                "placement": "middle",
+                "reportType": "heatmap",
+                "view": "beamlineImageReport"
+            },
+            {
+                "placement": "middle",
+                "view": "beamlineSettings"
+            },
+            {
+                "placement": "bottom",
+                "view": "beamlineAutomation"
+            }
+       ]
+    },
     "strings": {
         "completionState": ""
     },

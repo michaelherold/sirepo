@@ -5,8 +5,8 @@ class SRApp {
         this.controllers = {};
         this.enums = {};
         this.models = {};
-        this.views = {};
         this.panelState = new PanelState();
+        this.views = {};
 
         for (let x in schema.enum) {
             this.enums[x] = new SREnum(x, schema.enum[x]);
@@ -215,11 +215,15 @@ class SRController {
     constructor(model, view) {
         this.model = model;
         this.view = view;
+        this.reports = {};
     }
 
-
+    addReport(reportType) {
+        this.reports[reportType] = SIREPO.DOM.UIReport();
+    }
 
 }
+
 
 class PanelState {
 
