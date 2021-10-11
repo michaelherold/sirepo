@@ -122,6 +122,7 @@ def _init():
         proprietary_sim_types=(set(), set, 'codes that require authorization'),
         sim_common=dict(
             hide_guest_warning=b('Hide the guest warning in the UI', dev=True),
+            js_framework=('angularJS', str, 'Javascript framework'),
         ),
         sim_types=(set(), set, 'simulation types (codes) to be imported'),
         srw=dict(

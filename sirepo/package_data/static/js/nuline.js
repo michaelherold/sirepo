@@ -11,15 +11,12 @@ SIREPO.app.config(() => {
         '<div data-ng-switch-when="BeamlineSettingsList" class="col-sm-12">',
           '<div data-beamline-settings-table="" data-field="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
-        //'<div data-ng-switch-when="BeamlineSetting" class="col-sm-12">',
-        //  '<div data-beamline-setting-selector="" data-field="model[field]" data-field-name="field" data-model="model" data-model-name="modelName"></div>',
-        //'</div>',
         '<div data-ng-switch-when="FileList" class="col-sm-5">',
           '<div data-beamline-settings-file-selector="" data-field="field" data-model="model" data-model-name="modelName"></div>',
         '</div>',
     ].join('');
     SIREPO.appReportTypes = [
-        '<div data-ng-switch-when="beamlineImage" data-beamline-image="" data-model-name="{{ modelKey }}"></div>',
+        '<div data-ng-switch-when="beamlineImageReport" data-beamline-image-report="" data-model-name="{{ modelKey }}"></div>',
         '<div data-ng-switch-when="beamlineSettings" data-beamline-settings-table="" data-model-name="{{ modelKey }}"></div>',
     ].join('');
     SIREPO.FILE_UPLOAD_TYPE = {
@@ -178,8 +175,8 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 });
 
-SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
-    let rpt = new SIREPO.DOM.UIReportHeatmap('sr-beamline-report', 'beamlineImageReport');
+SIREPO.app.directive('beamlineImageReport', function(appState, nulineService) {
+    let rpt = new SIREPO.COMPONENTS.UIReportHeatmap('sr-beamline-report', 'beamlineImageReport');
 
     return {
         restrict: 'A',
@@ -190,7 +187,6 @@ SIREPO.app.directive('beamlineImage', function(appState, nulineService) {
             rpt.toTemplate(),
         ].join(''),
         controller: function ($scope) {
-            srdbg(rpt.getSVG());
             const model = appState.models[$scope.modelName];
             $scope.$on('beamlineSettings.changed', () => {
                 appState.saveChanges('beamlineImageReport');

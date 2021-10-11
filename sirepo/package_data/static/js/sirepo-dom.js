@@ -3,8 +3,6 @@
 var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
-// will get rid of angular stuff but need it initially
-
 /**
  * HTML attribute (<element name="value">...)
  */
@@ -46,6 +44,41 @@ class UIAttribute {
     toTemplate() {
         //return `${this.encode(this.name)}="${this.encode(this.value)}"`;
         return `${this.name}="${this.value}"`;
+    }
+}
+
+
+/**
+ * HTML anchor <a>
+ */
+class UIAnchor extends UIElement {
+    /**
+     * @param {string} [id] - id for this element
+     * @param {string} [href] - href
+     * * @param {title} [string] - title to display on hover
+     * @param {function} [onclick] - method to invoke on clicking the link
+     */
+    constructor(id=null, href=null, title='', onclick=null) {
+        super('a', id,);
+        this.setHref(href);
+        this.setTitle(title);
+        if (onclick) {
+            setOnClick(onclick);
+        }
+    }
+
+    setHref(href) {
+        this.href = href;
+        this.addAttribute('href', href);
+    }
+
+    setOnClick(fn) {
+        SIREPO.DOM.UIInput.addListener(this, 'onclick', fn);
+    }
+
+    setTitle(title) {
+        this.title = title;
+        this.addAttribute('title', title);
     }
 }
 
@@ -856,7 +889,6 @@ class UIEnum extends UIElement {
         );
     }
 
-
     /**
      * @param {SREnum} srEnum - enum model
      * @param {string} layout - layout type ('button'|'dropdown')
@@ -898,7 +930,7 @@ class UIEnum extends UIElement {
     }
 
     /**
-     * Get the value for thiis element
+     * Get the value for this element
      * @returns {*} - the value
      */
     getValue() {
@@ -1157,90 +1189,6 @@ class UITable extends UIElement {
         });
     }
 
-
-}
-
-/**
- * A <div> encapsulating a standard report
- */
-class UIReport extends UIDiv {
-
-    /**
-     * @param {string} [id] - id for this div
-     * @param {string} modelName - name of the model for this report
-     */
-    constructor(id, modelName, displayType) {
-            super(id);
-            this.modelName = modelName;
-            this.addClasses('panel-body');
-
-            this.plot = new UIDiv(null, [
-                new UIAttribute('data-model-name', this.modelName),
-                new UIAttribute('data-report-id', 'reportId'),
-            ]);
-        this.plot.addClasses('sr-plot')
-        this.addChild(this.plot);
-        if (displayType) {
-            this.plot.addAttribute( `data-${displayType}`, '');
-        }
-
-        /*
-        this.transclude = new UIDiv(null, [
-            new UIAttribute('data-ng-transclude', ''),
-        ]);
-        this.addChild(this.transclude);
-         */
-
-    }
-
-}
-
-/**
- * 3d report
- */
-class UIReport3D extends UIReport {
-    /**
-     * @param {string} [id] - id for this report
-     * @param {string} modelName - name of the model for this report
-     */
-    constructor(id , modelName) {
-        super(id, modelName);
-        this.plot.addAttribute( 'data-plot3d', '');
-    }
-}
-
-/**
- * Heatmap report
- */
-class UIReportHeatmap extends UIReport {
-    /**
-     * @param {string} [id] - id for this report
-     * @param {string} modelName - name of the model for this report
-     */
-    constructor(id , modelName) {
-        super(id, modelName);
-        this.plot.addAttribute( 'data-heatmap', '');
-    }
-
-
-    addShape(shape) {
-        let svg = this.getSVG();
-
-    }
-
-    getSVG() {
-        return $(`${this.getIdSelector()} svg`);
-    }
-}
-
-class UIFramework {
-
-}
-
-/**
- * angular.js stuff
- */
-class UIFrameworkAngularJS extends UIFramework {
 
 }
 
@@ -1686,14 +1634,15 @@ SIREPO.DOM = {
     SVGShapeButton: SVGShapeButton,
     SVGTable: SVGTable,
     SVGText: SVGText,
+    UIAnchor: UIAnchor,
     UIAttribute: UIAttribute,
+    UIDiv: UIDiv,
     UIElement: UIElement,
     UIEnum: UIEnum,
     UIEnumOption: UIEnumOption,
     UIImage: UIImage,
     UIInput: UIInput,
     UIRawHTML: UIRawHTML,
-    UIReport: UIReport,
     UIReport3D: UIReport3D,
     UIReportHeatmap: UIReportHeatmap,
     UISelect: UISelect,

@@ -4,8 +4,10 @@ class SRApp {
         this.name = name;
         this.controllers = {};
         this.enums = {};
+        this.framework = JSFramework.get(schema.feature_config.js_framework);
         this.models = {};
         this.panelState = new PanelState();
+        this.sections = {};
         this.views = {};
 
         for (let x in schema.enum) {
@@ -18,7 +20,11 @@ class SRApp {
 
         for (let x in schema.view) {
             this.views[x] = new SRView(x, schema.view[x]);
-            this.controllers[x] = new SRController(this.models[this.views[x].model || x], this.views[x]);
+        }
+
+        // not worth making a class for?
+        for (let x in schema.sections) {
+            this.sections[x] = schema.sections[x];
         }
 
     }
@@ -33,7 +39,6 @@ class SRApp {
         }
         return defaultModel[m[0]];
     }
-
 
 }
 
@@ -61,11 +66,19 @@ class SRPage {
     }
 }
 
+/**
+ * tab sections
+ */
+class SRSection {
+    constructor(schema) {
+    }
+}
+
 
 /**
  * Organized collection of fields
  */
-class SRFieldGroup {
+class SRColumnGroup {
 
 }
 
@@ -113,11 +126,37 @@ class SRView {
 
 class SRFieldDefinition {
 
+    static builtIn(baseType, isRequired=true) {
+        let baseInput = new UIInput(null, 'text', `${this.default}`, [
+            new UIAttribute('data-min', `${this.min}`),
+            new UIAttribute('data-max', `${this.max}`),
+            new UIAttribute('data-lpignore', 'true')
+        ]);
+
+        if (isRequired) {
+            baseInput.addAttribute('required');
+        }
+
+        return {
+            number: baseInput,
+        }[baseType];
+    }
+
     constructor(def) {
         const INDEX_TO_FIELD = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
         for (let i = 0; i < INDEX_TO_FIELD.length; ++i) {
             this[INDEX_TO_FIELD[i]] = def[i] || null;
         }
+    }
+
+    ui(isRequired=true) {
+        let ui = new SIREPO.DOM.UIDiv();
+        let f = {
+            Integer: SRFieldDefinition.builtIn('number'),
+            Float: SRFieldDefinition.builtIn('number'),
+        }[this.type];
+        ui.addChild(f);
+        return ui;
     }
 }
 
@@ -201,27 +240,6 @@ class SRReport {
 
     constructor(model) {
     }
-}
-
-
-/**
- * Link a model and view
- */
-class SRController {
-    /**
-     * @param {SRModel} model
-     * @param {SRView} view
-     */
-    constructor(model, view) {
-        this.model = model;
-        this.view = view;
-        this.reports = {};
-    }
-
-    addReport(reportType) {
-        this.reports[reportType] = SIREPO.DOM.UIReport();
-    }
-
 }
 
 
