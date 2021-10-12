@@ -190,7 +190,19 @@ def _extract_beamline_image_report(data):
         title=title,
         z_matrix=intensity,
         z_range=[0, int(numpy.max(intensity))],
-        summaryData={},
+        summaryData={
+            'sample': {
+                '90': [
+                    [300, 200], [320, 210], [340, 200], [340, 175], [330, 125], [300, 125], [300, 200]
+                ],
+                '70': [
+                    [290, 220], [350, 215], [345, 115], [285, 115], [290, 220]
+                ],
+                '66': [
+                    [275, 230], [360, 230], [360, 100], [275, 100], [275, 230]
+                ]
+            }
+        },
     )
 
 

@@ -174,7 +174,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 });
 
-SIREPO.app.directive('beamlineImageReport', function(appState, nulineService) {
+SIREPO.app.directive('beamlineImageReport', function(appState, nulineService, panelState) {
     let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-report', 'beamlineImageReport');
     
     return {
@@ -185,11 +185,25 @@ SIREPO.app.directive('beamlineImageReport', function(appState, nulineService) {
         template: [
             rpt.toTemplate(),
         ].join(''),
-        controller: function ($scope) {
+        controller: function ($scope, $element) {
             const model = appState.models[$scope.modelName];
             $scope.$on('beamlineSettings.changed', () => {
                 appState.saveChanges('beamlineImageReport');
             });
+
+            $scope.$on('beamlineImageReport.summaryData', (e, d) => {
+                let svg = rpt.getSVG();
+                const sg = svg.find('> g');
+                const pts = d.sample['90'];
+                const g = new SIREPO.DOM.SVGGroup('ml-sample');
+                const p = new SIREPO.DOM.SVGPath('ml-sample-90', pts, [63, 50], true, 'red', 'none');
+                srdbg('path', p);
+                g.addChild(p);
+                srdbg(sg);
+                sg.append(g.toTemplate());
+            });
+
+
         },
     };
 });

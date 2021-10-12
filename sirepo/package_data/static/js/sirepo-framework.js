@@ -186,6 +186,12 @@ class SRPlotReport extends SRReport {
         this.plot.addClasses('sr-plot')
         this.addChild(this.plot);
     }
+
+    getSVG() {
+        return $(`${this.getIdSelector()} svg.sr-plot`);
+        //return this.toDOM().querySelector('svg');
+    }
+
 }
 
 /**
@@ -219,10 +225,6 @@ class SRReportHeatmap extends SRPlotReport {
     addShape(shape) {
         let svg = this.getSVG();
 
-    }
-
-    getSVG() {
-        return $(`${this.getIdSelector()} svg`);
     }
 }
 
