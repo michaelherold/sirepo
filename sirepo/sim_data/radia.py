@@ -13,6 +13,16 @@ import sirepo.sim_data
 
 class SimData(sirepo.sim_data.SimDataBase):
 
+    ANALYSIS_ONLY_FIELDS = frozenset((
+        'alpha',
+        'bgColor',
+        'color',
+        'colorMap',
+        'name',
+        'notes',
+        'scaling',
+    ))
+
     @classmethod
     def _compute_job_fields(cls, data, r, compute_model):
         res = cls._non_analysis_fields(data, r) + []
@@ -91,8 +101,14 @@ class SimData(sirepo.sim_data.SimDataBase):
                 dm.simulation.heightAxis = 'z'
 
         for o in dm.geometryReport.objects:
+            if o.get('model') == 'box':
+                o.model = 'cuboid'
+            if o.get('type') == 'box':
+                o.type = 'cuboid'
             if not o.get('bevels'):
                 o.bevels = []
+            if not o.get('segments'):
+                o.segments = o.get('division', '1, 1, 1')
         sch = cls.schema()
         for m in [m for m in dm if m in sch.model]:
             s_m = sch.model[m]

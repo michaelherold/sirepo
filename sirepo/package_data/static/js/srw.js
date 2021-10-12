@@ -8,7 +8,7 @@ SIREPO.app.config(function() {
     SIREPO.SHOW_HELP_BUTTONS = true;
     SIREPO.INCLUDE_EXAMPLE_FOLDERS = true;
     SIREPO.SLOW_ANIMATION = true;
-    SIREPO.SINGLE_FRAME_ANIMATION = ['coherenceXAnimation', 'coherenceYAnimation', 'fluxAnimation', 'multiElectronAnimation'];
+    SIREPO.SINGLE_FRAME_ANIMATION = ['coherenceXAnimation', 'coherenceYAnimation', 'coherentModesAnimation', 'fluxAnimation', 'multiElectronAnimation'];
     SIREPO.PLOTTING_COLOR_MAP = 'grayscale';
     SIREPO.PLOTTING_SHOW_FWHM = true;
     SIREPO.appReportTypes = [
@@ -19,7 +19,7 @@ SIREPO.app.config(function() {
           '<div data-model-selection-list="" data-model-name="modelName" data-model="model" data-field="field" data-field-class="fieldClass"></div>',
         '</div>',
         '<div data-ng-switch-when="FloatStringArray" class="col-sm-12">',
-            '<div data-number-list="" data-model="model" data-field="model[field]" data-info="info" data-type="Float" data-count=""></div>',
+            '<div data-srw-number-list="" data-model="model" data-field="model[field]" data-info="info" data-type="Float" data-count=""></div>',
         '</div>',
         '<div data-ng-switch-when="UndulatorList">',
           '<div data-model-selection-list="" data-model-name="modelName" data-model="model" data-field="field" data-field-class="fieldClass"></div>',
@@ -328,13 +328,12 @@ SIREPO.app.factory('srwService', function(activeSection, appDataService, appStat
         let els = appState.models.exportRsOpt.elements;
         for (let item of items) {
             let e = self.findRSOptElement(item.id);
-            if (! e) {
-                e = appState.setModelDefaults({}, optElModel);
-                els.push(e);
+            if (e) {
+                continue;
             }
-            else {
-                e = appState.setModelDefaults(e, optElModel);
-            }
+            e = appState.setModelDefaults({}, optElModel);
+            els.push(e);
+
             e.title = item.title;
             e.type = item.type;
             e.id = item.id;
@@ -343,7 +342,8 @@ SIREPO.app.factory('srwService', function(activeSection, appDataService, appStat
                 appState.setFieldDefaults(
                     e,
                     self.rsOptElementOffsetField(p),
-                    props[p].offsetInfo || SIREPO.APP_SCHEMA.constants.rsOptDefaultOffsetInfo[p]
+                    props[p].offsetInfo || SIREPO.APP_SCHEMA.constants.rsOptDefaultOffsetInfo[p],
+                    true
                 );
                 e[p] = {
                     fieldNames: props[p].fieldNames,
@@ -530,7 +530,7 @@ SIREPO.app.factory('srwService', function(activeSection, appDataService, appStat
     };
 
     self.updateSimulationGridFields = function() {
-        ['simulation', 'sourceIntensityReport'].forEach(function(f) {
+        ['simulation', 'sourceIntensityReport', 'coherentModesAnimation'].forEach(function(f) {
             var isAutomatic = appState.models[f].samplingMethod == 1;
             panelState.showFields(f, [
                 'sampleFactor', isAutomatic,
@@ -643,6 +643,24 @@ SIREPO.app.controller('BeamlineController', function (activeSection, appState, b
         }
     }
 
+    function updateWatchpointReports() {
+        // special code to update initialIntensityReport and watchpointReports
+        // from beamlineAnimation models so sirepo_bluesky can continue to use those models
+        for (let name in appState.models) {
+            let targetName;
+            if (name == 'beamlineAnimation0') {
+                targetName = 'initialIntensityReport';
+            }
+            else if (name.indexOf('beamlineAnimation') >= 0) {
+                targetName = name.replace('beamlineAnimation', 'watchpointReport');
+            }
+            if (targetName) {
+                appState.models[targetName] = appState.clone(appState.models[name]);
+                appState.saveQuietly(targetName);
+            }
+        }
+    }
+
     self.getWatchpointForPartiallyCoherentReport = function() {
          return appState.models.multiElectronAnimation.watchpointId;
     };
@@ -721,6 +739,7 @@ SIREPO.app.controller('BeamlineController', function (activeSection, appState, b
             newPropagations[item.id] = appState.models.propagation[item.id];
         }
         appState.models.propagation = newPropagations;
+        updateWatchpointReports();
     };
 
     self.setActiveTab = function(tab) {
@@ -779,22 +798,6 @@ SIREPO.app.controller('BeamlineController', function (activeSection, appState, b
                 self.setActiveTab(search.tab);
             }
         }
-
-        // special code to update initialIntensityReport and watchpointReports
-        // from beamlineAnimation models so sirepo_bluesky can continue to use those models
-        $scope.$on('modelChanged', (e, name) => {
-            let targetName;
-            if (name == 'beamlineAnimation0') {
-                targetName = 'initialIntensityReport';
-            }
-            else if (name.indexOf('beamlineAnimation') >= 0) {
-                targetName = name.replace('beamlineAnimation', 'watchpointReport');
-            }
-            if (targetName) {
-                appState.models[targetName] = appState.clone(appState.models[name]);
-                appState.saveQuietly(targetName);
-            }
-        });
     });
 
     $scope.$on('$destroy', function() {
@@ -922,8 +925,11 @@ var srwGrazingAngleLogic = function(panelState, srwService, $scope) {
     SIREPO.beamlineItemLogic(m, srwGrazingAngleLogic);
 });
 
-var srwIntensityLimitLogic = function(panelState, srwService, $scope) {
+var srwIntensityLimitLogic = function(appState, panelState, srwService, $scope) {
 
+    function hasSamplingMethod() {
+        return $scope.modelName == 'sourceIntensityReport' || $scope.modelName == 'coherentModesAnimation';
+    }
     function updateIntensityLimit() {
         srwService.updateIntensityLimit(
             $scope.modelName,
@@ -948,10 +954,27 @@ var srwIntensityLimitLogic = function(panelState, srwService, $scope) {
             schemaModel.characteristic[1] =
                 isLimitCharacteristic ? 'CharacteristicSimple' : 'Characteristic';
         }
-        if ($scope.modelName == 'sourceIntensityReport') {
+        if (hasSamplingMethod()) {
             srwService.updateSimulationGridFields();
             srwService.updateIntensityReport($scope.modelName);
         }
+        else if ($scope.modelName == 'multiElectronAnimation') {
+            updateWavefrontSource();
+        }
+    }
+
+    function updateWavefrontSource() {
+        const isSource = appState.models.multiElectronAnimation.wavefrontSource == 'source';
+        panelState.showFields('multiElectronAnimation', [
+            [
+                'stokesParameter',
+                'numberOfMacroElectrons',
+                'integrationMethod',
+                'photonEnergyBandWidth',
+            ], isSource,
+            'coherentModesFile', ! isSource,
+        ]);
+        panelState.showField('simulation', 'photonEnergy', isSource);
     }
 
     var modelKey = $scope.modelData ? $scope.modelData.modelKey : $scope.modelName;
@@ -965,18 +988,22 @@ var srwIntensityLimitLogic = function(panelState, srwService, $scope) {
                 + '.usePlotRange',
         ], updatePlotRange,
     ];
-    if ($scope.modelName == 'sourceIntensityReport') {
+    if (hasSamplingMethod()) {
         $scope.watchFields.push(
-            ['sourceIntensityReport.samplingMethod'], srwService.updateSimulationGridFields,
-            ['sourceIntensityReport.method'], function() {
-                srwService.updateIntensityReport('sourceIntensityReport');
+            [$scope.modelName + '.samplingMethod'], srwService.updateSimulationGridFields,
+            [$scope.modelName + '.method'], function() {
+                srwService.updateIntensityReport($scope.modelName);
             });
+    }
+    else if ($scope.modelName == 'multiElectronAnimation') {
+        $scope.watchFields.push(
+            ['multiElectronAnimation.wavefrontSource'], updateWavefrontSource);
     }
 };
 
 [
     'initialIntensityReportView', 'multiElectronAnimationView', 'powerDensityReportView',
-    'sourceIntensityReportView', 'watchpointReportView',
+    'sourceIntensityReportView', 'watchpointReportView', 'coherentModesAnimationView',
 ].forEach(function(view) {
     SIREPO.viewLogic(view, srwIntensityLimitLogic);
 });
@@ -1926,6 +1953,7 @@ SIREPO.app.directive('rsOptElements', function(appState, panelState, requestSend
 
 
             $scope.$on('exportRsOpt.editor.show', () => {
+                updateElements();
                 // set form dirty so user does not have to change anything to export
                 $scope.form.$setDirty();
             });
@@ -2447,12 +2475,12 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
                 '<div class="col-sm-6">',
                   '<div data-pending-link-to-simulations="" data-sim-state="simState"></div>',
                   '<div data-ng-show="simState.isInitializing()">',
-                    '<span class="glyphicon glyphicon-hourglass"></span> Initializing Simulation {{ simState.dots }}',
+                    '<span class="glyphicon glyphicon-hourglass"></span> {{ initMessage() }} {{ simState.dots }}',
                   '</div>',
                   '<div data-ng-show="simState.isStateRunning() && ! simState.isInitializing()">',
                     '{{ simState.stateAsText() }} {{ simState.dots }}',
                     '<div data-ng-show="! simState.isStatePending() && particleNumber">',
-                      'Completed particle: {{ particleNumber }} / {{ particleCount}}',
+                      'Completed {{ runStepName }}: {{ particleNumber }} / {{ particleCount}}',
                     '</div>',
                     '<div data-simulation-status-timer="simState" data-ng-show="! isFluxWithApproximateMethod()"></div>',
                   '</div>',
@@ -2463,8 +2491,8 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
               '</div>',
               '<div data-ng-show="simState.isStopped() && ! isFluxWithApproximateMethod()">',
                 '<div data-simulation-stopped-status="simState"></div>',
-                  '<div class="col-sm-12" data-ng-show="! simState.isStatePending() && ! simState.isInitializing() && ! simState.isStatePurged() && particleNumber">',
-                    'Completed particle: {{ particleNumber }} / {{ particleCount}}',
+                  '<div class="col-sm-12" data-ng-show="showFrameCount()">',
+                    'Completed {{ runStepName }}: {{ particleNumber }} / {{ particleCount}}',
                   '</div>',
                 '<div class="col-sm-12" data-simulation-status-timer="simState"></div>',
                 //TODO(pjm): share with simStatusPanel directive in sirepo-components.js
@@ -2487,6 +2515,7 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
             var self = this;
             self.simScope = $scope;
             self.simAnalysisModel = $scope.model;
+            $scope.runStepName = 'particle';
 
             function copyModel() {
                 oldModel = appState.cloneModel($scope.model);
@@ -2496,7 +2525,31 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
                 return oldModel;
             }
 
+            function hidePanel(modelName) {
+                if (! panelState.isHidden(modelName)) {
+                    panelState.toggleHidden(modelName);
+                }
+            }
+
+            function isCoherentModes() {
+                return $scope.model == 'coherentModesAnimation';
+            }
+
+            function setActiveAnimation() {
+                //TODO(pjm):multiple independent animation models on the same page will confuse the
+                // plots because the frameCache is global. hide opposite report on the source page
+                if ($scope.model == 'fluxAnimation') {
+                    hidePanel('coherentModesAnimation');
+                }
+                else if ($scope.model == 'coherentModesAnimation') {
+                    hidePanel('fluxAnimation');
+                }
+            }
+
             self.simHandleStatus = function(data) {
+                if ($scope.simState.isProcessing()) {
+                    setActiveAnimation();
+                }
                 if (data.method && data.method != appState.models.fluxAnimation.method) {
                     // the output file on the server was generated with a different flux method
                     $scope.simState.timeData = {};
@@ -2504,16 +2557,26 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
                     return;
                 }
                 if (data.percentComplete) {
-                    $scope.particleNumber = data.particleNumber;
+                    if (! isCoherentModes()) {
+                        $scope.particleNumber = data.particleNumber;
+                        $scope.runStepName = appState.models[$scope.model].wavefrontSource == 'cmd'
+                            ? 'mode' : 'particle';
+                    }
                     $scope.particleCount = data.particleCount;
+                    if ($scope.simState.isStopped() && ! $scope.simState.isStateCanceled()) {
+                        $scope.particleNumber = $scope.particleCount;
+                    }
                 }
                 if (data.frameCount) {
-
                     if (data.frameCount != frameCache.getFrameCount($scope.model)) {
-                        frameCache.setFrameCount(data.frameCount);
+                        frameCache.setFrameCount(data.frameCount, $scope.model);
                         frameCache.setCurrentFrame($scope.model, data.frameIndex);
+                        frameCache.setFrameCount(data.frameCount);
                     }
                     srwService.setShowCalcCoherence(data.calcCoherence);
+                }
+                else {
+                    frameCache.setFrameCount(0, $scope.model);
                 }
                 if ($scope.isFluxWithApproximateMethod() && data.state == 'stopped' && ! data.frameCount) {
                     $scope.cancelPersistentSimulation();
@@ -2538,12 +2601,29 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
                 });
             };
 
+            $scope.initMessage = () => {
+                if (isCoherentModes() && $scope.particleCount) {
+                    return 'Calculating 4D cross-spectral density';
+                }
+                return 'Initializing Simulation';
+            };
+
             $scope.isFluxWithApproximateMethod = function() {
                 return $scope.model === 'fluxAnimation'
                     && appState.isLoaded() && appState.models.fluxAnimation.method == -1;
             };
 
             $scope.isLoading = () => panelState.isLoading($scope.simState.model);
+
+            $scope.showFrameCount = () => {
+                if (isCoherentModes()) {
+                    return false;
+                }
+                if ($scope.simState.isStatePending() || $scope.simState.isInitializing() || $scope.simState.isStatePurged()) {
+                    return false;
+                }
+                return $scope.particleNumber;
+            };
 
             $scope.startButtonLabel = function() {
                 return stringsService.startButtonLabel();
@@ -2554,13 +2634,15 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
             };
 
             $scope.startSimulation = function() {
+                setActiveAnimation();
+                $scope.particleCount = 0;
                 // The available jobRunModes can change. Default to parallel if
                 // the current jobRunMode doesn't exist
                 var j = appState.models[$scope.simState.model];
                 if (j && j.jobRunMode && j.jobRunMode in authState.jobRunModeMap === false) {
                     j.jobRunMode = 'parallel';
                 }
-                frameCache.setFrameCount(0);
+                frameCache.setFrameCount(0, $scope.model);
                 if ($scope.model == 'multiElectronAnimation') {
                     appState.saveChanges($scope.simState.model);
                     appState.models.simulation.multiElectronAnimationTitle = beamlineService.getReportTitle($scope.model);
@@ -2569,10 +2651,13 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
             };
 
             appState.whenModelsLoaded($scope, function() {
+                if (isCoherentModes()) {
+                    return;
+                }
                 $scope.$on($scope.model + '.changed', function() {
                     if ($scope.simState.isReadyForModelChanges && hasReportParameterChanged()) {
                         $scope.cancelPersistentSimulation();
-                        frameCache.setFrameCount(0);
+                        frameCache.setFrameCount(0, $scope.model);
                         $scope.percentComplete = 0;
                         $scope.particleNumber = 0;
                     }
@@ -3141,7 +3226,7 @@ SIREPO.app.directive('beamline3d', function(appState, plotting, srwService, vtkT
     };
 });
 
-SIREPO.app.directive('numberList', function(appState) {
+SIREPO.app.directive('srwNumberList', function(appState) {
     return {
         restrict: 'A',
         scope: {
@@ -3195,6 +3280,9 @@ SIREPO.app.directive('beamlineAnimation', function(appState, frameCache, persist
           <div class="col-sm-3">
             <button class="btn btn-default pull-right" data-ng-click="start()" data-ng-show="simState.isStopped()">Start New Simulation</button>
             <button class="btn btn-default pull-right" data-ng-click="simState.cancelSimulation()" data-ng-show="simState.isProcessing()">End Simulation</button>
+          </div>
+          <div data-ng-show="simState.isStateError()" class="col-sm-9" style="margin-top: 1ex">
+            Error: {{ simState.getError() }}
           </div>
           <div class="col-sm-5 col-md-4 col-lg-3" style="margin-top: 1ex">
             <div data-pending-link-to-simulations="" data-sim-state="simState"></div>

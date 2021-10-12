@@ -133,6 +133,10 @@ angular.element(document).ready(function() {
         error: function(xhr, status, err) {
             if (! SIREPO.APP_SCHEMA) {
                 srlog("schema load failed: ", err);
+                if (err.match(/forbidden/i)) {
+                    window.location.href = "/forbidden";
+                    return;
+                }
             }
         },
         method: 'POST',
@@ -786,9 +790,9 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         });
     };
 
-    self.setFieldDefaults = function(model, field, fieldInfo) {
+    self.setFieldDefaults = function(model, field, fieldInfo, overWrite=false) {
         let defaultVal = fieldInfo[2];
-        if (! model[field]) {
+        if (! model[field] || overWrite) {
             if (defaultVal !== undefined) {
                 // for cases where the default value is an object, we must
                 // clone it or the schema itself will change as the model changes
@@ -842,9 +846,11 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
     self.watchModelFields = function($scope, modelFields, callback) {
         $scope.appState = self;
         modelFields.forEach(function(f) {
+            // allows watching fields when creating a new simulation (isLoaded() returns false)
+            const isSim = self.models.simulation && self.parseModelField(f)[0] === 'simulation';
             // elegant uses '-' in modelKey
             $scope.$watch('appState.models' + propertyToIndexForm(f), function (newValue, oldValue) {
-                if (self.isLoaded() && newValue !== null && newValue !== undefined && newValue !== oldValue) {
+                if ((self.isLoaded() || isSim) && newValue !== null && newValue !== undefined && newValue !== oldValue) {
                     // call in next cycle to allow UI to change layout first
                     $interval(callback, 1, 1, true, f);
                 }
@@ -1192,8 +1198,7 @@ SIREPO.app.factory('frameCache', function(appState, panelState, requestSender, $
             return;
         }
         function onError() {
-            panelState.setLoading(modelName, false);
-            panelState.setError(modelName, 'Report not generated');
+	    panelState.reportNotGenerated(modelName);
         }
         var isHidden = panelState.isHidden(modelName);
         var frameRequestTime = new Date().getTime();
@@ -1256,7 +1261,7 @@ SIREPO.app.factory('frameCache', function(appState, panelState, requestSender, $
 
     self.getFrameCount = function(modelKey) {
         if (modelKey in frameCountByModelKey) {
-            var s = appState.models.simulationStatus[appState.appService.computeModel(modelKey)];
+            var s = self.getSimulationStatus(modelKey);
             if (! (s && s.computeJobHash)
             ) {
                 // cannot request frames without computeJobHash
@@ -1265,6 +1270,10 @@ SIREPO.app.factory('frameCache', function(appState, panelState, requestSender, $
             return frameCountByModelKey[modelKey];
         }
         return masterFrameCount;
+    };
+
+    self.getSimulationStatus = (modelKey) => {
+        return appState.models.simulationStatus[appState.appService.computeModel(modelKey)];
     };
 
     self.setCurrentFrame = function(modelName, currentFrame) {
@@ -1644,6 +1653,11 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
             args['<title>'] = reportTitle;
         }
         requestSender.newWindow('pythonSource', args);
+    };
+
+    self.reportNotGenerated = function(modelName) {
+	self.setLoading(modelName, false);
+	self.setError(modelName, 'Report not generated');
     };
 
     self.requestData = function(name, callback, forceRun, errorCallback) {
@@ -2269,10 +2283,44 @@ SIREPO.app.factory('requestSender', function(cookieService, errorService, $http,
         );
     };
 
-    self.statelessCompute = function(appState, data, callback) {
+    self.statelessCompute = function(appState, data, successCallback, options) {
+	const onError = (data) => {
+	    srlog('statelessCompute error: ', data.error);
+	    setPanelState('error');
+	};
+
+	const setPanelState = (method) => {
+	    if (! options) {
+		return;
+	    }
+	    const p = options.panelStateHandle;
+	    const m = options.modelName;
+	    if (! (p && m)) {
+		return;
+	    }
+	    return {
+		error: () => p.reportNotGenerated(m),
+		loading: () => p.setLoading(m, true),
+		loadingDone: () => p.setLoading(m, false)
+	    }[method]();
+	};
+
+	setPanelState('loading');
         data.simulationId = appState.models.simulation.simulationId;
         data.simulationType = SIREPO.APP_SCHEMA.simulationType;
-        self.sendRequest('statelessCompute', callback, data);
+        self.sendRequest(
+	    'statelessCompute',
+	    (data) => {
+		if (data.state === 'error') {
+		    onError(data);
+		    return;
+		}
+		setPanelState('loadingDone');
+		successCallback(data);
+	    },
+	    data,
+	    onError
+	);
     };
 
     $rootScope.$on('$routeChangeStart', checkCookieRedirect);
@@ -2650,6 +2698,9 @@ SIREPO.app.factory('persistentSimulation', function(simulationQueue, appState, a
         };
 
         state.getPercentComplete = function() {
+            if (state.percentComplete) {
+                return state.percentComplete;
+            }
             if (state.isInitializing() || state.isStatePending()) {
                 return 100;
             }
