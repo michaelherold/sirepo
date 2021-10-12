@@ -47,41 +47,6 @@ class UIAttribute {
     }
 }
 
-
-/**
- * HTML anchor <a>
- */
-class UIAnchor extends UIElement {
-    /**
-     * @param {string} [id] - id for this element
-     * @param {string} [href] - href
-     * * @param {title} [string] - title to display on hover
-     * @param {function} [onclick] - method to invoke on clicking the link
-     */
-    constructor(id=null, href=null, title='', onclick=null) {
-        super('a', id,);
-        this.setHref(href);
-        this.setTitle(title);
-        if (onclick) {
-            setOnClick(onclick);
-        }
-    }
-
-    setHref(href) {
-        this.href = href;
-        this.addAttribute('href', href);
-    }
-
-    setOnClick(fn) {
-        SIREPO.DOM.UIInput.addListener(this, 'onclick', fn);
-    }
-
-    setTitle(title) {
-        this.title = title;
-        this.addAttribute('title', title);
-    }
-}
-
 /**
  * Style attributes have the form 'name1: val1:;...'
  * This class allows manipulation of its individual components
@@ -129,7 +94,6 @@ class UIStyle {
     }
 
     toString() {
-        srdbg('str from', this.settings);
         let s = '';
         for (let x in this.settings) {
             s += `${x}: ${this.settings[x]}; `
@@ -535,6 +499,36 @@ class UIElement {  //extends UIOutput {
         for (let e in (this.listeners || {}) ) {
             this.toDOM().addEventListener(e, this.listeners[e]);
         }
+    }
+}
+
+/**
+ * HTML anchor <a>
+ */
+class UIAnchor extends UIElement {
+    /**
+     * @param {string} [id] - id for this element
+     * @param {string} [href] - href
+     * @param {title} [string] - title to display on hover
+     */
+    constructor(id=null, href=null, title='') {
+        super('a', id,);
+        this.setHref(href);
+        this.setTitle(title);
+    }
+
+    setHref(href) {
+        this.href = href;
+        this.addAttribute('href', href);
+    }
+
+    setOnClick(fn) {
+        SIREPO.DOM.UIInput.addListener(this, 'click', fn);
+    }
+
+    setTitle(title) {
+        this.title = title;
+        this.addAttribute('title', title);
     }
 }
 
@@ -1643,8 +1637,6 @@ SIREPO.DOM = {
     UIImage: UIImage,
     UIInput: UIInput,
     UIRawHTML: UIRawHTML,
-    UIReport3D: UIReport3D,
-    UIReportHeatmap: UIReportHeatmap,
     UISelect: UISelect,
     UISelectOption: UISelectOption,
     UITable: UITable,

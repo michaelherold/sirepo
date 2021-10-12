@@ -456,7 +456,7 @@
                 ]
             },
             "sirepoLibs": {
-                "js": ["sirepo.js", "sirepo-dom.js", "sirepo-model.js", "sirepo-utils.js"],
+                "js": ["sirepo.js", "sirepo-dom.js", "sirepo-framework.js", "sirepo-model.js", "sirepo-utils.js"],
                 "css": ["sirepo.css"]
             }
         },

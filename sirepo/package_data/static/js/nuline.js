@@ -4,21 +4,20 @@ var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
 let appModel = new SRApp(SIREPO.APP_NAME, SIREPO.APP_SCHEMA);
-srdbg(appModel);
 
 SIREPO.app.config(() => {
-    SIREPO.appFieldEditors += [
-        '<div data-ng-switch-when="BeamlineSettingsList" class="col-sm-12">',
-          '<div data-beamline-settings-table="" data-field="field" data-model="model" data-model-name="modelName"></div>',
-        '</div>',
-        '<div data-ng-switch-when="FileList" class="col-sm-5">',
-          '<div data-beamline-settings-file-selector="" data-field="field" data-model="model" data-model-name="modelName"></div>',
-        '</div>',
-    ].join('');
-    SIREPO.appReportTypes = [
-        '<div data-ng-switch-when="beamlineImageReport" data-beamline-image-report="" data-model-name="{{ modelKey }}"></div>',
-        '<div data-ng-switch-when="beamlineSettings" data-beamline-settings-table="" data-model-name="{{ modelKey }}"></div>',
-    ].join('');
+    SIREPO.appFieldEditors += `
+        <div data-ng-switch-when="BeamlineSettingsList" class="col-sm-12">
+          <div data-beamline-settings-table="" data-field="field" data-model="model" data-model-name="modelName"></div>
+        </div>
+        <div data-ng-switch-when="FileList" class="col-sm-5">
+          <div data-beamline-settings-file-selector="" data-field="field" data-model="model" data-model-name="modelName"></div>
+        </div>
+        `;
+    SIREPO.appReportTypes = `
+        <div data-ng-switch-when="beamlineImageReport" data-beamline-image-report="" data-model-name="{{ modelKey }}"></div>
+        <div data-ng-switch-when="beamlineSettings" data-beamline-settings-table="" data-model-name="{{ modelKey }}"></div>
+        `;
     SIREPO.FILE_UPLOAD_TYPE = {
         'beamlineDataFile-dataFile': '.h5,.hdf5,.zip',
     };
@@ -176,8 +175,8 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 });
 
 SIREPO.app.directive('beamlineImageReport', function(appState, nulineService) {
-    let rpt = new SIREPO.COMPONENTS.UIReportHeatmap('sr-beamline-report', 'beamlineImageReport');
-
+    let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-report', 'beamlineImageReport');
+    
     return {
         restrict: 'A',
         scope: {

@@ -1,10 +1,13 @@
+/**
+ * A class defining an app based on its schema.
+ */
 class SRApp {
 
     constructor(name, schema) {
         this.name = name;
         this.controllers = {};
         this.enums = {};
-        this.framework = JSFramework.get(schema.feature_config.js_framework);
+        this.framework = SIREPO.JS_FRAMEWORK.JSFramework.get(schema.feature_config.js_framework);
         this.models = {};
         this.panelState = new PanelState();
         this.sections = {};
@@ -27,6 +30,33 @@ class SRApp {
             this.sections[x] = schema.sections[x];
         }
 
+    }
+
+    editor(viewName, formType) {
+        const v = this.views[viewName];
+        const f = v.getForm(formType);
+
+        let e = new SIREPO.DOM.UIDiv();
+        let form = new SIREPO.DOM.UIElement('form', null, [
+            new SIREPO.DOM.UIAttribute('autocomplete', 'off'),
+            new SIREPO.DOM.UIAttribute('novalidate', ''),
+        ]);
+        form.addClasses('form-horizontal');
+        e.addChild(form);
+
+        if (f.pages) {
+            for (let p in f.pages) {
+            }
+            return e;
+        }
+
+        for (let fr of f.fieldRefs) {
+            let x = new SIREPO.DOM.UIDiv();
+            x.addClasses('form-group form-group-sm');
+            form.addChild(x);
+            x.addChild(this.getField(fr, v.defaultModel).def.editor());
+        }
+        return e;
     }
 
     getField(fieldRef, defaultModel) {
@@ -84,10 +114,15 @@ class SRColumnGroup {
 
 
 /**
- * Organized collection of pages or fields
+ * Organized collection of pages or field references. A field reference is either the name of a field
+ * or a '.'-delimited string of model names terminated by a field name (i.e. <model 1>.<model 2>...<field>.
+ * The schema is assumed to have either field refs or pages, NOT both
  */
 class SRForm {
 
+    /**
+     * @param {*} schema - schema defining this form
+     */
     constructor(schema) {
         this.pages = null;
         this.fieldRefs = [];
@@ -102,28 +137,63 @@ class SRForm {
             this.pages.push(new SRPage(f));
         }
     }
-}
 
-/**
- * Organized collection of forms
- */
-class SRView {
-
-    constructor(name, schema) {
-        this.name = name;
-        this.title = schema.title;
-
-        if (schema.basic) {
-            this.basicForm = new SRForm(schema.basic);
-        }
-        if (schema.advanced) {
-            this.advancedForm = new SRForm(schema.advanced);
-        }
-
+    /**
+     * Get a page in this form by name
+     * @param {SRPage} pageName - the page
+     */
+    getPage(pageName) {
+        return this.pages[pageName];
     }
 }
 
+/**
+ * Organized collection of forms. The heirarchy is:
+ *    view -> forms (basic|advanced) -> pages -> field references
+ */
+class SRView {
 
+    /**
+     * @param {string} name - name of the view
+     * @param {*} schema - schema defining this view
+     */
+    constructor(name, schema) {
+        this.name = name;
+        this.title = schema.title;
+        this.defaultModel = schema.model || name;
+
+        for (let f of ['basic', 'advanced']) {
+            if (schema[f]) {
+                this[f] = new SRForm(schema[f]);
+            }
+        }
+    }
+
+    /**
+     * Get the form of this type
+     * @param {string} formType - basic|advanced
+     * @return {SRForm} - the form for this type
+     */
+    getForm(formType) {
+        return this[formType];
+    }
+
+    /**
+     * Get a page from the form of this type
+     * @param {string} formType - basic|advanced
+     * @param {string} pageName - name of the page
+     * @return {SRPage}
+     */
+    getPage(formType, pageName) {
+        return this.getForm(formType).getPage(pageName);
+    }
+
+}
+
+
+/**
+ * A class defining various aspects of a model field.
+ */
 class SRFieldDefinition {
 
     static builtIn(baseType, isRequired=true) {
@@ -142,21 +212,44 @@ class SRFieldDefinition {
         }[baseType];
     }
 
+    /**
+     * @param {[*]} def - array of field properties. Canonically these are
+     *     [
+     *         <field label> (str),
+     *         <field type> (str),
+     *         <default value> (*),
+     *         [<tool tip>] (str),
+     *         [<min>] (number),
+     *         [<max>] (number)
+     *     ]
+     *
+     * Not all properties have meaning for all field types. Further, some apps use custom properties beyond
+     * the range of this class
+     */
     constructor(def) {
-        const INDEX_TO_FIELD = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
-        for (let i = 0; i < INDEX_TO_FIELD.length; ++i) {
-            this[INDEX_TO_FIELD[i]] = def[i] || null;
+        const INDEX_TO_PROPERTY = ['label',  'type', 'default', 'toolTip', 'min', 'max',];
+        for (let i = 0; i < INDEX_TO_PROPERTY.length; ++i) {
+            this.addProperty([INDEX_TO_PROPERTY[i]], def[i] || null);
         }
     }
 
-    ui(isRequired=true) {
+    /**
+     * Add a property to this field definition
+     * @param {string} name - name of the proprty
+     * @param {*} val - its value
+     */
+    addProperty(name, value) {
+        this[name] = value;
+    }
+
+    editor(isRequired=true) {
         let ui = new SIREPO.DOM.UIDiv();
         let f = {
-            Integer: SRFieldDefinition.builtIn('number'),
-            Float: SRFieldDefinition.builtIn('number'),
+            Integer: SRFieldDefinition.builtIn('number', isRequired),
+            Float: SRFieldDefinition.builtIn('number', isRequired),
         }[this.type];
-        ui.addChild(f);
-        return ui;
+        editor.addChild(f);
+        return editor;
     }
 }
 
@@ -235,13 +328,6 @@ class SREnum {
         this.addEntries(schEntries);
     }
 }
-
-class SRReport {
-
-    constructor(model) {
-    }
-}
-
 
 class PanelState {
 
