@@ -190,8 +190,10 @@ def _extract_beamline_image_report(data):
         title=title,
         z_matrix=intensity,
         z_range=[0, int(numpy.max(intensity))],
-        summaryData={
-            'sample': {
+        summaryData=PKDict(
+            x_range=[0, img.size[0], img.size[0]],
+            y_range=[0, img.size[1], img.size[1]],
+            sample={
                 '90': [
                     [300, 200], [320, 210], [340, 200], [340, 175], [330, 125], [300, 125], [300, 200]
                 ],
@@ -202,7 +204,7 @@ def _extract_beamline_image_report(data):
                     [275, 230], [360, 230], [360, 100], [275, 100], [275, 230]
                 ]
             }
-        },
+        ),
     )
 
 

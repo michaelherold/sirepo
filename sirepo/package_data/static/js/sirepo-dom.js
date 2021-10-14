@@ -788,7 +788,7 @@ class UIInput extends UIElement {
  */
 class UIButton extends UIElement {
     constructor(id, attrs) {
-        super(id, 'button', attrs);
+        super('button', id, attrs);
     }
 
     /**
@@ -1191,7 +1191,6 @@ class UITable extends UIElement {
  */
 class SVGContainer extends UIElement {
     /**
-     *
      * @param {string} [id] - id for this container
      * @param {number} width - container width
      * @param {number} height - container height
@@ -1202,6 +1201,11 @@ class SVGContainer extends UIElement {
             new UIAttribute('height', `${height}`),
         ]);
     }
+
+    d3Self() {
+        return SVGContainer.d3Select(this.getIdSelector());
+    }
+
 }
 
 /**
@@ -1630,6 +1634,7 @@ SIREPO.DOM = {
     SVGText: SVGText,
     UIAnchor: UIAnchor,
     UIAttribute: UIAttribute,
+    UIButton: UIButton,
     UIDiv: UIDiv,
     UIElement: UIElement,
     UIEnum: UIEnum,

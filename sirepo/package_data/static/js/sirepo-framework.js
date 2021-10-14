@@ -188,8 +188,7 @@ class SRPlotReport extends SRReport {
     }
 
     getSVG() {
-        return $(`${this.getIdSelector()} svg.sr-plot`);
-        //return this.toDOM().querySelector('svg');
+        return this.toDOM().querySelector('svg.sr-plot');
     }
 
 }
