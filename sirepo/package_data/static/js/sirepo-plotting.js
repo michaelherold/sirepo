@@ -2915,6 +2915,8 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                 x: layoutService.plotAxis($scope.margin, 'x', 'bottom', refresh),
                 y: layoutService.plotAxis($scope.margin, 'y', 'left', refresh),
             };
+            let overlayData = null;
+            const overlayDataClass = SIREPO.PLOTTING.SRPlotCSS.overlayData;
 
             function colorbarSize() {
                 var tickFormat = colorbar.tickFormat();
@@ -2928,6 +2930,22 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                 var res = textSize + colorbar.thickness() + colorbar.margin().left;
                 colorbar.margin().right = res;
                 return res;
+            }
+
+            function drawOverlay() {
+                const ns = 'http://www.w3.org/2000/svg';
+                let ds = d3.select(`svg.${SIREPO.PLOTTING.SRPlotCSS.srPlot} > g`)
+                    .selectAll(`path.${SIREPO.PLOTTING.SRPlotCSS.overlayData}`)
+                    .data(overlayData);
+                ds.exit().remove();
+                ds.enter()
+                    .append(d => {
+                        return document.createElementNS(ns, 'path');
+                    })
+                    .append(d => {
+                        return document.createElementNS(ns, 'title')
+                    });
+                ds.call(updateOverlay);
             }
 
             function getRange(values) {
@@ -2994,6 +3012,11 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                     select('svg.colorbar').remove();
                     $scope.margin.right = 20;
                 }
+
+                if (overlayData) {
+                    drawOverlay();
+                }
+
             }
 
             function resetZoom() {
@@ -3025,6 +3048,32 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                     return appState.models[$scope.modelName].colorMap != 'contrast';
                 }
                 return false;
+            }
+
+            function updateOverlay(selection) {
+                selection
+                    .attr('class', overlayDataClass)
+                    .attr('id', d => {
+                        return `${overlayDataClass}-${d.name}`;
+                    })
+                    .attr('stroke', d => {
+                        return d.color;
+                    })
+                    .attr('stroke-width', 2.0)
+                    .attr('fill', 'none')
+                    .attr('d', d => {
+                        // we don't use the SVGPath directly, but it is a convenient way to build
+                        // a path string
+                        return new SIREPO.DOM.SVGPath(
+                            null,
+                            d.data.map(c => {
+                                return [axes.x.scale(c[0]), axes.y.scale(c[1])];
+                            })
+                        ).pathString();
+                    })
+                    .select('title').text(d => {
+                        return d.name
+                    });
             }
 
             $scope.clearData = function() {
@@ -3071,6 +3120,7 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                     //TODO(pjm): plot may be loaded with { state: 'canceled' }?
                     return;
                 }
+                overlayData = json.overlayData;
                 $scope.dataCleared = false;
                 aspectRatio = plotting.getAspectRatio($scope.modelName, json);
                 let z = appState.clone(json.z_matrix);
