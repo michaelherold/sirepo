@@ -173,6 +173,19 @@ class SRReport extends SRPanel {
  * Plot report
  */
 class SRPlotReport extends SRReport {
+
+
+    /**
+     * Common CSS classes
+     * @returns {{string:string}} - cell id
+     */
+    static css()  {
+        return {
+            overlayData: 'sr-overlay-data',
+            srPlot: 'sr-plot',
+        };
+    }
+
     /**
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
@@ -238,6 +251,7 @@ SIREPO.COMPONENTS = {
 };
 
 SIREPO.PLOTTING = {
+    SRPlotCSS: SRPlotReport.css(),
     SRPlotReport: SRPlotReport,
     SRReport3D: SRReport3D,
     SRReportHeatmap: SRReportHeatmap,
