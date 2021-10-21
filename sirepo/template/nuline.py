@@ -179,32 +179,43 @@ def _extract_beamline_image_report(data):
 
     title = data.models.beamlineImageReport.imageFile
 
+    #TODO(mvk): genuine overlay data
     return PKDict(
         aspectRatio=img.size[1] / img.size[0],
         preserve_y=True,
         x_range=[0, img.size[0], img.size[0]],
         y_range=[0, img.size[1], img.size[1]],
-        x_label='x',
-        y_label='y',
-        z_label='Intensity',
+        x_label='x [pixels]',
+        y_label='y [pixels]',
+        z_label='Intensity (normalized)',
         title=title,
         z_matrix=intensity,
         z_range=[0, int(numpy.max(intensity))],
-        summaryData=PKDict(
-            x_range=[0, img.size[0], img.size[0]],
-            y_range=[0, img.size[1], img.size[1]],
-            sample={
-                '90': [
-                    [300, 200], [320, 210], [340, 200], [340, 175], [330, 125], [300, 125], [300, 200]
+        overlayData=[
+            PKDict(
+                name='90',
+                data=[
+                    [300, 200], [320, 210], [340, 200], [340, 175], [330, 125],
+                    [300, 125], [300, 200]
                 ],
-                '70': [
+                color='chartreuse'
+            ),
+            PKDict(
+                name='70',
+                data=[
                     [290, 220], [350, 215], [345, 115], [285, 115], [290, 220]
                 ],
-                '66': [
+                color='mediumblue'
+            ),
+            PKDict(
+                name='66',
+                data=[
                     [275, 230], [360, 230], [360, 100], [275, 100], [275, 230]
-                ]
-            }
-        ),
+                ],
+                color='red'
+            )
+        ],
+        summaryData={},
     )
 
 

@@ -174,82 +174,42 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 });
 
-SIREPO.app.directive('beamlineImageReport', function(appState, nulineService, panelState) {
+SIREPO.app.directive('beamlineImageReport', function(appState) {
     let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-report', 'beamlineImageReport');
     let btn = new SIREPO.DOM.UIButton();
     btn.addClasses('btn btn-default');
-    btn.setText('Hide Sample');
     
     return {
         restrict: 'A',
         scope: {
             modelName: '@',
         },
-        template: [
-            rpt.toTemplate(),
-            btn.toTemplate(),
-        ].join(''),
-        controller: function ($scope, $element) {
-            const model = appState.models[$scope.modelName];
-            let zoom = null;
+        template: `
+            ${rpt.toTemplate()}
+            ${btn.toTemplate()}
+        `,
+        controller: function ($scope) {
+
+            let updateSampleToggle = () => {
+                btn.setText(showSample ? 'Hide Sample': 'Show Sample');
+                btn.update();
+                $(`.${SIREPO.PLOTTING.SRPlotCSS.overlayData}`)[showSample ? 'show' : 'hide']();
+            }
 
             $scope.$on('beamlineSettings.changed', () => {
                 appState.saveChanges('beamlineImageReport');
             });
 
             let showSample = true;
+            btn.hide();
             btn.addListener('click', () => {
                 showSample = ! showSample;
-                if (showSample) {
-                    btn.setText('Show Sample');
-                    $('#ml-sample').hide();
-                }
-                else {
-                    btn.setText('Hide Sample');
-                    $('#ml-sample').show();
-                }
-                btn.update();
+                updateSampleToggle();
             });
 
-            function redraw() {
-                srdbg('REDRAW');
-            }
-
-            $scope.$on('beamlineImageReport.summaryData', (e, d) => {
-                // hard-coded offsets for the moment
-                const tmpOffsets = [543.0, 437.25];
-                const ns = 'http://www.w3.org/2000/svg';
-                const sg = rpt.getSVG().querySelector('g');
-                const r = sg.querySelector('rect');
-                const g = document.createElementNS(ns, 'g');
-                g.id = 'ml-sample';
-                const confs = {'66':'red', '70':'blue', '90':'lightgreen'};
-                // note reverse y
-                // wait for ui to calculate scaling? - need plot scale so zoom works
-                const scales = [
-                    //r.getAttribute('width') / Math.abs((d.x_range[1] - d.x_range[0])),
-                    //r.getAttribute('height') / Math.abs((d.y_range[1] - d.y_range[0])),
-                    tmpOffsets[0] / Math.abs((d.x_range[1] - d.x_range[0])),
-                    -tmpOffsets[1] / Math.abs((d.y_range[1] - d.y_range[0])),
-                ];
-                let t = '';
-                let i = 1;
-                for (let c in confs) {
-                    const o = 0.1;  //0.75 * (i / 3.0);
-                    const pts = d.sample[c];
-                    const p = new SIREPO.DOM.SVGPath('ml-sample-90', pts, [0, tmpOffsets[1]], true, confs[c], confs[c]);
-                    p.addAttribute('stroke-width', '2.0');
-                    p.addAttribute('fill-opacity', `${o}`);
-                    p.setScales(scales);
-                    p.update();
-                    t += p.toTemplate();
-                    ++i;
-                }
-                g.innerHTML = t;
-                sg.appendChild(g);
-                
-                //zoom = d3.behavior.zoom().on('zoom', redraw);
-                //d3.select('#ml-sample').on('zoom', redraw);
+            $scope.$on('beamlineImageReport.summaryData', () => {
+                updateSampleToggle();
+                btn.show();
             });
 
 
