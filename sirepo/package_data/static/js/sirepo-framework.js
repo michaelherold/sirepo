@@ -182,6 +182,7 @@ class SRPlotReport extends SRReport {
     static css()  {
         return {
             overlayData: 'sr-overlay-data',
+            plotWindow: 'sr-plot-window',
             srPlot: 'sr-plot',
         };
     }

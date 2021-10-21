@@ -2934,7 +2934,7 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
 
             function drawOverlay() {
                 const ns = 'http://www.w3.org/2000/svg';
-                let ds = d3.select(`svg.${SIREPO.PLOTTING.SRPlotCSS.srPlot} > g`)
+                let ds = d3.select(`svg.${SIREPO.PLOTTING.SRPlotCSS.srPlot} g.sr-overlay-data-group`)
                     .selectAll(`path.${SIREPO.PLOTTING.SRPlotCSS.overlayData}`)
                     .data(overlayData);
                 ds.exit().remove();
@@ -3056,6 +3056,7 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                     .attr('id', d => {
                         return `${overlayDataClass}-${d.name}`;
                     })
+                    .attr('clip-path', `url(#${SIREPO.PLOTTING.SRPlotCSS.plotWindow})`)
                     .attr('stroke', d => {
                         return d.color;
                     })
