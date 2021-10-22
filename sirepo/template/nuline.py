@@ -4,8 +4,6 @@ u"""Controls execution template.
 :copyright: Copyright (c) 2020 RadiaSoft LLC.  All Rights Reserved.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
-from __future__ import absolute_import, division, print_function
-
 import zipfile
 
 from pykern import pkio
@@ -53,7 +51,10 @@ def get_application_data(data, **kwargs):
 
 
 def new_simulation(data, new_simulation_data):
-    pass
+    for s in _SCHEMA.constants.defaultActiveSettings:
+        o = PKDict(isActive=True, name=s)
+        _SIM_DATA.update_model_defaults(o, 'beamlineSetting')
+        data.models.simulation.activeSettings.append(o)
 
 
 def import_file(req, tmp_dir=None, **kwargs):
