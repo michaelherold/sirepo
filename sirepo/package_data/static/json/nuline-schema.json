@@ -58,7 +58,6 @@
             "value": ["Value", "Float", 0.0]
         },
         "beamlineSettings": {
-            "activeSettings": ["", "BeamlineSettings", []],
             "settings": ["", "BeamlineSettingsList", []]
         },
         "beamlineDataFile": {

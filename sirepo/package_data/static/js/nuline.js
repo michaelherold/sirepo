@@ -99,38 +99,36 @@ SIREPO.app.directive('appFooter', function(nulineService) {
         scope: {
             nav: '=appFooter',
         },
-        template: [
-            '<div data-common-footer="nav"></div>',
-            '<div data-import-dialog=""></div>',
-        ].join(''),
+        template: `
+            <div data-common-footer="nav"></div>
+            <div data-import-dialog=""></div>
+        `,
     };
 });
 
 SIREPO.app.directive('appHeader', function(appState, panelState) {
     return {
-	restrict: 'A',
-	scope: {
-            nav: '=appHeader',
-	},
-        template: [
-            '<div data-app-header-brand="nav"></div>',
-            '<div data-app-header-left="nav"></div>',
-            '<div data-app-header-right="nav">',
-              '<app-header-right-sim-loaded>',
-		'<div data-sim-sections="">',
-                  '<li class="sim-section" data-ng-class="{active: nav.isActive(\'beamline\')}"><a href data-ng-click="nav.openSection(\'beamline\')"><span class="glyphicon glyphicon-option-horizontal"></span> Beamline</a></li>',
-		'</div>',
-              '</app-header-right-sim-loaded>',
-              '<app-settings>',
-		//  '<div>App-specific setting item</div>',
-              '</app-settings>',
-              '<app-header-right-sim-list>',
-                '<ul class="nav navbar-nav sr-navbar-right">',
-                  '<li><a href data-ng-click="nav.showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>',
-                '</ul>',
-              '</app-header-right-sim-list>',
-            '</div>',
-	].join(''),
+	    restrict: 'A',
+	    scope: {
+	        nav: '=appHeader',
+	    },
+        template: `
+            <div data-app-header-brand="nav"></div>
+            <div data-app-header-left="nav"></div>
+            <div data-app-header-right="nav">
+                <app-header-right-sim-loaded>
+		            <div data-sim-sections="">
+                        <li class="sim-section" data-ng-class="{active: nav.isActive(\'beamline\')}"><a href data-ng-click="nav.openSection(\'beamline\')"><span class="glyphicon glyphicon-option-horizontal"></span> Beamline</a></li>
+		            </div>
+                </app-header-right-sim-loaded>
+                <app-settings></app-settings>
+                <app-header-right-sim-list>
+                    <ul class="nav navbar-nav sr-navbar-right">
+                        <li><a href data-ng-click="nav.showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>
+                    </ul>
+                </app-header-right-sim-list>
+            </div>
+	    `,
     };
 });
 
@@ -174,11 +172,11 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 
 });
 
-SIREPO.app.directive('beamlineImageReport', function(appState) {
+SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
     let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-report', 'beamlineImageReport');
     let btn = new SIREPO.DOM.UIButton();
     btn.addClasses('btn btn-default');
-    
+
     return {
         restrict: 'A',
         scope: {
@@ -190,6 +188,12 @@ SIREPO.app.directive('beamlineImageReport', function(appState) {
         `,
         controller: function ($scope) {
 
+            let canLoad = () => {
+                return appState.models.beamlineDataFile.dataFile &&
+                    appState.models.beamlineSettingsFileList.fileList &&
+                    appState.models[$scope.modelName].imageFile;
+            }
+
             let updateSampleToggle = () => {
                 btn.setText(showSample ? 'Hide Sample': 'Show Sample');
                 btn.update();
@@ -197,21 +201,24 @@ SIREPO.app.directive('beamlineImageReport', function(appState) {
             }
 
             $scope.$on('beamlineSettings.changed', () => {
+                srdbg('BLSTT CH');
+                rpt.setVisible(canLoad());
                 appState.saveChanges('beamlineImageReport');
             });
 
             let showSample = true;
+            rpt.setVisible(canLoad());
             btn.hide();
             btn.addListener('click', () => {
                 showSample = ! showSample;
                 updateSampleToggle();
             });
 
-            $scope.$on('beamlineImageReport.summaryData', () => {
+            $scope.$on('beamlineImageReport.overlayData', () => {
+                srdbg('OVERLAY');
                 updateSampleToggle();
                 btn.show();
             });
-
 
         },
     };
@@ -242,22 +249,6 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             $scope.model = appState.models[$scope.modelName];
             $scope.nulineService = nulineService;
 
-            const sss = [
-                '2theta',
-                'smpl_stk',
-                'bottom_rot',
-                's1',
-                'slit_pre_bt',
-                'slit_pre_rt',
-                'slit_pre_tp',
-                'slit_pre_lf',
-                'stl',
-                'stu',
-                'z_stage',
-                'vti',
-                'robot'
-            ]
-
             // this is where we need a link between model and view, so this gets done automatically
             function changeEl(e) {
                 srdbg(e.target.id, e.target.value);
@@ -267,8 +258,12 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             }
 
             function loadSettings() {
+                srdbg('LOAD SETTINGS');
                 $scope.model.activeSettings = [];
                 $scope.model.settings = [];
+                if (! appState.models.beamlineDataFile.dataFile) {
+                    return;
+                }
                 requestSender.getApplicationData(
                     {
                         method: '_get_settings',
@@ -279,7 +274,10 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                         image_name_in_header: true,
                     },
                     function(data) {
-                        $scope.model.activeSettings = data.settings;
+                        $scope.model.settings = data.settings;
+                        for (let s of $scope.model.settings) {
+                            s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
+                        }
                         appState.models.beamlineImageReport.imageFile = data.imageFile;
                         appState.models.beamlineImageReport.imageSource = data.imageSource;
                         appState.models.beamlineImageReport.imageType = data.imageType;
@@ -290,8 +288,8 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             }
 
             function updateSettings() {
-                const settings = $scope.model.activeSettings.filter(s => {
-                    return sss.indexOf(s.name) >= 0;
+                const settings = $scope.model.settings.filter(s => {
+                    return s.isActive;
                 });
                 table.clearRows();
                 let numRows = 0;
@@ -316,6 +314,11 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                 }
             }
 
+            $scope.$on('beamlineSettingsFileList.changed', () => {
+                for (let s of $scope.model.settings) {
+                    s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
+                }
+            });
             $scope.$on('beamlineSettingsFile.changed', loadSettings);
             $scope.$on(`${$scope.modelName}.editor.show`, () => {
                 srdbg('EDIT');
@@ -369,7 +372,7 @@ SIREPO.app.directive('beamlineSettingsFileSelector', function(appState, nulineSe
             $scope.$on('beamlineSettingsFileList.saved', updateSelector);
 
             $scope.$on('$destroy', () => {
-                sel.destroy();
+                //sel.destroy();
             });
 
             sel.setOnChange(selChanged);

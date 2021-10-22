@@ -51,10 +51,7 @@ def get_application_data(data, **kwargs):
 
 
 def new_simulation(data, new_simulation_data):
-    for s in _SCHEMA.constants.defaultActiveSettings:
-        o = PKDict(isActive=True, name=s)
-        _SIM_DATA.update_model_defaults(o, 'beamlineSetting')
-        data.models.simulation.activeSettings.append(o)
+    pass
 
 
 def import_file(req, tmp_dir=None, **kwargs):
@@ -216,7 +213,6 @@ def _extract_beamline_image_report(data):
                 color='red'
             )
         ],
-        summaryData={},
     )
 
 

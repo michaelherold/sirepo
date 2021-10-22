@@ -322,13 +322,6 @@ class UIElement {  //extends UIOutput {
         $(this.getIdSelector()).hide();
     }
 
-     /**
-     * Hide this element - it remains in the DOM
-     */
-    show() {
-        $(this.getIdSelector()).show();
-    }
-
     /**
      * Remove the attribute with the given name
      * @param {string} name - the name of the attribute to remove
@@ -442,6 +435,25 @@ class UIElement {  //extends UIOutput {
      */
     setText(text) {
         this.text = text;  //this.encode(str);
+    }
+
+    /**
+     * Show/hide this element
+     */
+    setVisible(isVisible) {
+        if (isVisible) {
+            this.show();
+        }
+        else {
+            this.hide();
+        }
+    }
+
+    /**
+     * Show this element
+     */
+    show() {
+        $(this.getIdSelector()).show();
     }
 
     /**
