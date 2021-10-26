@@ -47,11 +47,13 @@ class SimData(sirepo.sim_data.SimDataBase):
     def _lib_file_basenames(cls, data):
         res = []
         r = data.get('report')
-        res.append(cls.lib_file_name_with_model_field(
-            'beamlineDataFile',
-            'dataFile',
-            data.models.beamlineDataFile.dataFile)
-        )
+        f = data.models.beamlineDataFile.dataFile
+        if f:
+            res.append(cls.lib_file_name_with_model_field(
+                'beamlineDataFile',
+                'dataFile',
+                f
+            ))
         return res
 
 

@@ -101,8 +101,6 @@ def _get_settings(data):
     return PKDict(
         settings=[PKDict(name=n, value=s[i]) for i, n in enumerate(header)],
         imageFile=image_name,
-        #imageType=mimetypes.guess_type(dp)[0],
-        #imageSource=src
     )
 
 

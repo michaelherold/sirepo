@@ -126,9 +126,6 @@
             "title": "",
             "advanced": [
                 "colorMap"
-            ],
-            "basic": [
-                "colorMap"
             ]
         },
         "beamlineSetting": {
@@ -158,14 +155,6 @@
         "simulationStatus": {
             "title": "Optimization Targets",
             "advanced": [],
-            "basic": []
-        },
-        "simulation": {
-            "title": "Simulation",
-            "advanced": [
-                "name",
-                "folder"
-            ],
             "basic": []
         }
     }

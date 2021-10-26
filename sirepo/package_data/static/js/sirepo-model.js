@@ -54,31 +54,69 @@ class SRApp {
             let x = new SIREPO.DOM.UIDiv();
             x.addClasses('form-group form-group-sm');
             form.addChild(x);
-            x.addChild(this.getField(fr, v.defaultModel).def.editor());
+            x.addChild(this.getFieldFromRef(fr).def.editor());
         }
         return e;
     }
 
-    getField(fieldRef, defaultModel) {
+    getFieldFromModel(modelName, fieldName) {
+        return this.getModel(modelName).getField(fieldName);
+    }
+
+    /**
+     *
+     * @param {string} fieldRef - qualified field reference
+     * @return {SRField} - the field
+     */
+    getFieldFromRef(fieldRef) {
         const m = fieldRef.split('.');
         if (m.length > 2) {
-            return this.getField(m.slice(1).join('.'), defaultModel);
+            return this.getFieldFromRef(m.slice(1).join('.'));
         }
         if (m.length > 1) {
-            return this.models[m[0]][m[1]];
+            return this.getFieldFromModel([m[0]], [m[1]]);
         }
-        return defaultModel[m[0]];
+        return null;
+    }
+
+    getModel(modelName) {
+        return this.models[modelName];
+    }
+
+    setFieldValue(modelName, fieldName, value) {
+        this.getModel(modelName).getField(fieldName).setValue(value);
+    }
+
+    setFieldRefValue(fieldRef, value) {
+        this.getFieldFromRef(fieldRef).setValue(value);
     }
 
 }
 
 class SRModel {
+
+    static fieldRef(modelName, fieldName) {
+        return `${modelName}.${fieldName}`;
+    }
+
+    static qualifyFieldRef(modelName, fieldName) {
+        return fieldName.includes('.') ? fieldName : SRModel.fieldRef(modelName, fieldName);
+    }
+
     constructor(name, schema) {
         this.name = name;
         this.fields = {};
         for (let f in schema) {
             this.fields[f] = new SRField(f, schema[f]);
         }
+    }
+
+    getField(fieldName) {
+        return this.fields[fieldName];
+    }
+
+    fieldRef(fieldName) {
+        return SRModel.fieldRef(this.name, fieldName);
     }
 }
 
@@ -87,11 +125,11 @@ class SRModel {
  * Organized collection of fields
  */
 class SRPage {
-    constructor(schema) {
+    constructor(schema, defaultModelName) {
         this.name = schema[0];
         this.fieldRefs = [];
         for (let f of schema[1]) {
-            this.fieldRefs.push(f);
+            this.fieldRefs.push(SRModel.qualifyFieldRef(defaultModelName, f));
         }
     }
 }
@@ -116,31 +154,33 @@ class SRColumnGroup {
 /**
  * Organized collection of pages or field references. A field reference is either the name of a field
  * or a '.'-delimited string of model names terminated by a field name (i.e. <model 1>.<model 2>...<field>.
+ * Field references are qualified with a default model name if they are not already so constructed.
  * The schema is assumed to have either field refs or pages, NOT both
  */
 class SRForm {
 
     /**
      * @param {*} schema - schema defining this form
+     * @param {string} defaultModel - model name to use for unqualified field names
      */
-    constructor(schema) {
+    constructor(schema, defaultModelName) {
         this.pages = null;
         this.fieldRefs = [];
         for (let f of schema) {
             if (typeof(f) === 'string') {
-                this.fieldRefs.push(f);
+                this.fieldRefs.push(SRModel.qualifyFieldRef(defaultModelName, f));
                 continue;
             }
             if (! this.pages) {
                 this.pages = [];
             }
-            this.pages.push(new SRPage(f));
+            this.pages.push(new SRPage(f, defaultModelName));
         }
     }
 
     /**
      * Get a page in this form by name
-     * @param {SRPage} pageName - the page
+     * @param {string} pageName - the page
      */
     getPage(pageName) {
         return this.pages[pageName];
@@ -148,7 +188,7 @@ class SRForm {
 }
 
 /**
- * Organized collection of forms. The heirarchy is:
+ * Organized collection of forms. The hierarchy is:
  *    view -> forms (basic|advanced) -> pages -> field references
  */
 class SRView {
@@ -160,11 +200,11 @@ class SRView {
     constructor(name, schema) {
         this.name = name;
         this.title = schema.title;
-        this.defaultModel = schema.model || name;
+        this.defaultModelName = schema.model || name;
 
         for (let f of ['basic', 'advanced']) {
             if (schema[f]) {
-                this[f] = new SRForm(schema[f]);
+                this[f] = new SRForm(schema[f], this.defaultModelName);
             }
         }
     }
@@ -236,7 +276,7 @@ class SRFieldDefinition {
     /**
      * Add a property to this field definition
      * @param {string} name - name of the proprty
-     * @param {*} val - its value
+     * @param {*} value - its value
      */
     addProperty(name, value) {
         this[name] = value;

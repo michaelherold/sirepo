@@ -148,6 +148,10 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
         appState.models.beamlineSettingsFileList.fileList = {};
         appState.models.beamlineSettingsFile.settingsFile = '';
         appState.models.beamlineImageReport.imageFile = '';
+        ['beamlineSettingsFileList', 'beamlineSettingsFile', 'beamlineImageReport'].forEach(r => appState.saveQuietly);
+        if (! model[dataFileField]) {
+            return;
+        }
         requestSender.getApplicationData(
             {
                 method: '_process_zip_file',
@@ -157,14 +161,15 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
             },
             function(data) {
                 appState.models.beamlineSettingsFileList.fileList = data;
-                appState.saveChanges('beamlineSettingsFileList');
+                appState.models.beamlineSettingsFile.settingsFile = data[0];
+                appState.saveChanges(['beamlineSettingsFileList', 'beamlineSettingsFile']);
             });
     }
 
     $scope.$on('beamlineDataFile.changed', () => {
         // this model and the settings file selector are in the same view, so it will
         // get changed regardless of whether dataFile changed
-        if (dataFile !== model[dataFileField]) {
+        if (model[dataFileField] && dataFile !== model[dataFileField]) {
             loadDataFile();
         }
         dataFile = model[dataFileField];
@@ -173,7 +178,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 });
 
 SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
-    let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-report', 'beamlineImageReport');
+    let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-image-report', 'beamlineImageReport');
     let btn = new SIREPO.DOM.UIButton();
     btn.addClasses('btn btn-default');
 
@@ -191,7 +196,16 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
             let canLoad = () => {
                 return appState.models.beamlineDataFile.dataFile &&
                     appState.models.beamlineSettingsFileList.fileList &&
+                    appState.models.beamlineSettingsFile.settingsFile &&
                     appState.models[$scope.modelName].imageFile;
+            }
+
+            // not quite what I want - the whole panel should be hidden unless there is data
+            let updateVisibility = () => {
+                const panelHidden = panelState.isHidden($scope.modelName);
+                if ((canLoad() && panelHidden) || (! canLoad() && ! panelHidden)) {
+                    panelState.toggleHidden($scope.modelName);
+                }
             }
 
             let updateSampleToggle = () => {
@@ -201,13 +215,12 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
             }
 
             $scope.$on('beamlineSettings.changed', () => {
-                srdbg('BLSTT CH');
-                rpt.setVisible(canLoad());
+                updateVisibility();
                 appState.saveChanges('beamlineImageReport');
             });
 
             let showSample = true;
-            rpt.setVisible(canLoad());
+            updateVisibility();
             btn.hide();
             btn.addListener('click', () => {
                 showSample = ! showSample;
@@ -215,7 +228,6 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
             });
 
             $scope.$on('beamlineImageReport.overlayData', () => {
-                srdbg('OVERLAY');
                 updateSampleToggle();
                 btn.show();
             });
@@ -279,7 +291,6 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                             s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
                         }
                         appState.models.beamlineImageReport.imageFile = data.imageFile;
-                        appState.models.beamlineImageReport.imageSource = data.imageSource;
                         appState.models.beamlineImageReport.imageType = data.imageType;
                         appState.saveChanges([$scope.modelName, 'beamlineImageReport'], () => {
                             updateSettings();
@@ -348,6 +359,9 @@ SIREPO.app.directive('beamlineSettingsFileSelector', function(appState, nulineSe
             return [f[k], k];
         });
         sel.setEntries(e);
+        if (! sel.getValue()) {
+            sel.setValue(e[0]);
+        }
         sel.update();
     }
 

@@ -17,12 +17,13 @@ class JSFramework {
 
     /**
      * Add attributes and other items to the field. In the base class just return the field
-     * @param {SRField} field - the field to dresss
+     * @param {SRField} field - the field to dress
      * @return {SRField} - the dressed field
      */
     dressField(field) {
         return field;
     }
+
 
 }
 
@@ -197,12 +198,12 @@ class SRPlotReport extends SRReport {
                 new SIREPO.DOM.UIAttribute('data-model-name', modelName),
                 new SIREPO.DOM.UIAttribute('data-report-id', 'reportId'),
             ]);
-        this.plot.addClasses('sr-plot')
+        this.plot.addClasses(SRPlotReport.css().srPlot);
         this.addChild(this.plot);
     }
 
     getSVG() {
-        return this.toDOM().querySelector('svg.sr-plot');
+        return this.toDOM().querySelector(`svg.${SRPlotReport.css().srPlot}`);
     }
 
 }
@@ -234,11 +235,6 @@ class SRReportHeatmap extends SRPlotReport {
         this.plot.addAttribute( 'data-heatmap', '');
     }
 
-
-    addShape(shape) {
-        let svg = this.getSVG();
-
-    }
 }
 
 SIREPO.JS_FRAMEWORK = {
