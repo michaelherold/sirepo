@@ -193,7 +193,7 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
         `,
         controller: function ($scope) {
 
-            let canLoad = () => {
+            function canLoad()  {
                 return appState.models.beamlineDataFile.dataFile &&
                     appState.models.beamlineSettingsFileList.fileList &&
                     appState.models.beamlineSettingsFile.settingsFile &&
@@ -201,14 +201,14 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
             }
 
             // not quite what I want - the whole panel should be hidden unless there is data
-            let updateVisibility = () => {
+            function updateVisibility() {
                 const panelHidden = panelState.isHidden($scope.modelName);
                 if ((canLoad() && panelHidden) || (! canLoad() && ! panelHidden)) {
                     panelState.toggleHidden($scope.modelName);
                 }
             }
 
-            let updateSampleToggle = () => {
+            function updateSampleToggle()  {
                 btn.setText(showSample ? 'Hide Sample': 'Show Sample');
                 btn.update();
                 $(`.${SIREPO.PLOTTING.SRPlotCSS.overlayData}`)[showSample ? 'show' : 'hide']();

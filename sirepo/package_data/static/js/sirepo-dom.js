@@ -835,6 +835,38 @@ class UIButton extends UIElement {
 }
 
 /**
+ * <button> element that supports on and off states
+ */
+class UIToggleButton extends UIButton {
+    constructor(props) {
+        super(props.id, props.attrs);
+        this.labels = props.labels;
+        this.outlets = props.outlets;
+        this.isOn = props.isOn;
+        this.addClasses(props.classes);
+    }
+
+    setup() {
+        this.addListener('click', this.toggle);
+        this.update();
+    }
+
+    toggle() {
+        this.isOn = ! this.isOn;
+        this.update();
+    }
+
+    update() {
+        this.setText(this.labels[this.isOn ? 1 : 0]);
+        for (let o of this.outlets) {
+            o.setVisible(this.isOn);
+        }
+        super.update();
+    }
+
+}
+
+/**
  * UI representation of an enumeration
  */
 class UIEnum extends UIElement {
@@ -1666,6 +1698,7 @@ SIREPO.DOM = {
     UIAnchor: UIAnchor,
     UIAttribute: UIAttribute,
     UIButton: UIButton,
+    UIToggleButton: UIToggleButton,
     UIDiv: UIDiv,
     UIElement: UIElement,
     UIEnum: UIEnum,
