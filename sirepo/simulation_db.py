@@ -808,6 +808,10 @@ def _create_lib_and_examples(simulation_type, uid=None):
         save_new_example(s, uid=uid)
 
 
+def _extend_no_dupes(arr1, arr2):
+    arr1.extend(x for x in arr2 if x not in arr1)
+
+
 def _files_in_schema(schema):
     """Relative paths of local and external files of the given load and file type listed in the schema
     The order matters for javascript files
@@ -905,7 +909,7 @@ def _init_schemas():
         SCHEMA_COMMON.version = sirepo.__version__
 
 
-def _merge_dicts(base, derived, depth=-1):
+def _merge_dicts(base, derived, depth=-1, extend_arrays=True):
     """Copy the items in the base dictionary into the derived dictionary, to the specified depth
 
     Args:
@@ -914,6 +918,8 @@ def _merge_dicts(base, derived, depth=-1):
         depth (int): how deep to recurse:
             >= 0:  <depth> levels
             < 0:   all the way
+        extend_arrays (bool): if True, merging will extend arrays that exist in both
+        dicts. Otherwise, the arrays are replaced
     """
     if depth == 0:
         return
@@ -923,7 +929,8 @@ def _merge_dicts(base, derived, depth=-1):
             derived[key] = base[key]
         else:
             try:
-                derived[key].extend(x for x in base[key] if x not in derived[key])
+                if extend_arrays:
+                    _extend_no_dupes(derived[key], base[key])
             except AttributeError:
                 # The value was not an array
                 pass
@@ -941,7 +948,10 @@ def _merge_subclasses(schema, item):
         subclasses = []
         _unnest_subclasses(schema, item, m, subclasses)
         for s in subclasses:
-            _merge_dicts(item_schema[s], model)
+            _merge_dicts(item_schema[s], model, extend_arrays=False)
+        # _super is a special case - we want the array extended
+        if subclasses:
+            _extend_no_dupes(model[_SCHEMA_SUPERCLASS_FIELD], subclasses)
 
 
 def _unnest_subclasses(schema, item, key, subclass_keys):
