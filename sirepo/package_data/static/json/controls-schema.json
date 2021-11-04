@@ -150,7 +150,8 @@
         },
         "VMONITOR": {
             "name": ["Name", "ValidatedString"]
-        }
+        },
+        "thresholds": {}
     },
     "strings": {
         "completionState": ""

@@ -5,6 +5,9 @@ var srdbg = SIREPO.srdbg;
 
 SIREPO.app.config(() => {
     SIREPO.appFieldEditors += [
+        '<div data-ng-switch-when="FloatStringArray" class="col-sm-7">',
+            '<div data-number-list="" data-model="model" data-field="model[field]" data-info="info" data-type="Float" data-count=""></div>',
+        '</div>',
         '<div data-ng-switch-when="MadxSimList" data-ng-class="fieldClass">',
           '<div data-sim-list="" data-model="model" data-field="field" data-code="madx" data-route="lattice"></div>',
         '</div>',
@@ -37,11 +40,11 @@ SIREPO.app.config(() => {
             zeroLength: ['BEAMBEAM', 'CHANGEREF', 'DIPEDGE', 'SROTATION', 'TRANSLATION', 'XROTATION', 'YROTATION'],
         },
     };
-    SIREPO.appReportTypes = [
-        '<div data-ng-switch-when="bpmMonitor" data-zoom="XY" data-bpm-monitor-plot="" class="sr-plot" data-model-name="{{ modelKey }}"></div>',
-        '<div data-ng-switch-when="bpmHMonitor" data-zoom="X" data-bpm-monitor-plot="Horizontal" class="sr-plot" data-model-name="{{ modelKey }}"></div>',
-        '<div data-ng-switch-when="bpmVMonitor" data-zoom="Y" data-bpm-monitor-plot="Vertical" class="sr-plot" data-model-name="{{ modelKey }}"></div>',
-    ].join('');
+    SIREPO.appReportTypes = `
+        <div data-ng-switch-when="bpmMonitor" data-zoom="XY" data-bpm-monitor-plot="" class="sr-plot" data-model-name="{{ modelKey }}"></div>
+        <div data-ng-switch-when="bpmHMonitor" data-zoom="X" data-bpm-monitor-plot="Horizontal" class="sr-plot" data-model-name="{{ modelKey }}"></div>
+        <div data-ng-switch-when="bpmVMonitor" data-zoom="Y" data-bpm-monitor-plot="Vertical" class="sr-plot" data-model-name="{{ modelKey }}"></div>
+    `;
 });
 
 SIREPO.app.factory('controlsService', function(appState) {
@@ -125,6 +128,24 @@ SIREPO.app.factory('controlsService', function(appState) {
 
     self.fieldForCurrent = (modelName) => fieldMap[modelName];
 
+    self.elementForId = function(id)  {
+        return self.findInContainer('elements', '_id', id);
+    };
+
+    self.findInContainer = function(container, key, value) {
+        let res;
+        self.latticeModels()[container].some(m => {
+            if (m[key] == value) {
+                res = m;
+                return true;
+            }
+        });
+        if (! res) {
+            throw new Error(`model not found for ${key}: ${value}`);
+        }
+        return res;
+    };
+
     self.getAmpTables = () => appState.applicationState().ampTables || {};
 
     self.isKickField = (field) => field.search(/^(.?kick|k1)$/) >= 0;
@@ -168,7 +189,7 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
         const schema = SIREPO.APP_SCHEMA.model;
         controlsService.latticeModels().beamlines[0].items.forEach(
             elId => {
-                const element = elementForId(elId);
+                const element = controlsService.elementForId(elId);
                 if (element.type.indexOf('MONITOR') >= 0) {
                     const m = modelDataForElement(element);
                     m.plotType = element.type == 'MONITOR'
@@ -208,26 +229,8 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
         });
     }
 
-    function elementForId(id) {
-        return findInContainer('elements', '_id', id);
-    }
-
     function findExternalCommand(name) {
-        return findInContainer('commands', '_type', name.replace('command_', ''));
-    }
-
-    function findInContainer(container, key, value) {
-        let res;
-        controlsService.latticeModels()[container].some(m => {
-            if (m[key] == value) {
-                res = m;
-                return true;
-            }
-        });
-        if (! res) {
-            throw new Error(`model not found for ${key}: ${value}`);
-        }
-        return res;
+        return controlsService.findInContainer('commands', '_type', name.replace('command_', ''));
     }
 
     function getInitialMonitorPositions() {
@@ -271,7 +274,7 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
     function saveLattice(e, name) {
         if (name == name.toUpperCase()) {
             const m = appState.models[name];
-            $.extend(elementForId(m._id), m);
+            $.extend(controlsService.elementForId(m._id), m);
             appState.removeModel(name);
             appState.saveQuietly('externalLattice');
         }
@@ -398,7 +401,7 @@ SIREPO.app.directive('appHeader', function(appState, panelState) {
     };
 });
 
-SIREPO.app.directive('bpmMonitorPlot', function(appState, panelState, plot2dService, plotting) {
+SIREPO.app.directive('bpmMonitorPlot', function(appState, controlsService, panelState, plot2dService, plotting, utilities) {
     return {
         restrict: 'A',
         scope: {
@@ -408,6 +411,11 @@ SIREPO.app.directive('bpmMonitorPlot', function(appState, panelState, plot2dServ
         },
         templateUrl: '/static/html/plot2d.html' + SIREPO.SOURCE_CACHE_KEY,
         controller: function($scope) {
+            const id = parseInt($scope.modelName.match(/[0-9]+/)[0]);
+            const el = controlsService.elementForId(id);
+            $scope.model = el;
+            let thresholds = [{}];
+            const thresholdId = `sr-threshold-rect-${id}`;
             const defaultDomain = [-0.0021, 0.0021];
             let points;
             let colName = $scope.modelName.substring(0, $scope.modelName.indexOf('Report'));
@@ -578,7 +586,7 @@ SIREPO.viewLogic('quadrupoleView', function(appState, controlsService, panelStat
     };
 });
 
-SIREPO.app.directive('optimizerTable', function(appState, panelState) {
+SIREPO.app.directive('optimizerTable', function(appState, panelState, utilities) {
     return {
         restrict: 'A',
         scope: {},
@@ -637,7 +645,7 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
               <table class="table table-hover table-condensed">
                 <tr><th colspan="3">Monitors</th></tr>
                 <tr data-ng-repeat="m in monitors track by m.name">
-                  <td><strong>{{m.name}}</strong></td>
+                  <td data-ng-class="thresholdClass(m)"><strong>{{m.name}}</strong></td>
                   <td class="text-right">{{m.x}}</td>
                   <td class="text-right">{{m.y}}</td>
                 </tr>
@@ -853,8 +861,11 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                     const el_id = 'el_' + el._id;
                     $scope.monitors.push({
                         name: el.name,
+                        id: el._id,
                         x: formatMonitorValue(rows[0][el_id + '.x']),
                         y: formatMonitorValue(rows[0][el_id + '.y']),
+                        xVal: parseFloat(rows[0][el_id + '.x']),
+                        yVal: parseFloat(rows[0][el_id + '.y'])
                     });
                 });
             }
@@ -907,6 +918,28 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
             $scope.destroy = function() {
                 $('.sr-lattice-label').off();
             };
+
+            $scope.thresholdClass = function(monitor) {
+                const el = controlsService.elementForId(monitor.id);
+                if (! el || ! el.thresholds) {
+                    return null;
+                }
+                const t = utilities.splitCommaDelimitedString(el.thresholds, parseFloat);
+                if (el.type === 'VMONITOR') {
+                    t.unshift(null);
+                }
+                let ok = true;
+                for (let i of [0, 1]) {
+                    const axis = ['x', 'y'][i];
+                    const v = monitor[`${axis}Val`];
+                    if (isNaN(v)) {
+                        continue;
+                    }
+                    ok = ok && v > -t[i] / 2 && v < t[i] / 2;
+                    //srdbg(el._id, 'cf', v, t[i], 'ok?', ok);
+                }
+                return ok ? null : 'danger';
+            }
 
             $scope.readoutHTML = function() {
                 if (! readoutTable) {
