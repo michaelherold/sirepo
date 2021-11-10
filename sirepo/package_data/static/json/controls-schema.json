@@ -278,6 +278,10 @@
             "advanced": [
                 "name"
             ]
+        },
+        "thresholds": {
+            "title": "Element Thresholds",
+            "advanced": []
         }
     }
 }
