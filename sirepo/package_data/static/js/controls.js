@@ -4,20 +4,20 @@ var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
 SIREPO.app.config(() => {
-    SIREPO.appFieldEditors += [
-        '<div data-ng-switch-when="FloatStringArray" class="col-sm-7">',
-            '<div data-number-list="" data-model="model" data-field="model[field]" data-info="info" data-type="Float" data-count=""></div>',
-        '</div>',
-        '<div data-ng-switch-when="MadxSimList" data-ng-class="fieldClass">',
-          '<div data-sim-list="" data-model="model" data-field="field" data-code="madx" data-route="lattice"></div>',
-        '</div>',
-        '<div data-ng-switch-when="AmpTable">',
-          '<div data-amp-table=""></div>',
-        '</div>',
-        '<div data-ng-switch-when="AmpField">',
-          '<div data-amp-field=""></div>',
-        '</div>',
-    ].join('');
+    SIREPO.appFieldEditors = `
+        <div data-ng-switch-when="FloatStringArray" class="col-sm-7">
+            <div data-number-list="" data-model="model" data-field="model[field]" data-info="info" data-type="Float" data-count=""></div>
+        </div>
+        <div data-ng-switch-when="MadxSimList" data-ng-class="fieldClass">
+          <div data-sim-list="" data-model="model" data-field="field" data-code="madx" data-route="lattice"></div>
+        </div>
+        <div data-ng-switch-when="AmpTable">
+          <div data-amp-table=""></div>
+        </div>
+        <div data-ng-switch-when="AmpField">
+          <div data-amp-field=""></div>
+        </div>
+    `;
     // TODO(e-carlin): copied from madx
     SIREPO.lattice = {
         elementColor: {

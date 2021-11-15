@@ -20,6 +20,16 @@ import sirepo.template.madx
 _SIM_DATA, SIM_TYPE, SCHEMA = sirepo.sim_data.template_globals()
 _SUMMARY_CSV_FILE = 'summary.csv'
 
+class BeamlineModel:
+
+    def __init__(self, lattice):
+        self.lattice = lattice
+        self.monitors = [e for e in self.lattice if e.type in ['HMONITOR' ,'MONITOR', 'VMONITOR']]
+        self.controls = [e for e in self.lattice if e.type in SCHEMA.constants.readoutElements]
+
+    def predicted_settings(self, monitors):
+
+
 
 def background_percent_complete(report, run_dir, is_running):
     if is_running:
