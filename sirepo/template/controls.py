@@ -20,23 +20,14 @@ import sirepo.template.madx
 _SIM_DATA, SIM_TYPE, SCHEMA = sirepo.sim_data.template_globals()
 _SUMMARY_CSV_FILE = 'summary.csv'
 
-class BeamlineModel:
-
-    def __init__(self, lattice):
-        self.lattice = lattice
-        self.monitors = [e for e in self.lattice if e.type in ['HMONITOR' ,'MONITOR', 'VMONITOR']]
-        self.controls = [e for e in self.lattice if e.type in SCHEMA.constants.readoutElements]
-
-    def predicted_settings(self, monitors):
-
-
 
 def background_percent_complete(report, run_dir, is_running):
     if is_running:
         return PKDict(
             percentComplete=0,
             frameCount=0,
-            elementValues=_read_summary_line(run_dir)
+            elementValues=_read_summary_line(run_dir),
+            controlsPredictions=_predicted_settings()
         )
     return PKDict(
         percentComplete=100,
@@ -44,7 +35,8 @@ def background_percent_complete(report, run_dir, is_running):
         elementValues=_read_summary_line(
             run_dir,
             SCHEMA.constants.maxBPMPoints,
-        )
+        ),
+        controlsPredictions=_predicted_settings()
     )
 
 
@@ -220,6 +212,12 @@ def _has_kickers(model):
         if any([item in k_ids for item in b['items']]):
             return True
     return False
+
+
+def _predicted_settings(lattice, ml_model):
+    m = [e for e in lattice if e.type in ['HMONITOR', 'MONITOR', 'VMONITOR']]
+    c = [e for e in lattice if e.type in SCHEMA.constants.readoutElements]
+    return {k: 0.0 for k, v in c if k in SCHEMA.constants.readoutElements[k].fields}
 
 
 def _read_summary_line(run_dir, line_count=None):
