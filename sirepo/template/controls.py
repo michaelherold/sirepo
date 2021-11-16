@@ -27,7 +27,6 @@ def background_percent_complete(report, run_dir, is_running):
             percentComplete=0,
             frameCount=0,
             elementValues=_read_summary_line(run_dir),
-            controlsPredictions=_predicted_settings()
         )
     return PKDict(
         percentComplete=100,
@@ -35,8 +34,7 @@ def background_percent_complete(report, run_dir, is_running):
         elementValues=_read_summary_line(
             run_dir,
             SCHEMA.constants.maxBPMPoints,
-        ),
-        controlsPredictions=_predicted_settings()
+        )
     )
 
 
@@ -59,6 +57,10 @@ def stateful_compute_get_madx_sim_list(data):
 
 def stateful_compute_get_external_lattice(data):
     return _get_external_lattice(data.simulationId)
+
+
+def stateless_compute_predicted_settings(data):
+    return _predicted_settings(data.controls, data.monitors, data.ml_model)
 
 
 def python_source_for_model(data, model):
@@ -98,8 +100,8 @@ def _delete_unused_madx_commands(data):
     if by_name.twiss:
         by_name.twiss.sectorfile = '0'
         by_name.twiss.sectormap = '0'
-        by_name.twiss.file = '1';
-    data.models.bunch.beamDefinition = 'gamma';
+        by_name.twiss.file = '1'
+    data.models.bunch.beamDefinition = 'gamma'
     _SIM_DATA.update_beam_gamma(by_name.beam)
     data.models.commands = [
         by_name.beam,
@@ -214,10 +216,20 @@ def _has_kickers(model):
     return False
 
 
-def _predicted_settings(lattice, ml_model):
-    m = [e for e in lattice if e.type in ['HMONITOR', 'MONITOR', 'VMONITOR']]
-    c = [e for e in lattice if e.type in SCHEMA.constants.readoutElements]
-    return {k: 0.0 for k, v in c if k in SCHEMA.constants.readoutElements[k].fields}
+def _predicted_settings(controls, monitors, ml_model=None):
+    p = PKDict()
+
+    for c in controls:
+        p[c.name] = PKDict()
+        for f in [f for f in c if f in SCHEMA.constants.readoutElements[c.type].fields]:
+            # s is the setting predicted by the model
+            s = ml_model.predict(monitors) if ml_model else c[f]
+            ds = (abs(s - c[f]) / s) if s != 0 else abs(c[f])
+            p[c.name][f] = PKDict(
+                delta=ds,
+                prediction=s,
+            )
+    return p
 
 
 def _read_summary_line(run_dir, line_count=None):

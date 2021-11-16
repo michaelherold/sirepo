@@ -105,6 +105,16 @@ SIREPO.app.factory('controlsService', function(appState) {
         return table[table.length - 1][toIndex];
     }
 
+    self.bpms = () => {
+        const l = self.latticeModels();
+        if (! l) {
+            return;
+        }
+        return l.beamlines[0].items
+            .map(i => self.elementForId(i))
+            .filter(e => ['HMONITOR', 'MONITOR', 'VMONITOR'].includes(e.type));
+    };
+
     self.buildReverseMap = (tableName) => {
         const table = self.getAmpTables()[tableName];
         if (table) {
@@ -113,6 +123,16 @@ SIREPO.app.factory('controlsService', function(appState) {
     };
 
     self.computeModel = () => 'animation';
+
+    self.controls = () => {
+        const l = self.latticeModels();
+        if (! l) {
+            return;
+        }
+        return l.beamlines[0].items
+            .map(i => self.elementForId(i))
+            .filter(e => Object.keys(SIREPO.APP_SCHEMA.constants.readoutElements).includes(e.type));
+    };
 
     self.currentField = (kickField) => 'current_' + kickField;
 
@@ -635,7 +655,7 @@ SIREPO.app.directive('optimizerTable', function(appState, panelState, utilities)
     };
 });
 
-SIREPO.app.directive('latticeFooter', function(appState, controlsService, latticeService, panelState, utilities) {
+SIREPO.app.directive('latticeFooter', function(appState, controlsService, latticeService, panelState, requestSender, utilities) {
     return {
         restrict: 'A',
         scope: {
@@ -902,11 +922,27 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
             }
 
             function updateReadoutElements() {
+                let p = {}
+                requestSender.sendStatelessCompute(
+                    appState,
+                    function(data) {
+                        srdbg('PREDICTED', data, controlsService.bpms());
+                        p = data;
+                    },
+                    {
+                        method: 'predicted_settings',
+                        monitors: controlsService.bpms(),
+                        controls: controlsService.controls(),
+                        ml_model: {}
+                    }
+                );
                 let r = readoutItems();
                 // each readout group is a column
                 for (let g in r) {
                     for (let item of r[g]) {
-                        updateReadoutElement(item.element);
+                        updateReadoutElement(
+                            item.element
+                        );
                     }
                 }
             }

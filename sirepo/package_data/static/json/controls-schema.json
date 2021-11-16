@@ -119,7 +119,7 @@
         "HKICKER": {
             "name": ["Name", "ValidatedString"],
             "current_kick": ["Current [A]", "AmpField", 0.0],
-            "currentThreshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
+            "current_kick_threshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
             "kick": ["KICK", "Float", 0.0, "The momentum change $\\delta PX$"],
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
@@ -129,9 +129,9 @@
         "KICKER": {
             "name": ["Name", "ValidatedString"],
             "current_hkick": ["Horizontal Current [A]", "AmpField", 0.0],
-            "currentThresholdH": ["Horizontal Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
+            "current_hkick_threshold": ["Horizontal Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
             "current_vkick": ["Vertical Current [A]", "AmpField", 0.0],
-            "currentThresholdV": ["Vertical Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
+            "current_vkick_threshold": ["Vertical Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
             "hkick": ["HKICK", "Float", 0.0, "The horizontal momentum change $\\delta PX$"],
             "vkick": ["VKICK", "Float", 0.0, "The vertical momentum change $\\delta PY$"],
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
@@ -142,14 +142,14 @@
         "QUADRUPOLE": {
             "name": ["Name", "ValidatedString"],
             "current_k1": ["Current [A]", "AmpField", 0.0],
-            "currentThreshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
+            "current_k1_threshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
             "k1": ["K1 [$\\bf m^{-2}$]", "Float", 0.0, "The normal quadrupole coefficient"],
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
         "VKICKER": {
             "name": ["Name", "ValidatedString"],
             "current_kick": ["Current [A]", "AmpField", 0.0],
-            "currentThreshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
+            "current_kick_threshold": ["Current Model Threshold [pct]", "Float", 1.0, "", 0.0],
             "kick": ["KICK", "Float", 0.0, "The momentum change $\\delta PY$"],
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
@@ -234,7 +234,7 @@
             "advanced": [
                 "name",
                 "current_kick",
-                "currentThreshold",
+                "current_kick_threshold",
                 "ampTable"
             ]
         },
@@ -250,9 +250,9 @@
             "advanced": [
                 "name",
                 "current_hkick",
-                "currentThresholdH",
+                "current_hkick_threshold",
                 "current_vkick",
-                "currentThresholdV",
+                "current_vkick_threshold",
                 "ampTable"
             ]
         },
@@ -268,7 +268,7 @@
             "advanced": [
                 "name",
                 "current_k1",
-                "currentThreshold",
+                "current_k1_threshold",
                 "ampTable"
             ]
         },
@@ -278,7 +278,7 @@
             "advanced": [
                 "name",
                 "current_kick",
-                "currentThreshold",
+                "current_kick_threshold",
                 "ampTable"
             ]
         },
