@@ -60,7 +60,7 @@ def stateful_compute_get_external_lattice(data):
 
 
 def stateless_compute_predicted_settings(data):
-    return _predicted_settings(data.controls, data.monitors, data.ml_model)
+    return _predicted_settings(data.monitor_vals, data.ml_model)
 
 
 def python_source_for_model(data, model):
@@ -216,9 +216,8 @@ def _has_kickers(model):
     return False
 
 
-def _predicted_settings(controls, monitors, ml_model=None):
+def _predicted_settings(monitor_vals, ml_model=None):
     import pickle
-    p = PKDict()
 
     predictions = None
     if ml_model:
@@ -228,17 +227,10 @@ def _predicted_settings(controls, monitors, ml_model=None):
             ), 'rb'
         ) as f:
             m = pickle.load(f)
-        predictions = m.predict(monitors)[0]
-        pkdp('PREDS {}', predictions)
-    for c in controls:
-        p[c.name] = PKDict()
-        for i, f in enumerate(
-                [f for f in c if f in SCHEMA.constants.readoutElements[c.type].fields]
-        ):
-            s = predictions[i] if predictions is not None else c[f]
-            pkdp('S[{}] {}', i, s)
-            p[c.name][f] = s
-    return p
+        predictions = m.predict(monitor_vals)[0]
+    return PKDict(
+        predictions=(predictions.tolist() if predictions is not None else [])
+    )
 
 
 def _read_summary_line(run_dir, line_count=None):

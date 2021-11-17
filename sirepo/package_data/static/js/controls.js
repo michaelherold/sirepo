@@ -108,7 +108,7 @@ SIREPO.app.factory('controlsService', function(appState) {
         return table[table.length - 1][toIndex];
     }
 
-    self.bpms = () => {
+    self.monitors = () => {
         const l = self.latticeModels();
         if (! l) {
             return;
@@ -183,8 +183,19 @@ SIREPO.app.factory('controlsService', function(appState) {
             ) < 0;
     };
 
+    /*
     self.kickToCurrent = (model, kickField) => {
         const kick = model[kickField];
+        if (! model.ampTable) {
+            return computeCurrent(kick, defaultFactor);
+        }
+        self.buildReverseMap(model.ampTable);
+        return computeCurrent(
+            kick,
+            interpolateTable(kick, model.ampTable, 2, 1));
+    };
+    */
+    self.kickToCurrent = (model, kick) => {
         if (! model.ampTable) {
             return computeCurrent(kick, defaultFactor);
         }
@@ -231,7 +242,7 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
             for (let f in el) {
                 if (controlsService.isKickField(f)
                     && ! el[controlsService.currentField(f)]) {
-                    el[controlsService.currentField(f)] = controlsService.kickToCurrent(el, f);
+                    el[controlsService.currentField(f)] = controlsService.kickToCurrent(el, el[f]);
                 }
             }
         }
@@ -322,7 +333,7 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
                     mf[0].split('_')[1],
                     controlsService.latticeModels());
                 el[mf[1]] = values[values.length - 1][k];
-                el[controlsService.currentField(mf[1])] = controlsService.kickToCurrent(el, mf[1]);
+                el[controlsService.currentField(mf[1])] = controlsService.kickToCurrent(el, el[mf[1]]);
                 if (appState.models[el._type] && appState.models[el._type]._id == el._id) {
                     appState.models[el._type] = el;
                 }
@@ -439,8 +450,7 @@ SIREPO.app.directive('bpmMonitorPlot', function(appState, controlsService, panel
         templateUrl: '/static/html/plot2d.html' + SIREPO.SOURCE_CACHE_KEY,
         controller: function($scope) {
             const id = parseInt($scope.modelName.match(/[0-9]+/)[0]);
-            const el = controlsService.elementForId(id);
-            $scope.model = el;
+            $scope.model = controlsService.elementForId(id);
             let thresholds = [{}];
             const thresholdId = `sr-threshold-rect-${id}`;
             const defaultDomain = [-0.0021, 0.0021];
@@ -574,26 +584,11 @@ SIREPO.app.directive('bpmMonitorPlot', function(appState, controlsService, panel
 
 SIREPO.viewLogic('beamlineView', function(appState, panelState, $scope) {
 
-    $scope.inputFile = null;
-    $scope.requireMLFile = false;
-    $scope.title = '';
-    $scope.description = '';
-    $scope.mlFileUrl = null;
-
-    $scope.validate = function (file) {
-        srdbg('VALIDATING', file);
-        $scope.mlFileUrl = URL.createObjectURL(file);
-        return true;
-    };
-    $scope.validationError = '';
-
-    function updateParticleFields() {
-        srdbg('BLV');
+    function updateBeamline() {
     }
 
-    $scope.whenSelected = updateParticleFields;
-    $scope.watchFields = [
-    ];
+    $scope.whenSelected = updateBeamline;
+    $scope.watchFields = [];
 });
 
 SIREPO.viewLogic('commandBeamView', function(appState, panelState, $scope) {
@@ -790,46 +785,13 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 return null;
             }
 
+
+            function getPredictions() {
+
+            }
+
             function hasReadout(item) {
                 return readoutFields(item.element).length > 0;
-            }
-
-            function readoutFields(element) {
-                return (SIREPO.APP_SCHEMA.constants.readoutElements[element.type] || {}).fields || [];
-            }
-
-            function readoutGroup(element) {
-                return (SIREPO.APP_SCHEMA.constants.readoutElements[element.type] || {}).group;
-            }
-
-            function readoutItems() {
-                let elements = {};
-                const models = controlsService.latticeModels();
-                models.beamlines[0].items.forEach(elId => {
-                    let el = latticeService.elementForId(elId, models);
-                    let rg = readoutGroup(el);
-                    if (! rg) {
-                        return;
-                    }
-                    if (! elements[rg]) {
-                        elements[rg] = [];
-                    }
-                    // elements are in beamline order
-                    elements[rg].push({
-                        element: el,
-                    });
-                });
-                return elements;
-            }
-
-            function rectanglesOverlap(pos1, pos2) {
-                if (pos1.left > pos2.right || pos2.left > pos1.right) {
-                    return false;
-                }
-                if (pos1.top > pos2.bottom || pos2.top > pos1.bottom) {
-                    return false;
-                }
-                return true;
             }
 
             function labelElements() {
@@ -898,11 +860,50 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 });
             }
 
+            function readoutFields(element) {
+                return (SIREPO.APP_SCHEMA.constants.readoutElements[element.type] || {}).fields || [];
+            }
+
+            function readoutGroup(element) {
+                return (SIREPO.APP_SCHEMA.constants.readoutElements[element.type] || {}).group;
+            }
+
+            function readoutItems() {
+                let elements = {};
+                const models = controlsService.latticeModels();
+                models.beamlines[0].items.forEach(elId => {
+                    let el = latticeService.elementForId(elId, models);
+                    let rg = readoutGroup(el);
+                    if (! rg) {
+                        return;
+                    }
+                    if (! elements[rg]) {
+                        elements[rg] = [];
+                    }
+                    // elements are in beamline order
+                    elements[rg].push({
+                        element: el,
+                    });
+                });
+                return elements;
+            }
+
+            function rectanglesOverlap(pos1, pos2) {
+                if (pos1.left > pos2.right || pos2.left > pos1.right) {
+                    return false;
+                }
+                if (pos1.top > pos2.bottom || pos2.top > pos1.bottom) {
+                    return false;
+                }
+                return true;
+            }
+
             function updateMonitors(event, rows) {
                 $scope.monitors = [];
                 if (! rows.length) {
                     return;
                 }
+                const r = rows[0];
                 const models = controlsService.latticeModels();
                 models.beamlines[0].items.forEach(elId => {
                     const el = latticeService.elementForId(elId, models);
@@ -913,10 +914,10 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                     $scope.monitors.push({
                         name: el.name,
                         id: el._id,
-                        x: formatMonitorValue(rows[0][el_id + '.x']),
-                        y: formatMonitorValue(rows[0][el_id + '.y']),
-                        xVal: parseFloat(rows[0][el_id + '.x']),
-                        yVal: parseFloat(rows[0][el_id + '.y'])
+                        x: formatMonitorValue(r[`${el_id}.x`]),
+                        y: formatMonitorValue(r[`${el_id}.y`]),
+                        xVal: parseFloat(r[`${el_id}.x`]),
+                        yVal: parseFloat(r[`${el_id}.y`])
                     });
                 });
             }
@@ -948,28 +949,48 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 );
             }
 
-            function updateReadoutElements() {
-                let p = {}
+            function updateReadoutElements(e, d) {
+                if (! (d || []).length) {
+                    return;
+                }
+                let p = {};
+                let r = readoutItems();
+                let monitorVals = [];
+                for (let m of controlsService.monitors()) {
+                    for (let k of Object.keys(d[0]).filter(x => x.match(`el_${m._id}`))) {
+                        monitorVals.push(parseFloat(d[0][k]));
+                    }
+                }
                 requestSender.sendStatelessCompute(
                     appState,
                     function(data) {
-                        srdbg('PREDICTED KICKS', data);
-                        for (let e in data) {
-                            p[e] = {};
-                            for (let f in data[e]) {
-                                p[e][f] = controlsService.kickToCurrent(data[e], f);
+                        let i = 0;
+                        for (let g in r) {
+                            for (let el of r[g]
+                                .filter(x => x.element.type.match('KICKER'))
+                                .map(x => x.element)
+                            ) {
+                                p[el._id] = {};
+                                for (let f of readoutFields(el)) {
+                                    const s = controlsService.kickToCurrent(el, data.predictions[i]);
+                                    el[`${f}_prediction`] = s;
+                                    p[el._id][f] = s;
+                                    d = Math.abs((el[f] - s) / s);
+                                    const t = Math.abs(0.01 * el[`${f}_threshold`] * s);
+                                    srdbg(el.name, f, 'd', d, 'thresh', t, 'ok?', d < t);
+                                    ++i;
+                                }
                             }
                         }
-                        srdbg('PREDICTED CURRS', p)
+                        //srdbg('PREDICTED CURRS', p);
                     },
                     {
                         method: 'predicted_settings',
-                        monitors: controlsService.bpms(),
-                        controls: controlsService.controls(),
+                        monitor_vals: monitorVals,
                         ml_model: appState.models.beamline.mlModel,
                     }
                 );
-                let r = readoutItems();
+
                 // each readout group is a column
                 for (let g in r) {
                     for (let item of r[g]) {
@@ -1223,7 +1244,7 @@ SIREPO.app.directive('ampField', function(appState, controlsService) {
                 if (! $scope.model[$scope.field]) {
                     $scope.model[$scope.field] = controlsService.kickToCurrent(
                         $scope.model,
-                        controlsService.kickField($scope.field));
+                        $scope.model[controlsService.kickField($scope.field)]);
                 }
                 const res = controlsService.currentToKick(
                     $scope.model,
