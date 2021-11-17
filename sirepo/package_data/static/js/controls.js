@@ -11,6 +11,9 @@ SIREPO.app.config(() => {
         <div data-ng-switch-when="MadxSimList" data-ng-class="fieldClass">
           <div data-sim-list="" data-model="model" data-field="field" data-code="madx" data-route="lattice"></div>
         </div>
+        <div data-ng-switch-when="MLModelFile" class="col-sm-7">
+            <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
+        </div>
         <div data-ng-switch-when="AmpTable">
           <div data-amp-table=""></div>
         </div>
@@ -569,6 +572,30 @@ SIREPO.app.directive('bpmMonitorPlot', function(appState, controlsService, panel
     };
 });
 
+SIREPO.viewLogic('beamlineView', function(appState, panelState, $scope) {
+
+    $scope.inputFile = null;
+    $scope.requireMLFile = false;
+    $scope.title = '';
+    $scope.description = '';
+    $scope.mlFileUrl = null;
+
+    $scope.validate = function (file) {
+        srdbg('VALIDATING', file);
+        $scope.mlFileUrl = URL.createObjectURL(file);
+        return true;
+    };
+    $scope.validationError = '';
+
+    function updateParticleFields() {
+        srdbg('BLV');
+    }
+
+    $scope.whenSelected = updateParticleFields;
+    $scope.watchFields = [
+    ];
+});
+
 SIREPO.viewLogic('commandBeamView', function(appState, panelState, $scope) {
 
     function updateParticleFields() {
@@ -926,14 +953,20 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 requestSender.sendStatelessCompute(
                     appState,
                     function(data) {
-                        srdbg('PREDICTED', data, controlsService.bpms());
-                        p = data;
+                        srdbg('PREDICTED KICKS', data);
+                        for (let e in data) {
+                            p[e] = {};
+                            for (let f in data[e]) {
+                                p[e][f] = controlsService.kickToCurrent(data[e], f);
+                            }
+                        }
+                        srdbg('PREDICTED CURRS', p)
                     },
                     {
                         method: 'predicted_settings',
                         monitors: controlsService.bpms(),
                         controls: controlsService.controls(),
-                        ml_model: {}
+                        ml_model: appState.models.beamline.mlModel,
                     }
                 );
                 let r = readoutItems();

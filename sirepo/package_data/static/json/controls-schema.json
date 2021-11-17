@@ -78,7 +78,8 @@
         "ampTables": {
         },
         "beamline": {
-            "name": ["Name", "ValidatedString"]
+            "name": ["Name", "ValidatedString"],
+            "mlModel": ["ML Model", "MLModelFile", ""]
         },
         "command_beam": {
             "particle": ["Particle", "ParticleType", "electron", "The name of particles in the beam."],
@@ -163,7 +164,11 @@
     "view": {
         "beamline": {
             "title": "Beamline",
-            "advanced": []
+            "advanced": [
+                "name",
+                "mlModel"
+            ],
+            "basic": []
         },
         "command_beam": {
             "title": "Beam Settings",

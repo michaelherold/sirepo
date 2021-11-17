@@ -217,18 +217,27 @@ def _has_kickers(model):
 
 
 def _predicted_settings(controls, monitors, ml_model=None):
+    import pickle
     p = PKDict()
 
+    predictions = None
+    if ml_model:
+        with open(
+            _SIM_DATA.lib_file_abspath(
+                _SIM_DATA.lib_file_name_with_type(ml_model, 'ml')
+            ), 'rb'
+        ) as f:
+            m = pickle.load(f)
+        predictions = m.predict(monitors)[0]
+        pkdp('PREDS {}', predictions)
     for c in controls:
         p[c.name] = PKDict()
-        for f in [f for f in c if f in SCHEMA.constants.readoutElements[c.type].fields]:
-            # s is the setting predicted by the model
-            s = ml_model.predict(monitors) if ml_model else c[f]
-            ds = (abs(s - c[f]) / s) if s != 0 else abs(c[f])
-            p[c.name][f] = PKDict(
-                delta=ds,
-                prediction=s,
-            )
+        for i, f in enumerate(
+                [f for f in c if f in SCHEMA.constants.readoutElements[c.type].fields]
+        ):
+            s = predictions[i] if predictions is not None else c[f]
+            pkdp('S[{}] {}', i, s)
+            p[c.name][f] = s
     return p
 
 
