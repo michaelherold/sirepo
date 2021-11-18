@@ -420,7 +420,7 @@ SIREPO.app.directive('confirmationModal', function() {
               '</div>',
             '</div>',
         ].join(''),
-        controller: function($scope, $element) {
+        controller: function($scope, $element, $rootScope) {
             $scope.formCtl = null;
             $scope.clicked = function() {
                 if ($scope.okClicked() !== false) {
@@ -445,6 +445,10 @@ SIREPO.app.directive('confirmationModal', function() {
 
             $($element).on('shown.bs.modal', function() {
                 $($element).find('.form-control').first().select();
+            });
+
+            $($element).on('hidden.bs.modal', function() {
+                $rootScope.$broadcast('sr-clearDisableAfterClick');
             });
         },
     };
@@ -494,7 +498,7 @@ SIREPO.app.directive('copyConfirmation', function(appState, fileManager, strings
     };
 });
 
-SIREPO.app.directive('disableAfterClick', function(appState, panelState) {
+SIREPO.app.directive('disableAfterClick', function() {
     return {
         restrict: 'A',
         transclude: true,
@@ -518,7 +522,6 @@ SIREPO.app.directive('disableAfterClick', function(appState, panelState) {
             });
         },
     };
-
 });
 
 SIREPO.app.directive('exportPythonLink', function(appState, panelState) {
@@ -604,6 +607,49 @@ SIREPO.app.directive('labelWithTooltip', function(appState, mathRendering, $inte
     };
 });
 
+SIREPO.app.directive('loadingAndErrorPanel', function(appState, panelState) {
+    return {
+        restrict: 'A',
+        transclude: true,
+        scope: {
+	    childArgs: '&',
+	    modelKey: '@',
+	},
+        template: `
+            <div class="panel panel-info">
+              <div class="panel-heading clearfix" data-panel-heading="{{ panelHeading() }}" data-model-key="modelKey"></div>
+	      <div data-show-loading-and-error="">
+	        <div data-ng-show="showTranscludedElement()">
+		  <transcluded-element></transcluded-element>
+	        </div>
+              </div>
+            </div>
+        `,
+        controller: function(simulationDataCache, $scope) {
+	    $scope.panelState = panelState;
+	    $scope.panelHeading = () => {
+		return appState.viewInfo($scope.modelKey).title;
+	    };
+
+	    $scope.showTranscludedElement = () => {
+		return ! (panelState.isLoading($scope.modelKey) || panelState.getError($scope.modelKey));
+	    };
+	},
+	link: function(scope, element, attrs, ctrls, transclude){
+	    transclude(scope, function(clonedContent, transcludeScope){
+		transcludeScope.args = {
+		    modelKey: scope.modelKey
+		};
+		const c =  scope.childArgs();
+		if (c) {
+		    $.extend(transcludeScope.args, c);
+		}
+		element.find('transcluded-element').replaceWith(clonedContent);
+	    });
+	}
+    };
+});
+
 SIREPO.app.directive('fieldEditor', function(appState, keypressService, panelState, utilities) {
     return {
         restrict: 'A',
@@ -676,6 +722,9 @@ SIREPO.app.directive('fieldEditor', function(appState, keypressService, panelSta
               '<div data-ng-switch-when="ValueList" data-ng-class="fieldClass">',
                 '<div class="form-control-static" data-ng-if="model.valueList[field].length == 1">{{ model.valueList[field][0] }}</div>',
                 '<select data-ng-if="model.valueList[field].length != 1" class="form-control" data-ng-model="model[field]" data-ng-options="item as item for item in model.valueList[field]"></select>',
+              '</div>',
+              '<div data-ng-switch-when="ModelArray" class="col-sm-12">',
+                '<div data-model-array="" data-model-name="modelName" data-model="model" data-field="field"></div>',
               '</div>',
               SIREPO.appFieldEditors,
               // assume it is an enum
@@ -776,6 +825,22 @@ SIREPO.app.directive('fieldEditor', function(appState, keypressService, panelSta
                 $($element).find('input').off('focus').off('blur');
             });
         },
+    };
+});
+
+SIREPO.app.directive('loadingSpinner', function(appState, panelState) {
+    return {
+        restrict: 'A',
+        scope: {
+            sentinel: '<',
+        },
+        transclude: true,
+        template: [
+            '<div data-ng-if="!sentinel" class="sr-loading-spinner">',
+                '<img src="/static/img/sirepo_animated.gif" />',
+            '</div>',
+            '<ng-transclude data-ng-if="sentinel"></ng-transclude>'
+        ].join(''),
     };
 });
 
@@ -1566,6 +1631,26 @@ SIREPO.app.directive('safePath', function() {
     };
 });
 
+SIREPO.app.directive('showLoadingAndError', function(panelState) {
+    return {
+	transclude: true,
+	template: `
+            <div data-ng-class="{\'sr-panel-loading\': panelState.isLoading(modelKey), \'sr-panel-error\': panelState.getError(modelKey), \'sr-panel-running\': panelState.isRunning(modelKey), \'has-transclude\': hasTransclude()}" class="panel-body" data-ng-hide="panelState.isHidden(modelKey)">
+              <div data-ng-show="panelState.isLoading(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-hourglass"></span> {{ panelState.getStatusText(modelKey) }}</div>
+              <div data-ng-show="panelState.getError(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-exclamation-sign"></span> {{ panelState.getError(modelKey) }}</div>
+              <div data-ng-transclude=""></div>
+            </div>
+	`,
+        controller: function($scope, $element) {
+            $scope.panelState = panelState;
+            $scope.hasTransclude = function() {
+                var el = $($element).find('div[data-ng-transclude] > div[data-ng-transclude]:not(:empty)');
+                return el.children().first().length > 0;
+            };
+        },
+    };
+});
+
 SIREPO.app.directive('simplePanel', function(appState, panelState) {
     return {
         restrict: 'A',
@@ -2043,9 +2128,7 @@ SIREPO.app.directive('reportContent', function(panelState) {
             modelKey: '@',
         },
         template: [
-            '<div data-ng-class="{\'sr-panel-loading\': panelState.isLoading(modelKey), \'sr-panel-error\': panelState.getError(modelKey), \'sr-panel-running\': panelState.isRunning(modelKey), \'has-transclude\': hasTransclude()}" class="panel-body" data-ng-hide="panelState.isHidden(modelKey)">',
-              '<div data-ng-show="panelState.isLoading(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-hourglass"></span> {{ panelState.getStatusText(modelKey) }}</div>',
-              '<div data-ng-show="panelState.getError(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-exclamation-sign"></span> {{ panelState.getError(modelKey) }}</div>',
+	    '<div data-show-loading-and-error="">',
               '<div data-ng-switch="reportContent" class="{{ panelState.getError(modelKey) ? \'sr-hide-report\' : \'\' }}">',
                 '<div data-ng-switch-when="2d" data-plot2d="" class="sr-plot" data-model-name="{{ modelKey }}" data-report-id="reportId"></div>',
                 '<div data-ng-switch-when="3d" data-plot3d="" class="sr-plot" data-model-name="{{ modelKey }}" data-report-id="reportId"></div>',
@@ -2063,10 +2146,6 @@ SIREPO.app.directive('reportContent', function(panelState) {
         ].join(''),
         controller: function($scope, $element) {
             $scope.panelState = panelState;
-            $scope.hasTransclude = function() {
-                var el = $($element).find('div[data-ng-transclude] > div[data-ng-transclude]:not(:empty)');
-                return el.children().first().length > 0;
-            };
         },
     };
 });
@@ -3142,6 +3221,78 @@ SIREPO.app.directive('jobsList', function(requestSender, appState, $location, $s
     };
 });
 
+SIREPO.app.directive('modelArray', function() {
+    return {
+        restrict: 'A',
+        scope: {
+            modelName: '=',
+            model: '=',
+            field: '=',
+        },
+        template: `
+            <div class="row">
+              <div class="col-sm-11"><div class="row">
+                <div data-ng-if="pad > 0" data-ng-attr-class="col-sm-{{ pad }}"></div>
+                <div class="col-sm-3 text-center" data-ng-repeat="heading in headings track by $index">
+<div data-label-with-tooltip="" data-label="{{ heading[0] }}" data-tooltip="{{ heading[3] }}"></div>
+                </div></div>
+              </div>
+            </div>
+            <div class="form-group form-group-sm" data-ng-show="showRow($index)" data-ng-repeat="m in modelArray() track by $index">
+              <div class="col-sm-11"><div class="row">
+                <div data-ng-if="pad > 0" data-ng-attr-class="col-sm-{{ pad }}"></div>
+                <div class="col-sm-3" data-ng-repeat="f in fields track by $index">
+                  <input data-string-to-number="" data-ng-model="m[f]" class="form-control" style="text-align: right" data-lpignore="true" />
+                </div>
+              </div></div>
+              <div class="col-sm-1"><button style="margin-left: -15px; margin-top: 5px" data-ng-show="! isEmpty($index)" data-ng-click="deleteRow($index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button></div>
+            </div>
+        `,
+        controller: function(appState, $scope) {
+            const mView = SIREPO.APP_SCHEMA.view[$scope.field];
+            $scope.fields = mView.advanced;
+            $scope.headings = SIREPO.APP_SCHEMA.model[$scope.field];
+            $scope.pad = (4 - $scope.fields.length) * 3;
+
+            function initArray() {
+                for (let i = 0; i < mView.maxRows; i++) {
+                    model(i);
+                }
+            }
+
+            function model(idx) {
+                if (! $scope.modelArray()[idx]) {
+                    $scope.modelArray()[idx] = {};
+                }
+                return $scope.modelArray()[idx];
+            }
+
+            $scope.deleteRow = idx => {
+                $scope.modelArray().splice(idx, 1);
+                initArray();
+            };
+
+            $scope.isEmpty = idx => {
+                const m = model(idx);
+                return ! $scope.fields.some(f => angular.isNumber(m[f]));
+            };
+
+            $scope.modelArray = () => {
+                if (! $scope.model) {
+                    return;
+                }
+                if (! $scope.model[$scope.field]) {
+                    $scope.model[$scope.field] = [];
+                    initArray();
+                }
+                return $scope.model[$scope.field];
+            };
+
+            $scope.showRow = idx => (idx == 0) || ! $scope.isEmpty(idx - 1);
+        },
+    };
+});
+
 SIREPO.app.directive('optimizeFloat', function(appState, panelState) {
     return {
         restrict: 'A',
@@ -4182,11 +4333,13 @@ SIREPO.app.directive('simList', function(appState, requestSender) {
             route: '@',
         },
         template: [
-            '<div style="white-space: nowrap">',
-              '<select style="display: inline-block" class="form-control" data-ng-model="model[field]" data-ng-options="item.simulationId as itemName(item) disable when item.invalidMsg for item in simList"></select>',
-              ' ',
-              '<button type="button" title="View Simulation" class="btn btn-default" data-ng-click="openSimulation()"><span class="glyphicon glyphicon-eye-open"></span></button>',
-            '</div>',
+            '<span data-loading-spinner data-sentinel="simList">',
+              '<div style="white-space: nowrap">',
+                '<select style="display: inline-block" class="form-control" data-ng-model="model[field]" data-ng-options="item.simulationId as itemName(item) disable when item.invalidMsg for item in simList"></select>',
+                ' ',
+                '<button type="button" title="View Simulation" class="btn btn-default" data-ng-click="openSimulation()"><span class="glyphicon glyphicon-eye-open"></span></button>',
+              '</div>',
+            '</span>',
         ].join(''),
         controller: function($scope) {
             $scope.simList = null;
@@ -4208,17 +4361,19 @@ SIREPO.app.directive('simList', function(appState, requestSender) {
                 }
             };
             appState.whenModelsLoaded($scope, function() {
-                requestSender.getApplicationData(
-                    {
-                        method: 'get_' + $scope.code + '_sim_list'
-                    },
+                requestSender.sendStatefulCompute(
+                    appState,
                     function(data) {
                         if (appState.isLoaded() && data.simList) {
                             $scope.simList = data.simList.sort(function(a, b) {
                                 return a.name.localeCompare(b.name);
                             });
                         }
-                    });
+                    },
+                    {
+                        method: 'get_' + $scope.code + '_sim_list'
+                    }
+		);
             });
         },
     };
