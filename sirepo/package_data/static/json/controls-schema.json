@@ -78,8 +78,9 @@
         "ampTables": {
         },
         "beamline": {
+            "mlModel": ["ML Model", "MLModelFile", ""],
             "name": ["Name", "ValidatedString"],
-            "mlModel": ["ML Model", "MLModelFile", ""]
+            "numSections": ["Number of Sections", "Int", 1, "", 1]
         },
         "command_beam": {
             "particle": ["Particle", "ParticleType", "electron", "The name of particles in the beam."],

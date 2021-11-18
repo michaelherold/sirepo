@@ -362,6 +362,7 @@ SIREPO.app.controller('ControlsController', function(appState, controlsService, 
 
     self.simHandleStatus = data => {
         if (data.elementValues) {
+            //throw new Error('HANDLE POOP!');
             handleElementValues(data);
         }
         if (! self.simState.isProcessing()) {
@@ -745,7 +746,6 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                     readoutGroups
                 );
                 readoutTable.addClasses('sr-readout-table sr-readout-table-idle');
-                updateReadoutElements();
             }
 
             function detectOverlap(positions, pos) {
@@ -930,10 +930,10 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 let g = readoutGroup(element);
                 let txt = `${element.name}: `;
                 for (let f of readoutFields(element)) {
-                    txt += `${labels[f]} = ${utilities.roundToPlaces(parseFloat(element[f]), 6)};&nbsp;`;
+                    txt += `${labels[f]} = ${utilities.roundToPlaces(parseFloat(element[f]), 6)}&nbsp;&nbsp;`;
                 }
                 let idx = 0;
-                while (r[g][idx].element._id != element._id) {
+                while (r[g][idx].element._id !== element._id) {
                     idx += 1;
                     if (idx >= r[g].length) {
                         throw new Error('element not found: ', element);
@@ -953,7 +953,6 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 if (! (d || []).length) {
                     return;
                 }
-                let p = {};
                 let r = readoutItems();
                 let monitorVals = [];
                 for (let m of controlsService.monitors()) {
@@ -966,23 +965,26 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                     function(data) {
                         let i = 0;
                         for (let g in r) {
-                            for (let el of r[g]
-                                .filter(x => x.element.type.match('KICKER'))
-                                .map(x => x.element)
-                            ) {
-                                p[el._id] = {};
+                            for (let item of r[g]) {
+                                let el = item.element;
+                                if (! el.type.match('KICKER')) {
+                                    updateReadoutElement(el);
+                                    continue;
+                                }
+                                let ok = true;
                                 for (let f of readoutFields(el)) {
                                     const s = controlsService.kickToCurrent(el, data.predictions[i]);
                                     el[`${f}_prediction`] = s;
-                                    p[el._id][f] = s;
-                                    d = Math.abs((el[f] - s) / s);
+                                    const delta = Math.abs((el[f] - s) / s);
                                     const t = Math.abs(0.01 * el[`${f}_threshold`] * s);
-                                    srdbg(el.name, f, 'd', d, 'thresh', t, 'ok?', d < t);
+                                    //srdbg(el.name, f, 'd', delta, 'thresh', t, 'ok?', delta < t);
+                                    ok = ok && delta < t;
+                                    //srdbg(el.name, 'ok?', ok);
                                     ++i;
                                 }
+                                updateReadoutElement(el, 'red', 0.25);
                             }
                         }
-                        //srdbg('PREDICTED CURRS', p);
                     },
                     {
                         method: 'predicted_settings',
@@ -990,15 +992,6 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                         ml_model: appState.models.beamline.mlModel,
                     }
                 );
-
-                // each readout group is a column
-                for (let g in r) {
-                    for (let item of r[g]) {
-                        updateReadoutElement(
-                            item.element
-                        );
-                    }
-                }
             }
 
             function windowResize() {
@@ -1067,7 +1060,7 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                 let o = 0.0;
                 let b = 1.0;
                 if (selectedItem) {
-                    updateReadoutElement(selectedItem.element, c, o, b);
+                    //updateReadoutElement(selectedItem.element, c, o, b);
                 }
                 if (selectedItem && selectedItem.element._id == id) {
                     selectedItem = null;
@@ -1078,7 +1071,7 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                     o = 0.25;
                     b = 2.0;
                 }
-                updateReadoutElement(item.element, c, o, b);
+                //updateReadoutElement(item.element, c, o, b);
             });
 
             $scope.$on('sr-window-resize', windowResize);
