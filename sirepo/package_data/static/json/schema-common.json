@@ -4,6 +4,10 @@
             "longName": "MyApp",
             "shortName": "MyApp"
         },
+        "alarms": {
+            "longName": "Alarms",
+            "shortName": "Alarms"
+        },
         "controls": {
             "longName": "Controls",
             "shortName": "Controls"
