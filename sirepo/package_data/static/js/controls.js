@@ -692,7 +692,7 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
               <table class="table table-hover table-condensed">
                 <tr><th colspan="3">Monitors</th></tr>
                 <tr data-ng-repeat="m in monitors track by m.name">
-                  <td data-ng-class="thresholdClass(m)"><strong>{{m.name}}</strong></td>
+                  <td><strong>{{m.name}}</strong></td>
                   <td class="text-right">{{m.x}}</td>
                   <td class="text-right">{{m.y}}</td>
                 </tr>
@@ -977,12 +977,10 @@ SIREPO.app.directive('latticeFooter', function(appState, controlsService, lattic
                                     el[`${f}_prediction`] = s;
                                     const delta = Math.abs((el[f] - s) / s);
                                     const t = Math.abs(0.01 * el[`${f}_threshold`] * s);
-                                    //srdbg(el.name, f, 'd', delta, 'thresh', t, 'ok?', delta < t);
                                     ok = ok && delta < t;
-                                    //srdbg(el.name, 'ok?', ok);
                                     ++i;
                                 }
-                                updateReadoutElement(el, 'red', 0.25);
+                                updateReadoutElement(el, ok ? null : 'red', ok ? 0.0 : 0.25);
                             }
                         }
                     },
