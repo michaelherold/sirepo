@@ -1,0 +1,13 @@
+{
+    "models": {
+        "beamlines": [],
+        "dataFile": {
+            "madxSirepo": null
+        },
+        "elements": [],
+        "simulation": {
+            "name": ""
+        }
+    },
+    "simulationType": "cebaf"
+}

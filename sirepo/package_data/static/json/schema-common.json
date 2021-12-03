@@ -4,9 +4,9 @@
             "longName": "MyApp",
             "shortName": "MyApp"
         },
-        "alarms": {
-            "longName": "Alarms",
-            "shortName": "Alarms"
+        "cebaf": {
+            "longName": "CEBAF Injector Alarms",
+            "shortName": "cebaf"
         },
         "controls": {
             "longName": "Controls",

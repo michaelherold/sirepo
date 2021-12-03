@@ -1,7 +1,7 @@
 {
     "appModes": {
         "default": {
-            "localRoute": "alarms"
+            "localRoute": "beamline"
         }
     },
     "constants": {
@@ -38,7 +38,7 @@
     "dynamicFiles": {
         "sirepoLibs": {
             "js": [
-                "controls.js",
+                "cebaf.js",
                 "sirepo-lattice.js"
             ],
              "css": [
@@ -47,10 +47,6 @@
         }
     },
     "enum": {
-        "OptimizationMethod": [
-            ["nmead", "Nelder-Mead"],
-            ["polyfit", "Linear Response Matrix"]
-        ],
         "ParticleType": [
             ["positron", "Positron"],
             ["electron", "Electron"],
@@ -63,11 +59,18 @@
         ]
     },
     "localRoutes": {
-        "alarms": {
-            "route": "/alarms/:simulationId",
+        "beamline": {
+            "route": "/beamline/:simulationId",
             "config": {
-                "controller": "AlarmsConfigController as alarmsConfig",
-                "templateUrl": "/static/html/alarms-config.html"
+                "controller": "CEBAFBeamlineController as cebafBeamline",
+                "templateUrl": "/static/html/cebaf-beamline.html"
+            }
+        },
+        "config": {
+            "route": "/config/:simulationId",
+            "config": {
+                "controller": "CEBAFConfigController as cebafConfig",
+                "templateUrl": "/static/html/cebaf-config.html"
             }
         },
         "lattice": {
@@ -75,48 +78,12 @@
         }
     },
     "model": {
-        "ampTables": {
-        },
-        "beamline": {
-            "mlModel": ["ML Model", "MLModelFile", ""],
-            "name": ["Name", "ValidatedString"],
-            "numSections": ["Number of Sections", "Int", 1, "", 1]
-        },
-        "command_beam": {
-            "particle": ["Particle", "ParticleType", "electron", "The name of particles in the beam."],
-            "mass": ["Mass [GeV]", "Float", 0.0005109989461, "The restmass of the particles in the beam."],
-            "charge": ["Charge [qp]", "Float", 1, "The electrical charge of the particles in the beam in units of the proton charge"],
-            "gamma": ["Gamma", "Float", 1.0, "Relativistic factor, ie the ratio between total energy and rest energy of the particles.", 1e-99],
-            "ex": ["Horizontal Emittance [m]", "Float", 1.0],
-            "ey": ["Vertical Emittance [m]", "Float", 1.0],
-            "sigt": ["Bunch Length [m]", "Float", 1.0, "The bunch length $c\\space \\sigma_t$ (SIGT)."],
-            "sige": ["Relative Energy Spread", "Float", 0.001, "The relative energy spread $\\sigma_E / E$ (SIGE)."]
-        },
-        "command_twiss": {
-            "alfx": ["Horizontal Alpha", "Float", 0.0],
-            "alfy": ["Vertical Alpha", "Float", 0.0],
-            "betx": ["Horizontal Beta [m]", "Float", 0.0],
-            "bety": ["Vertical Beta [m]", "Float", 0.0],
-            "dpx": ["Horizontal Dispersion Derivative", "Float", 0.0],
-            "dpy": ["Vertical Dispersion Derivative", "Float", 0.0],
-            "dx": ["Horizontal Dispersion [m]", "Float", 0.0],
-            "dy": ["Vertical Dispersion [m]", "Float", 0.0],
-            "px": ["Horizontal Canonical Momentum of $p_x$", "Float", 0.0],
-            "py": ["Vertical Canonical Momentum of $p_y$", "Float", 0.0],
-            "x": ["Horizontal Centroid [m]", "Float", 0.0],
-            "y": ["Vertical Centroid [m]", "Float", 0.0]
+        "bpmThresholds": {
+            "file": ["Thresholds File", "ThresholdsFile", ""],
+            "thresholds": ["BPM ML Thresholds", "ThresholdList", []]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
-        },
-        "initialMonitorPositionsReport": {},
-        "optimizerSettings": {
-            "method": ["Optimization Method", "OptimizationMethod", "nmead"]
-        },
-        "optimizerTarget": {
-            "x": ["X [m]", "Float", 0.0],
-            "y": ["Y [m]", "Float", 0.0],
-            "weight": ["Weight", "Float", 0.1]
         },
         "HKICKER": {
             "name": ["Name", "ValidatedString"],
@@ -163,56 +130,13 @@
         "completionState": ""
     },
     "view": {
-        "beamline": {
-            "title": "Beamline",
+        "bpmThresholds": {
+            "title": "BPM ML Thresholds",
             "advanced": [
-                "name",
-                "mlModel"
+                "file"
             ],
-            "basic": []
-        },
-        "command_beam": {
-            "title": "Beam Settings",
-            "advanced": [],
             "basic": [
-                ["Main", [
-                    "particle",
-                    "mass",
-                    "charge",
-                    "gamma"
-                ]],
-                ["Twiss", [
-                    [
-                        ["Horizontal", [
-                            "ex",
-                            "command_twiss.betx",
-                            "command_twiss.alfx",
-                            "command_twiss.dx",
-                            "command_twiss.dpx"
-                        ]],
-                        ["Vertical", [
-                            "ey",
-                            "command_twiss.bety",
-                            "command_twiss.alfy",
-                            "command_twiss.dy",
-                            "command_twiss.dpy"
-                        ]]
-                    ],
-                    "sigt",
-                    "sige"
-                ]],
-                ["Position", [
-                    [
-                        ["Horizontal", [
-                            "command_twiss.x",
-                            "command_twiss.px"
-                        ]],
-                        ["Vertical", [
-                            "command_twiss.y",
-                            "command_twiss.py"
-                        ]]
-                    ]
-                ]]
+                "thresholds"
             ]
         },
         "dataFile": {
@@ -220,18 +144,6 @@
             "basic": [
                 "madxSirepo"
             ],
-            "advanced": []
-        },
-        "initialMonitorPositionsReport": {
-            "title": "",
-            "advanced": []
-        },
-        "simulationStatus": {
-            "title": "Optimization Targets",
-            "advanced": []
-        },
-        "monitors": {
-            "title": "Monitors",
             "advanced": []
         },
         "HKICKER": {
