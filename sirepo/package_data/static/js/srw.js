@@ -348,7 +348,7 @@ SIREPO.app.factory('srwService', function(activeSection, appDataService, appStat
                     offsets: [],
                 };
                 for (let f of props[p].fieldNames || []) {
-                    e[p].initial.push(item[f] || 0.0);
+                    e[p].initial.push(item[f] ? parseFloat(item[f]) : 0.0);
                 }
             }
         }
@@ -1666,28 +1666,6 @@ SIREPO.app.directive('appHeader', function(appState, panelState, srwService) {
                 return SIREPO.APP_SCHEMA.feature_config.show_rsopt_ml &&
                     appState.models.beamline && appState.models.beamline.length > 0;
             };
-        },
-    };
-});
-
-SIREPO.app.directive('headerTooltip', function() {
-    return {
-        restrict: 'A',
-        scope: {
-            tipText: '=headerTooltip',
-        },
-        template: [
-            '<span class="glyphicon glyphicon-info-sign sr-info-pointer"></span>',
-        ],
-        link: function link(scope, element) {
-            $(element).tooltip({
-                title: scope.tipText,
-                html: true,
-                placement: 'bottom',
-            });
-            scope.$on('$destroy', function() {
-                $(element).tooltip('destroy');
-            });
         },
     };
 });
