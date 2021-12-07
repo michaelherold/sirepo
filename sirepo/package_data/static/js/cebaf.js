@@ -14,8 +14,8 @@ SIREPO.app.config(() => {
         <div data-ng-switch-when="MLModelFile" class="col-sm-7">
            <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
-        <div data-ng-switch-when="ThresholdList" class="col-sm-7">
-           <div data-bpm-thresholds=""  data-model="model"></div>
+        <div data-ng-switch-when="ThresholdList" class="col-sm-12">
+           <div data-ml-thresholds=""  data-model="model"></div>
         </div>
         <div data-ng-switch-when="ThresholdsFile" class="col-sm-7">
            <div data-file-field="field" data-file-type="csv" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
@@ -385,7 +385,7 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
               <app-header-right-sim-loaded>
                 <div data-sim-sections="">
                   <li class="sim-section" data-ng-class="{active: nav.isActive(\'beamline\')}"><a href data-ng-click="nav.openSection(\'beamline\')"><span class="glyphicon glyphicon-option-horizontal"></span> Beamline</a></li>
-                  <li class="sim-section" data-ng-if="cebafService.hasMadxLattice()" data-ng-class="{active: nav.isActive(\'config\')}"><a href data-ng-click="nav.openSection(\'config\')"><span class="glyphicon glyphicon-wrench"></span> Config</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'config\')}"><a href data-ng-click="nav.openSection(\'config\')"><span class="glyphicon glyphicon-wrench"></span> Config</a></li>
                 </div>
               </app-header-right-sim-loaded>
               <app-settings>
@@ -403,151 +403,7 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
     };
 });
 
-SIREPO.app.directive('bpmMonitorPlot', function(appState, cebafService, panelState, plot2dService, plotting, utilities) {
-    return {
-        restrict: 'A',
-        scope: {
-            bpmMonitorPlot: '@',
-            modelName: '@',
-            zoom: '@'
-        },
-        templateUrl: '/static/html/plot2d.html' + SIREPO.SOURCE_CACHE_KEY,
-        controller: function($scope) {
-            const id = parseInt($scope.modelName.match(/[0-9]+/)[0]);
-            $scope.model = cebafService.elementForId(id);
-            let thresholds = [{}];
-            const thresholdId = `sr-threshold-rect-${id}`;
-            const defaultDomain = [-0.0021, 0.0021];
-            let points;
-            let colName = $scope.modelName.substring(0, $scope.modelName.indexOf('Report'));
-            $scope.isClientOnly = true;
-            $scope[`isZoom${$scope.zoom}`] = true;
-
-            function clearPoints() {
-                points = [];
-                plotting.addConvergencePoints($scope.select, '.plot-viewport', [], points);
-                $scope.select('.plot-viewport').selectAll('.sr-scatter-point').remove();
-                ['x', 'y'].forEach(dim => {
-                    $scope.axes[dim].domain = [-1, 1];
-                    $scope.axes[dim].scale.domain(appState.clone(defaultDomain));
-                });
-            }
-
-            function domainWidth(domain) {
-                return domain[1] - domain[0];
-            }
-
-            function fitPoints() {
-                if (points.length <= 1) {
-                    return;
-                }
-                let dim = appState.clone(defaultDomain);
-                if (domainWidth($scope.axes.x.scale.domain()) < domainWidth(defaultDomain)) {
-                    // keep current domain if domain width is smaller than default domain
-                    // the user has zoomed in
-                    return;
-                }
-                [0, 1].forEach(i => {
-                    points.forEach(p => {
-                        if (p[i] < dim[0]) {
-                            dim[0] = p[i];
-                        }
-                        if (p[i] > dim[1]) {
-                            dim[1] = p[i];
-                        }
-                    });
-                    let pad = (dim[1] - dim[0]) / 20;
-                    if (pad == 0) {
-                        pad = 0.1;
-                    }
-                    dim[0] -= pad;
-                    dim[1] += pad;
-                });
-                if ( -dim[0] > dim[1]) {
-                    dim[1] = -dim[0];
-                }
-                else if (-dim[0] < dim[1]) {
-                    dim[0] = -dim[1];
-                }
-                ['x', 'y'].forEach(axis => {
-                    $scope.axes[axis].scale.domain(dim).nice();
-                });
-            }
-
-            function pushAndTrim(p) {
-                const MAX_BPM_POINTS = SIREPO.APP_SCHEMA.constants.maxBPMPoints;
-                if (points.length && appState.deepEquals(p, points[points.length - 1])) {
-                    return;
-                }
-                points.push(p);
-                if (points.length > MAX_BPM_POINTS) {
-                    points = points.slice(points.length - MAX_BPM_POINTS);
-                }
-            }
-
-            $scope.init = () => {
-                plot2dService.init2dPlot($scope, {
-                    margin: {top: 50, right: 10, bottom: 50, left: 75},
-                });
-                $scope.load();
-            };
-
-            $scope.load = () => {
-                clearPoints();
-                $scope.aspectRatio = 1;
-                $scope.updatePlot({
-                    x_label: 'x [m]',
-                    y_label: 'y [m]',
-                    title: $scope.bpmMonitorPlot + ' Monitor',
-                });
-            };
-
-            $scope.refresh = () => {
-                plotting.refreshConvergencePoints($scope.select, '.plot-viewport', $scope.graphLine);
-                $scope.select('.plot-viewport').selectAll('.sr-scatter-point')
-                    .data(points)
-                    .enter().append('circle')
-                    .attr('class', 'sr-scatter-point')
-                    .attr('r', 8);
-                $scope.select('.plot-viewport').selectAll('.sr-scatter-point')
-                    .attr('cx', $scope.graphLine.x())
-                    .attr('cy', $scope.graphLine.y())
-                    .attr('style', (d, i) => {
-                        if (i == points.length - 1) {
-                            return `fill: rgba(0, 0, 255, 0.7); stroke-width: 4; stroke: black`;
-                        }
-                        let opacity = (i + 1) / points.length * 0.5;
-                        return `fill: rgba(0, 0, 255, ${opacity}); stroke-width: 1; stroke: black`;
-                    });
-            };
-
-            $scope.$on('sr-elementValues', (event, rows) => {
-                if (rows.length > 1) {
-                    clearPoints();
-                }
-                rows.forEach(values => {
-                    const point = [
-                        parseFloat(values[colName + '.x'] || 0),
-                        parseFloat(values[colName + '.y'] || 0),
-                    ];
-                    pushAndTrim(point);
-                });
-                fitPoints();
-                plotting.addConvergencePoints($scope.select, '.plot-viewport', [], points);
-                $scope.resize();
-            });
-
-            $scope.$on('sr-clearElementValues', () => {
-                clearPoints();
-                $scope.refresh();
-            });
-        },
-        link: (scope, element) => plotting.linkPlot(scope, element),
-    };
-});
-
-
-SIREPO.app.directive('bpmThresholds', function(appState, cebafService, panelState, plot2dService, plotting, utilities) {
+SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState, plot2dService, plotting, utilities) {
     return {
         restrict: 'A',
         scope: {
@@ -578,6 +434,8 @@ SIREPO.app.directive('bpmThresholds', function(appState, cebafService, panelStat
         `,
         controller: function($scope) {
 
+            let thresholdFile = appState.applicationState().mlThresholds;
+            srdbg('TF', thresholdFile);
             // placeholder
             $scope.elements = [
                 {

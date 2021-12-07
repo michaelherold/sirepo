@@ -5,7 +5,23 @@
         }
     },
     "constants": {
-        "maxBPMPoints": 10,
+        "configColumns": [
+            "Setting",
+            "Element",
+            "Input/Output",
+            "Model Tolerance",
+            "Channel Id"
+        ],
+        "clight": 299792458,
+        "particleMassAndCharge": {
+            "positron": [0.510998928e-03, 1],
+            "electron": [0.510998928e-03, -1],
+            "proton": [0.938272046, 1],
+            "antiproton": [0.938272046, -1],
+            "posmuon": [0.1056583715, 1],
+            "negmuon": [0.1056583715, -1],
+            "ion": [0.931494061, 1]
+        },
         "readoutElements": {
             "HKICKER": {
                 "fields": ["current_kick"],
@@ -23,16 +39,6 @@
                 "fields": ["current_kick"],
                 "group": "Kickers [A]"
             }
-        },
-        "clight": 299792458,
-        "particleMassAndCharge": {
-            "positron": [0.510998928e-03, 1],
-            "electron": [0.510998928e-03, -1],
-            "proton": [0.938272046, 1],
-            "antiproton": [0.938272046, -1],
-            "posmuon": [0.1056583715, 1],
-            "negmuon": [0.1056583715, -1],
-            "ion": [0.931494061, 1]
         }
     },
     "dynamicFiles": {
@@ -78,9 +84,9 @@
         }
     },
     "model": {
-        "bpmThresholds": {
+        "mlThresholds": {
             "file": ["Thresholds File", "ThresholdsFile", ""],
-            "thresholds": ["BPM ML Thresholds", "ThresholdList", []]
+            "thresholds": ["ML Thresholds", "ThresholdList", []]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
@@ -130,8 +136,8 @@
         "completionState": ""
     },
     "view": {
-        "bpmThresholds": {
-            "title": "BPM ML Thresholds",
+        "mlThresholds": {
+            "title": "ML Thresholds",
             "advanced": [
                 "file"
             ],

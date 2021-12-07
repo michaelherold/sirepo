@@ -25,6 +25,7 @@ class SimData(sirepo.sim_data.SimDataBase):
             dm,
             (
                 'dataFile',
+                'mlThresholds',
             ),
         )
         if 'externalLattice' in dm:
