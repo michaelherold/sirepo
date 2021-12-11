@@ -6,11 +6,11 @@
     },
     "constants": {
         "configColumns": [
-            "Setting",
-            "Element",
-            "Input/Output",
-            "Model Tolerance",
-            "Channel Id"
+            {"name":  "Element", "type": "label", "col": 1},
+            {"name":  "Setting", "type": "label", "col": 0},
+            {"name":  "Input/Output", "type": "label", "col": 2},
+            {"name":  "Model Tolerance", "type": "input", "col": 3},
+            {"name":  "Channel Id", "type": "label", "col": 4}
         ],
         "clight": 299792458,
         "particleMassAndCharge": {
@@ -86,7 +86,7 @@
     "model": {
         "mlThresholds": {
             "file": ["Thresholds File", "ThresholdsFile", ""],
-            "thresholds": ["ML Thresholds", "ThresholdList", []]
+            "config": ["ML Thresholds", "ThresholdList", []]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
@@ -142,7 +142,7 @@
                 "file"
             ],
             "basic": [
-                "thresholds"
+                "config"
             ]
         },
         "dataFile": {

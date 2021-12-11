@@ -15,10 +15,10 @@ SIREPO.app.config(() => {
            <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
         <div data-ng-switch-when="ThresholdList" class="col-sm-12">
-           <div data-ml-thresholds=""  data-model="model"></div>
+           <div data-ml-thresholds=""  data-model="model" data-model-name="modelName" data-field="field"></div>
         </div>
         <div data-ng-switch-when="ThresholdsFile" class="col-sm-7">
-           <div data-file-field="field" data-file-type="csv" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
+           <div data-file-field="field" data-file-type="thresholds" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
     `;
     SIREPO.lattice = {
@@ -403,117 +403,64 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
     };
 });
 
-SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState, plot2dService, plotting, utilities) {
+SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState, plot2dService, plotting, requestSender, utilities) {
     return {
         restrict: 'A',
         scope: {
+            field: '=',
+            model: '=',
+            modelName: '=',
         },
         template: `
             <div>
                 <table class="table">
                     <thead>
                       <tr>
-                        <th>Element</th>
-                        <th>Field</th>
-                        <th class="text-center">Model Directions</th>
-                        <th class="text-center">Model Tolerance (pct)</th>
-                        <th class="text-center">Channel Id</th>
+                        <th data-ng-repeat="h in header track by h.col">{{ h.name }}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr data-ng-repeat="element in elements track by $index">
-                        <td class="form-group form-group-sm"><p class="form-control-static">{{ element.name }}</p></td>
-                        <td class="form-group form-group-sm"><p class="form-control-static">{{ element.field }}</p></td>
-                        <td class="form-group form-group-sm"><p class="form-control-static">{{ element.modelDirection }}</p></td>
-                        <td class="form-group form-group-sm"><p class="form-control-static"><input value="{{ element.tolerance }}"></p></td>
-                        <td class="form-group form-group-sm"><p class="form-control-static">{{ element.channelId }}</p></td>
+                      <tr data-ng-repeat="r in model.config track by $index">
+                        <td data-ng-repeat="c in r track by $index" class="form-group form-group-sm">
+                          <p class="form-control-static">
+                            <span data-ng-if="header[$index].type == 'label'">{{ r[header[$index].col] }}</span>
+                            <span data-ng-if="header[$index].type == 'input'" class="col-sm-3"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
+                          </p>
+                        </td>
                       </tr>
                     </tbody>
                 </table>
             </div>
         `,
         controller: function($scope) {
+            $scope.header = SIREPO.APP_SCHEMA.constants.configColumns;
 
-            let thresholdFile = appState.applicationState().mlThresholds;
-            srdbg('TF', thresholdFile);
-            // placeholder
-            $scope.elements = [
-                {
-                    channelId: 0,
-                    field: 'hcurrent',
-                    name: 'CORR1',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 0,
-                    field: 'vcurrent',
-                    name: 'CORR1',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 1,
-                    name: 'CORRX1',
-                    field: 'current',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 2,
-                    name: 'CORRY1',
-                    field: 'current',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 3,
-                    name: 'CORRX2',
-                    field: 'current',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 4,
-                    name: 'CORRY2',
-                    field: 'current',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 5,
-                    name: 'CORR2',
-                    field: 'hcurrent',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                },
-                {
-                    channelId: 5,
-                    name: 'CORR2',
-                    field: 'vcurrent',
-                    modelDirection: 'Input',
-                    tolerance: 0.01,
-                }
-            ];
+            const thresholds = appState.applicationState().mlThresholds;
 
-            function readoutItems() {
-                let elements = {};
-                const models = controlsService.latticeModels();
-                models.beamlines[0].items.forEach(elId => {
-                    let el = latticeService.elementForId(elId, models);
-                    let rg = readoutGroup(el);
-                    if (! rg) {
-                        return;
+            function loadThresholds() {
+                requestSender.sendStatelessCompute(
+                    appState,
+                    data => {
+                        updateThresholds(data.config);
+                    },
+                    {
+                        method: 'load_thresholds',
+                        file: thresholds.file,
                     }
-                    if (! elements[rg]) {
-                        elements[rg] = [];
-                    }
-                    // elements are in beamline order
-                    elements[rg].push({
-                        element: el,
-                    });
-                });
-                return elements;
+                );
+            }
+
+            function updateThresholds(config) {
+                appState.models.mlThresholds.config = config;
+                appState.saveQuietly('mlThresholds');
+            }
+
+            $scope.$on('mlThresholds.changed', (e, d) => {
+                loadThresholds();
+            });
+
+            if (thresholds.file && ! thresholds.config.length) {
+                loadThresholds();
             }
 
         },

@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function
 from pykern import pkio
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp
+from sirepo import util
 from sirepo.template import template_common
 from sirepo.template.lattice import LatticeUtil
 import copy
@@ -61,6 +62,22 @@ def stateful_compute_get_external_lattice(data):
 
 def stateless_compute_predicted_settings(data):
     return _predicted_settings(data.monitor_vals, data.ml_model)
+
+
+def stateless_compute_load_thresholds(data):
+    return _load_thresholds(data)
+
+
+def _load_thresholds(data):
+    import csv
+    path = _SIM_DATA.lib_file_abspath(
+        _SIM_DATA.lib_file_name_with_type(data.file, 'thresholds')
+    )
+    rows = []
+    with open(str(path)) as f:
+        for row in csv.reader(f):
+            rows.append(row)
+    return PKDict(config=rows)
 
 
 def python_source_for_model(data, model):

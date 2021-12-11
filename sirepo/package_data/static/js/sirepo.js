@@ -2354,10 +2354,10 @@ SIREPO.app.factory('requestSender', function(cookieService, errorService, $http,
         sendWithSimulationFields('statefulCompute', appState, callback, data);
     };
 
-    self.sendStatelessCompute = function(appState, successCallback, data, options) {
-	const maybeSetPanelState = (state) => {
-	    if (! options.panelState) {
-		return;
+    self.sendStatelessCompute = function(appState, successCallback, data, options={}) {
+	    const maybeSetPanelState = (state) => {
+	        if (! options.panelState) {
+		    return;
 	    }
 	    options.panelState.maybeSetState(options.modelName, state);
 	};
