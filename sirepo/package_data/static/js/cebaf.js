@@ -424,7 +424,7 @@ SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState
                         <td data-ng-repeat="c in r track by $index" class="form-group form-group-sm">
                           <p class="form-control-static">
                             <span data-ng-if="header[$index].type == 'label'">{{ r[header[$index].col] }}</span>
-                            <span data-ng-if="header[$index].type == 'input'" class="col-sm-3"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
+                            <span data-ng-if="header[$index].type == 'input'" class="col-sm-5"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
                           </p>
                         </td>
                       </tr>
