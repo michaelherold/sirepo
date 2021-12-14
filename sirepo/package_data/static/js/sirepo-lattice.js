@@ -2010,7 +2010,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
                 $scope.width = width;
                 if ($scope.flatten) {
-                    return;
+                    //return;
                 }
                 $scope.height = $scope.width;
                 var windowHeight = $($window).height();
