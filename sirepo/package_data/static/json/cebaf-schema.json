@@ -84,9 +84,9 @@
         }
     },
     "model": {
-        "mlThresholds": {
-            "file": ["Thresholds File", "ThresholdsFile", ""],
-            "config": ["ML Thresholds", "ThresholdList", []]
+        "mlModelConfig": {
+            "file": ["ML Config File", "MLConfigFile", ""],
+            "configItems": ["ML Config Items", "MLConfigList", []]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
@@ -136,13 +136,13 @@
         "completionState": ""
     },
     "view": {
-        "mlThresholds": {
-            "title": "ML Thresholds",
+        "mlModelConfig": {
+            "title": "ML Configuration",
             "advanced": [
                 "file"
             ],
             "basic": [
-                "config"
+                "configItems"
             ]
         },
         "dataFile": {

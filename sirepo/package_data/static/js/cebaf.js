@@ -14,11 +14,11 @@ SIREPO.app.config(() => {
         <div data-ng-switch-when="MLModelFile" class="col-sm-7">
            <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
-        <div data-ng-switch-when="ThresholdList" class="col-sm-12">
-           <div data-ml-thresholds=""  data-model="model" data-model-name="modelName" data-field="field"></div>
+        <div data-ng-switch-when="MLConfigList" class="col-sm-12">
+           <div data-ml-model-config=""  data-model="model" data-model-name="modelName" data-field="field"></div>
         </div>
-        <div data-ng-switch-when="ThresholdsFile" class="col-sm-7">
-           <div data-file-field="field" data-file-type="thresholds" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
+        <div data-ng-switch-when="MLConfigFile" class="col-sm-7">
+           <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
     `;
     SIREPO.lattice = {
@@ -403,7 +403,7 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
     };
 });
 
-SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState, plot2dService, plotting, requestSender, utilities) {
+SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelState, plot2dService, plotting, requestSender, utilities) {
     return {
         restrict: 'A',
         scope: {
@@ -420,7 +420,7 @@ SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState
                       </tr>
                     </thead>
                     <tbody>
-                      <tr data-ng-repeat="r in model.config track by $index">
+                      <tr data-ng-repeat="r in model.configItems track by $index">
                         <td data-ng-repeat="c in r track by $index" class="form-group form-group-sm">
                           <p class="form-control-static">
                             <span data-ng-if="header[$index].type == 'label'">{{ r[header[$index].col] }}</span>
@@ -435,32 +435,34 @@ SIREPO.app.directive('mlThresholds', function(appState, cebafService, panelState
         controller: function($scope) {
             $scope.header = SIREPO.APP_SCHEMA.constants.configColumns;
 
-            const thresholds = appState.applicationState().mlThresholds;
+            const mlCfg = appState.applicationState().mlModelConfig;
 
-            function loadThresholds() {
+            function loadConfig() {
+                appState.models.mlModelConfig.configItems = [];
                 requestSender.sendStatelessCompute(
                     appState,
                     data => {
-                        updateThresholds(data.config);
+                        updateConfig(data.config);
                     },
                     {
                         method: 'load_thresholds',
-                        file: thresholds.file,
+                        file: mlCfg.file,
                     }
                 );
             }
 
-            function updateThresholds(config) {
-                appState.models.mlThresholds.config = config;
-                appState.saveQuietly('mlThresholds');
+            function updateConfig(config) {
+                appState.models.mlModelConfig.configItems = config;
+                appState.saveQuietly('mlModelConfig');
             }
 
-            $scope.$on('mlThresholds.changed', (e, d) => {
-                loadThresholds();
+
+            $scope.$on('mlModelConfig.changed', (e, d) => {
+                loadConfig();
             });
 
-            if (thresholds.file && ! thresholds.config.length) {
-                loadThresholds();
+            if (mlCfg.file && ! mlCfg.configItems.length) {
+                loadConfig();
             }
 
         },
