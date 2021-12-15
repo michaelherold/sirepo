@@ -6,11 +6,11 @@
     },
     "constants": {
         "configColumns": [
-            {"name":  "Element", "type": "label", "col": 1, "field": "element"},
-            {"name":  "Setting", "type": "label", "col": 0, "field": "setting"},
-            {"name":  "Input/Output", "type": "label", "col": 2, "field": "io"},
-            {"name":  "Model Tolerance", "type": "input", "col": 3, "field": "tolerance"},
-            {"name":  "Channel Id", "type": "label", "col": 4, "field": "chanId"}
+            {"name":  "Setting", "type": "label", "field": "setting"},
+            {"name":  "Element", "type": "label", "field": "element"},
+            {"name":  "Input/Output", "type": "label", "field": "io"},
+            {"name":  "Model Tolerance", "type": "input", "field": "tolerance"},
+            {"name":  "Channel Id", "type": "label", "field": "chanId"}
         ],
         "clight": 299792458,
         "particleMassAndCharge": {

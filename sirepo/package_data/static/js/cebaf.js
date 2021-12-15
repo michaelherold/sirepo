@@ -18,7 +18,7 @@ SIREPO.app.config(() => {
            <div data-ml-model-config=""  data-model="model" data-model-name="modelName" data-field="field"></div>
         </div>
         <div data-ng-switch-when="MLConfigFile" class="col-sm-7">
-           <div data-file-field="field"  data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
+           <div data-file-field="field"  data-file-type="" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
     `;
     SIREPO.lattice = {
@@ -416,15 +416,15 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                 <table class="table">
                     <thead>
                       <tr>
-                        <th data-ng-repeat="h in header track by h.col">{{ h.name }}</th>
+                        <th data-ng-repeat="h in header">{{ h.name }}</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr data-ng-repeat="r in model.configItems track by $index">
-                        <td data-ng-repeat="c in r track by $index" class="form-group form-group-sm">
+                        <td data-ng-repeat="k in headerKeys" class="form-group form-group-sm">
                           <p class="form-control-static">
-                            <span data-ng-if="isCfgLabel(r, $index)">{{ getCfgItem(r, $index) }}</span>
-                            <span data-ng-if="! isCfgLabel(r, $index)" class="col-sm-5"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
+                            <span data-ng-if="r[k].displayType === 'label'">{{ r[k].value }}</span>
+                            <span data-ng-if="r[k].displayType === 'input'" class="col-sm-5"><input data-string-to-number="" data-ng-model="r[k].value" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
                           </p>
                         </td>
                       </tr>
@@ -434,19 +434,19 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
         `,
         controller: function($scope) {
             $scope.header = SIREPO.APP_SCHEMA.constants.configColumns;
+            $scope.headerKeys = $scope.header.map(x => x.field);
 
             const modelName = $scope.modelName;
-            const mlCfg = appState.applicationState()[modelName];
 
             function loadConfig() {
-                if (! mlCfg.file) {
+                if (! $scope.model.file) {
                     updateConfig([]);
                     return;
                 }
-                if (mlCfg.configItems.length > 0) {
+                if ($scope.model.configItems.length > 0) {
                     return;
                 }
-                appState.models[modelName].configItems = [];
+                $scope.model.configItems = [];
                 requestSender.sendStatelessCompute(
                     appState,
                     data => {
@@ -454,7 +454,7 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                     },
                     {
                         method: 'load_thresholds',
-                        file: mlCfg.file,
+                        file: $scope.model.file,
                     }
                 );
             }
@@ -463,30 +463,26 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                 let item = {};
                 for (let i = 0; i < row.length; ++i) {
                     const h = $scope.header[i];
-                    item[h.field] = row[h.col];
+                    const f = h.field;
+                    item[f] = {};
+                    item[f].value = row[i];
+                    item[f].displayType = h.type;
+                }
+                if (item.io.value === 'input') {
+                    item.tolerance.value = 'N/A';
+                    item.tolerance.displayType = 'label';
                 }
                 return item;
             }
 
             function updateConfig(config) {
-                appState.models[modelName].configItems = config;
+                appState.models[modelName].configItems = config.map(rowToItem);
                 appState.saveQuietly(modelName);
             }
 
-            $scope.getCfgItem = (row, index) => row[$scope.header[index].col];
-
-            $scope.getCfgType = index => $scope.header[index].type;
-
-            $scope.isCfgLabel = (row, index) => {
-                return $scope.getCfgType(index) === 'label' || row.some(x => x === 'input');
-            };
-
             $scope.$on(`${modelName}.changed`, loadConfig);
 
-            if (mlCfg.file && ! mlCfg.configItems.length) {
-                loadConfig();
-            }
-
+            loadConfig();
         },
     };
 });
