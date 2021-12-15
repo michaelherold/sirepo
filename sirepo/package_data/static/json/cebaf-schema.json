@@ -6,11 +6,11 @@
     },
     "constants": {
         "configColumns": [
-            {"name":  "Element", "type": "label", "col": 1},
-            {"name":  "Setting", "type": "label", "col": 0},
-            {"name":  "Input/Output", "type": "label", "col": 2},
-            {"name":  "Model Tolerance", "type": "input", "col": 3},
-            {"name":  "Channel Id", "type": "label", "col": 4}
+            {"name":  "Element", "type": "label", "col": 1, "field": "element"},
+            {"name":  "Setting", "type": "label", "col": 0, "field": "setting"},
+            {"name":  "Input/Output", "type": "label", "col": 2, "field": "io"},
+            {"name":  "Model Tolerance", "type": "input", "col": 3, "field": "tolerance"},
+            {"name":  "Channel Id", "type": "label", "col": 4, "field": "chanId"}
         ],
         "clight": 299792458,
         "particleMassAndCharge": {
@@ -86,7 +86,7 @@
     "model": {
         "mlModelConfig": {
             "file": ["ML Config File", "MLConfigFile", ""],
-            "configItems": ["ML Config Items", "MLConfigList", []]
+            "configItems": ["ML Element Configuration", "MLConfigList", []]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]

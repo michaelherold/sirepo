@@ -18,7 +18,7 @@ SIREPO.app.config(() => {
            <div data-ml-model-config=""  data-model="model" data-model-name="modelName" data-field="field"></div>
         </div>
         <div data-ng-switch-when="MLConfigFile" class="col-sm-7">
-           <div data-file-field="field" data-file-type="ml" data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
+           <div data-file-field="field"  data-model="model" data-selection-required="false" data-empty-selection-text="None"></div>
         </div>
     `;
     SIREPO.lattice = {
@@ -423,8 +423,8 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                       <tr data-ng-repeat="r in model.configItems track by $index">
                         <td data-ng-repeat="c in r track by $index" class="form-group form-group-sm">
                           <p class="form-control-static">
-                            <span data-ng-if="header[$index].type == 'label'">{{ r[header[$index].col] }}</span>
-                            <span data-ng-if="header[$index].type == 'input'" class="col-sm-5"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
+                            <span data-ng-if="isCfgLabel(r, $index)">{{ getCfgItem(r, $index) }}</span>
+                            <span data-ng-if="! isCfgLabel(r, $index)" class="col-sm-5"><input data-string-to-number="" data-ng-model="r[header[$index].col]" data-min="0" class="form-control" style="text-align: right" data-lpignore="true"/></span>
                           </p>
                         </td>
                       </tr>
@@ -435,10 +435,18 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
         controller: function($scope) {
             $scope.header = SIREPO.APP_SCHEMA.constants.configColumns;
 
-            const mlCfg = appState.applicationState().mlModelConfig;
+            const modelName = $scope.modelName;
+            const mlCfg = appState.applicationState()[modelName];
 
             function loadConfig() {
-                appState.models.mlModelConfig.configItems = [];
+                if (! mlCfg.file) {
+                    updateConfig([]);
+                    return;
+                }
+                if (mlCfg.configItems.length > 0) {
+                    return;
+                }
+                appState.models[modelName].configItems = [];
                 requestSender.sendStatelessCompute(
                     appState,
                     data => {
@@ -451,15 +459,29 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                 );
             }
 
-            function updateConfig(config) {
-                appState.models.mlModelConfig.configItems = config;
-                appState.saveQuietly('mlModelConfig');
+            function rowToItem(row) {
+                let item = {};
+                for (let i = 0; i < row.length; ++i) {
+                    const h = $scope.header[i];
+                    item[h.field] = row[h.col];
+                }
+                return item;
             }
 
+            function updateConfig(config) {
+                appState.models[modelName].configItems = config;
+                appState.saveQuietly(modelName);
+            }
 
-            $scope.$on('mlModelConfig.changed', (e, d) => {
-                loadConfig();
-            });
+            $scope.getCfgItem = (row, index) => row[$scope.header[index].col];
+
+            $scope.getCfgType = index => $scope.header[index].type;
+
+            $scope.isCfgLabel = (row, index) => {
+                return $scope.getCfgType(index) === 'label' || row.some(x => x === 'input');
+            };
+
+            $scope.$on(`${modelName}.changed`, loadConfig);
 
             if (mlCfg.file && ! mlCfg.configItems.length) {
                 loadConfig();
@@ -477,47 +499,6 @@ SIREPO.viewLogic('beamlineView', function(appState, panelState, $scope) {
 
     $scope.whenSelected = updateBeamline;
     $scope.watchFields = [];
-});
-
-SIREPO.viewLogic('commandBeamView', function(appState, panelState, $scope) {
-
-    function updateParticleFields() {
-        panelState.showFields('command_beam', [
-            ['mass', 'charge'], appState.models.command_beam.particle == 'other',
-        ]);
-    }
-
-    $scope.whenSelected = updateParticleFields;
-    $scope.watchFields = [
-        ['command_beam.particle'], updateParticleFields,
-    ];
-});
-
-['kickerView', 'hkickerView', 'vkickerView'].forEach(view => {
-    SIREPO.viewLogic(
-        view,
-        function(cebafService, panelState, $scope) {
-            $scope.whenSelected = () => {
-                const r = cebafService.noOptimizationRunning();
-                panelState.enableFields('KICKER', [
-                    ['current_hkick', 'current_vkick'], r,
-                ]);
-                ['HKICKER', 'VKICKER'].forEach((m) => {
-                    panelState.enableField(m, 'current_kick', r);
-                });
-            };
-        }
-    );
-});
-
-SIREPO.viewLogic('quadrupoleView', function(appState, cebafService, panelState, $scope) {
-    $scope.whenSelected = () => {
-        panelState.enableField(
-            'QUADRUPOLE',
-            'current_k1',
-            cebafService.noOptimizationRunning()
-        );
-    };
 });
 
 

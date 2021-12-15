@@ -71,7 +71,7 @@ def stateless_compute_load_thresholds(data):
 def _load_thresholds(data):
     import csv
     path = _SIM_DATA.lib_file_abspath(
-        _SIM_DATA.lib_file_name_with_type(data.file, 'ml')
+        _SIM_DATA.lib_file_name_without_type(data.file)
     )
     rows = []
     with open(str(path)) as f:
