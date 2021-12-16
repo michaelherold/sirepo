@@ -1309,6 +1309,8 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             modelName: '@',
             flatten: '@',
             pathToModels: '@',
+            schematic: '@',
+            zoomDisabled: '@',
         },
         templateUrl: '/static/html/lattice.html' + SIREPO.SOURCE_CACHE_KEY,
         controller: function($scope) {
@@ -1319,9 +1321,12 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             var zoom = null;
             let zoomScale = 1;
             const ABSOLUTE_POSITION_TYPE = 'absolutePosition';
-            $scope.plotStyle = $scope.flatten ? '' : 'cursor: zoom-in;';
+            const flatten = $scope.flatten === '1';
+            const schematic = $scope.schematic === '1';
+            const zoomDisabled = $scope.zoomDisabled === '1';
+            $scope.plotStyle = zoomDisabled ? '' : 'cursor: zoom-in;';
             $scope.isClientOnly = true;
-            $scope.margin = $scope.margin || ($scope.flatten ? 0 : 3);
+            $scope.margin = $scope.margin || (flatten ? 0 : 3);
             $scope.width = 1;
             $scope.height = 1;
             $scope.xScale = 1;
@@ -1370,6 +1375,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 var maxLength = 0;
                 var currentLength = 0;
                 var isAbsolute = latticeService.isAbsolutePositioning();
+                const schematicLength = 0.1;
 
                 for (var i = 0; i < items.length; i++) {
                     var item = items[i];
@@ -1401,8 +1407,8 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                             travelLength = latticeService.arcLength(bendAngle, length);
                         }
                     }
-                    if ($scope.flatten) {
-                        length = travelLength;
+                    if (flatten) {
+                        length = schematic ? schematicLength : travelLength;
                     }
                     var elRadius = rpnValue(item.rx || item.x_max || 0);
                     if (isAbsolute) {
@@ -1417,7 +1423,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         if (pos.inReverseBend) {
                             angle = -angle;
                         }
-                        if ($scope.flatten) {
+                        if (flatten) {
                             angle = 0;
                         }
                         var width = Math.abs(length);
@@ -1445,7 +1451,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                             enterEdge += angle / 2;
                             exitEdge += angle / 2;
                         }
-                        if ($scope.flatten) {
+                        if (flatten) {
                             enterEdge = 0;
                             exitEdge = 0;
                         }
@@ -1490,10 +1496,10 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         x += radius;
                         newAngle = latticeService.radiansToDegrees(angle);
                         pos.radius = radius;
-                        if (item.type == 'CHANGREF' && ! $scope.flatten) {
+                        if (item.type == 'CHANGREF' && ! flatten) {
                             adjustPosition(pos, item.XCE, -item.YCE);
                         }
-                        else if (item.type == 'CHANGREF_VALUE' && ! $scope.flatten) {
+                        else if (item.type == 'CHANGREF_VALUE' && ! flatten) {
                             if (item.transformType == 'XS') {
                                 adjustPosition(pos, item.transformValue, 0);
                             }
@@ -1689,7 +1695,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     pos.y += Math.sin(latticeService.degreesToRadians(pos.angle)) * (x + oldRadius);
                 }
                 updateBounds(pos.bounds, pos.x, pos.y, Math.max(maxHeight, pos.radius));
-                if ($scope.flatten) {
+                if (flatten) {
                     newAngle = 0;
                 }
                 group.trackHash = $scope.svgGroups.length + ' ' + group.items.map(function(item) {
@@ -1869,7 +1875,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         appState.models[$scope.pathToModels].models.simulation.visualizationBeamlineId,
                         $scope.models);
                 }
-                beamline = beamline || ($scope.flatten && $scope.modelName != 'twissReport'
+                beamline = beamline || (flatten && $scope.modelName != 'twissReport'
                     ? latticeService.getSimulationBeamline()
                     : latticeService.getActiveBeamline());
                 if (! beamline) {
@@ -1884,7 +1890,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 selectedBeamline = appState.clone(beamline);
                 $scope.svgGroups = [];
                 var pos = computePositions();
-                if (! $scope.flatten && beamlineValue(beamline, 'distance', Math.sqrt(Math.pow(pos.x, 2) + Math.pow(pos.y, 2)))
+                if (! flatten && beamlineValue(beamline, 'distance', Math.sqrt(Math.pow(pos.x, 2) + Math.pow(pos.y, 2)))
                     + beamlineValue(beamline, 'length', pos.length)
                     + beamlineValue(beamline, 'angle', latticeService.degreesToRadians(pos.angle))
                     + beamlineValue(beamline, 'count', pos.count)) {
@@ -1894,7 +1900,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             }
 
             function recalcScaleMarker() {
-                if ($scope.flatten) {
+                if (flatten) {
                     return;
                 }
                 //TODO(pjm): use library for this
@@ -1983,7 +1989,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             $scope.init = function() {
                 zoom = d3.behavior.zoom()
                     .scaleExtent([1, 50]);
-                if (! $scope.flatten) {
+                if (! zoomDisabled) {
                     zoom.on('zoom', zoomed);
                     //TODO(pjm): call stopPropagation() on item double-click instead, would allow double-click zoom on empty space
                     select('svg').call(zoom)
@@ -2009,9 +2015,6 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     return;
                 }
                 $scope.width = width;
-                if ($scope.flatten) {
-                    //return;
-                }
                 $scope.height = $scope.width;
                 var windowHeight = $($window).height();
                 var maxHeightFactor = utilities.isFullscreen() ? 1.5 : 2.5;

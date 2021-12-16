@@ -30,7 +30,7 @@ SIREPO.app.config(() => {
             HKICKER: 'black',
             VKICKER: 'black',
         },
-        elementPic: {
+            elementPic: {
             aperture: ['COLLIMATOR', 'ECOLLIMATOR', 'RCOLLIMATOR'],
             bend: ['RBEND', 'SBEND'],
             drift: ['DRIFT'],
@@ -107,7 +107,7 @@ SIREPO.app.factory('cebafService', function(appState) {
         return table[table.length - 1][toIndex];
     }
 
-    self.hasMadxLattice = () => appState.applicationState().externalLattice;
+    self.hasMadxLattice = () => ! ! appState.applicationState().externalLattice;
 
     self.monitors = () => {
         const l = self.latticeModels();
