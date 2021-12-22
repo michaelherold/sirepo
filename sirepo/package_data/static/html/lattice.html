@@ -5,7 +5,13 @@
       <g ng-attr-transform="translate({{ ::margin }},{{ ::margin }})">
         <g class="sr-zoom-plot sr-lattice">
           <g ng-attr-transform="translate({{ xOffset }},{{ yOffset }}) scale({{ xScale }},{{ yScale }})">
-            <!-- render drifts first, lowest z index -->
+            <!-- render beamlines, if any, lowest z index -->
+            <g data-ng-repeat="group in svgGroups track by group.trackHash" data-ng-attr-transform="rotate({{ ::group.rotate }},{{ ::group.rotateX }},{{ ::group.rotateY }})">
+              <g data-ng-repeat="item in ::group.items track by item.trackHash" data-ng-click="itemClicked(item.element)" data-ng-dblclick="itemDblClicked(item.element)" data-ng-mouseover="picEntered(this)" data-ng-mouseleave="picExited(this)">
+                <rect data-ng-if="::item.picType == 'beamline'" data-ng-attr-id="{{ ::item.trackHash }}" data-ng-attr-class="{{ ::item.element.indexClass }}" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ ::item.height }}" data-ng-attr-style="fill: {{ ::item.color }}; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - {{ beamlineDblClickMsg() }}</title></rect>
+              </g>
+            </g>
+            <!-- render drifts first, next lowest z index -->
             <g ng-repeat="group in svgGroups track by group.trackHash" ng-attr-transform="rotate({{ ::group.rotate }},{{ ::group.rotateX }},{{ ::group.rotateY }})">
               <g ng-repeat="item in ::group.items track by item.trackHash" ng-click="itemClicked(item.element)" ng-dblclick="itemDblClicked(item.element)">
                 <rect ng-if="::item.picType == 'drift' || item.picType == 'aperture'" ng-attr-class="{{ ::item.element.indexClass }}" ng-attr-x="{{ ::item.x }}" ng-attr-y="{{ ::item.y }}" ng-attr-width="{{ ::item.width }}" ng-attr-height="{{ ::item.height }}" ng-attr-style="fill: {{ ::item.color }}"><title>{{ ::item.title }}</title></rect>
@@ -54,6 +60,7 @@
                 <g ng-switch-when="drift"></g>
                 <g ng-switch-when="aperture"></g>
                 <g ng-switch-when="zeroLength"></g>
+                <g ng-switch-when="beamline"></g>
                 <rect ng-switch-default="" ng-attr-class="{{ ::item.element.indexClass }}" ng-attr-x="{{ ::item.x }}" ng-attr-y="{{ ::item.y }}" ng-attr-width="{{ ::item.width }}" ng-attr-height="{{ ::item.height }}" ng-attr-style="fill: {{ ::item.color }}; stroke: black; stroke-width: {{ ::item.width / 50.0 }}; opacity: {{ ::item.opacity || 1 }};"><title>{{ ::item.title }}</title></rect>
               </g>
             </g>
@@ -65,5 +72,5 @@
         <text dx="5" style="font-size: 12px">{{ markerUnits }}</text>
       </g>
   </svg></div>
-  <div data-lattice-footer="" data-width="{{ width }}"</div>
+  <div data-lattice-footer="" data-width="{{ width }}"></div>
 </div>

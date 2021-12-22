@@ -23,6 +23,7 @@ SIREPO.app.config(() => {
     `;
     SIREPO.lattice = {
         elementColor: {
+            BEAMLINE: 'lightblue',
             OCTUPOLE: 'yellow',
             QUADRUPOLE: 'red',
             SEXTUPOLE: 'lightgreen',
@@ -30,8 +31,9 @@ SIREPO.app.config(() => {
             HKICKER: 'black',
             VKICKER: 'black',
         },
-            elementPic: {
+        elementPic: {
             aperture: ['COLLIMATOR', 'ECOLLIMATOR', 'RCOLLIMATOR'],
+            beamline: ['BEAMLINE'],
             bend: ['RBEND', 'SBEND'],
             drift: ['DRIFT'],
             lens: ['NLLENS'],
@@ -223,13 +225,17 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
             ? 6 : 4;
     }
 
-    self.cebafService = cebafService;
+    $scope.cebafService = cebafService;
 
     self.cancelCallback = () => $scope.$broadcast('sr-latticeUpdateComplete');
 
 
     //TODO(pjm): init from template to allow listeners to register before data is received
     self.init = () => {
+    };
+
+    self.reset = () => {
+
     };
 
     self.startSimulation = () => {
