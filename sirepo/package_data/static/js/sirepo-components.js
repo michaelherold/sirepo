@@ -544,6 +544,37 @@ SIREPO.app.directive('exportPythonLink', function(appState, panelState) {
     };
 });
 
+SIREPO.app.directive('randomSeed', function() {
+    return {
+        restrict: 'A',
+        scope: {
+            field: '=',
+            form: '=',
+            max: '=',
+            model: '=',
+            modelName: '=',
+            viewName: '=',
+        },
+        template: `
+            <div class="col-sm-3">
+              <input data-string-to-number="integer" data-ng-model="model[field]" data-min="0" data-max="max" class="form-control" style="text-align: right" data-lpignore="true"/>
+            </div>
+            <button class="btn btn-default" data-ng-click="setSeedRandom()" title="generate random seed"><span class="glyphicon glyphicon-random"></span></button>
+            <button class="btn btn-default" data-ng-click="setSeedTime()" title="use current time"><span class="glyphicon glyphicon-time"></span></button>
+        `,
+        controller: function($scope) {
+
+            $scope.setSeedRandom = () => {
+                $scope.model[$scope.field] = Math.floor(Math.random() * $scope.max - 1);
+            };
+
+            $scope.setSeedTime = () => {
+                $scope.model[$scope.field] = (new Date()).getTime() % $scope.max;
+            };
+        },
+    };
+});
+
 SIREPO.app.directive('srTooltip', function(appState, mathRendering, $interpolate) {
     return {
         restrict: 'A',
@@ -564,6 +595,7 @@ SIREPO.app.directive('srTooltip', function(appState, mathRendering, $interpolate
                         // evaluate angular text first if {{ }} is present
                         if (/\{\{.*?\}\}/.test(res)) {
                             $scope.appState = appState;
+                            $scope.SIREPO = SIREPO;
                             res = $interpolate(res)($scope);
                         }
                         if (mathRendering.textContainsMath(res)) {
@@ -1514,7 +1546,7 @@ SIREPO.app.directive('modelField', function(appState) {
         scope: {
             field: '=modelField',
             modelName: '=',
-            customInfo: '=',
+            customInfo: '=?',
             customLabel: '=',
             labelSize: '@',
             fieldSize: '@',
@@ -1523,17 +1555,26 @@ SIREPO.app.directive('modelField', function(appState) {
             form: '=',
             viewName: '=',
         },
-        template: [
-            '<div data-field-editor="fieldName()" data-form="form" data-model-name="modelNameForField()" data-model="modelForField()" data-custom-label="customLabel" data-custom-info="customInfo" data-label-size="{{ labelSize }}" data-field-size="{{ fieldSize }}" data-view-name="viewName"></div>',
-        ].join(''),
+        template: `
+            <div data-field-editor="fieldName()" data-form="form" data-model-name="modelNameForField()" data-model="modelForField()" data-custom-label="customLabel" data-custom-info="customInfo" data-label-size="{{ labelSize }}" data-field-size="{{ fieldSize }}" data-view-name="viewName"></div>
+        `,
         controller: function($scope) {
-            var modelName = $scope.modelName;
-            var field = $scope.field;
-            var modelField = appState.parseModelField(field);
+            let modelName = $scope.modelName;
+            let field = $scope.field;
+            let modelField = appState.parseModelField(field);
 
             if (modelField) {
-                modelName = modelField[0];
+                [modelName, field] = modelField;
+            }
+
+            // if this is a compound field (<field 1>.<field 2>), change the model info to reflect that
+            const m = appState.parseModelField(field);
+            if (m) {
+                modelField = m;
                 field = modelField[1];
+                const t = SIREPO.APP_SCHEMA.model[$scope.modelName][modelField[0]][SIREPO.INFO_INDEX_TYPE];
+                modelName = t.split('.')[1];
+                $scope.customInfo = appState.modelInfo(modelName)[field];
             }
 
             $scope.modelForField = function() {
@@ -1927,6 +1968,7 @@ SIREPO.app.directive('numberList', function() {
         scope: {
             field: '=',
             info: '<',
+            model: '<',
             type: '@',
             count: '@',
         },
@@ -1937,6 +1979,7 @@ SIREPO.app.directive('numberList', function() {
             '</div>'
         ].join(''),
         controller: function($scope) {
+            let lastModel = null;
             $scope.values = null;
             $scope.numberType = $scope.type.toLowerCase();
             //TODO(pjm): share implementation with enumList
@@ -1945,6 +1988,11 @@ SIREPO.app.directive('numberList', function() {
                 $scope.field = $scope.values.join(', ');
             };
             $scope.parseValues = function() {
+                // the model can change - reset the values in that case
+                if (! lastModel || lastModel !== $scope.model) {
+                    lastModel = $scope.model;
+                    $scope.values = null;
+                }
                 if ($scope.field && ! $scope.values) {
                     $scope.values = $scope.field.split(/\s*,\s*/);
                 }
