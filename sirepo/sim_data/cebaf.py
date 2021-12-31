@@ -15,6 +15,13 @@ import sirepo.simulation_db
 class SimData(sirepo.sim_data.SimDataBase):
 
     @classmethod
+    def _compute_model(cls, analysis_model, *args, **kwargs):
+        if analysis_model == 'dataServerAnimation':
+            return analysis_model
+        return super(SimData, cls)._compute_model(analysis_model, *args, **kwargs)
+
+
+    @classmethod
     def controls_madx_dir(cls):
         return sirepo.simulation_db.simulation_dir('madx')
 

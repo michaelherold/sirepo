@@ -68,6 +68,12 @@ def stateless_compute_load_thresholds(data):
     return _load_thresholds(data)
 
 
+def stateful_compute_get_readings(data):
+    res = []
+    item = data.mlModelConfigItems
+    return PKDict(simList=res)
+
+
 def _load_thresholds(data):
     import csv
     path = _SIM_DATA.lib_file_abspath(

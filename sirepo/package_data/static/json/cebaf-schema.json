@@ -53,15 +53,9 @@
         }
     },
     "enum": {
-        "ParticleType": [
-            ["positron", "Positron"],
-            ["electron", "Electron"],
-            ["proton", "Proton"],
-            ["antiproton", "Anti-proton"],
-            ["posmuon", "Positive Muon"],
-            ["negmuon", "Negative Muon"],
-            ["ion", "Ion"],
-            ["other", "Other"]
+        "ServerType": [
+            ["local", "Local"],
+            ["remote", "Remote"]
         ]
     },
     "localRoutes": {
@@ -84,12 +78,17 @@
         }
     },
     "model": {
+        "dataFile": {
+            "madxSirepo": ["Madx Simulation", "MadxSimList", true]
+        },
         "mlModelConfig": {
             "file": ["ML Config File", "MLConfigFile", ""],
             "configItems": ["ML Element Configuration", "MLConfigList", []]
         },
-        "dataFile": {
-            "madxSirepo": ["Madx Simulation", "MadxSimList", true]
+        "dataServerAnimation": {
+            "serverType": ["Server Type", "ServerType", "local"],
+            "serverAddress": ["Network Address", "OptionalString", "", "EPICS server network address, $\\text{<host>:<port>}$"],
+            "connectToServer": ["Connected", "Boolean", "0"]
         },
         "HKICKER": {
             "name": ["Name", "ValidatedString"],
@@ -136,6 +135,18 @@
         "completionState": ""
     },
     "view": {
+        "dataFile": {
+            "title": "Existing Madx Simulation",
+            "basic": [
+                "madxSirepo"
+            ],
+            "advanced": []
+        },
+        "dataServerAnimation": {
+            "title": "Data Server",
+            "basic": [],
+            "advanced": []
+        },
         "mlModelConfig": {
             "title": "ML Configuration",
             "advanced": [
@@ -144,13 +155,6 @@
             "basic": [
                 "configItems"
             ]
-        },
-        "dataFile": {
-            "title": "Existing Madx Simulation",
-            "basic": [
-                "madxSirepo"
-            ],
-            "advanced": []
         },
         "HKICKER": {
             "title": "HKICKER",

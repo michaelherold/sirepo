@@ -196,6 +196,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     const self = this;
     self.appState = appState;
     self.simScope = $scope;
+    self.simAnalysisModel = 'dataServerAnimation';
 
     function dataFileChanged() {
         requestSender.sendStatefulCompute(
@@ -211,13 +212,8 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
         );
     }
 
-    function modelDataForElement(element) {
-        return {
-            modelKey: 'el_' + element._id,
-            title: element.name.replace(/_/g, ' '),
-            viewName: element.type,
-            getData: () => element,
-        };
+    function updateBeamlineStatus(data) {
+
     }
 
     function windowResize() {
@@ -230,12 +226,21 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     self.cancelCallback = () => $scope.$broadcast('sr-latticeUpdateComplete');
 
 
-    //TODO(pjm): init from template to allow listeners to register before data is received
     self.init = () => {
+
     };
 
     self.reset = () => {
 
+    };
+
+    self.simHandleStatus = data => {
+        if (data.readings) {
+            updateBeamlineStatus(data);
+        }
+        if (! self.simState.isProcessing()) {
+
+        }
     };
 
     self.startSimulation = () => {
