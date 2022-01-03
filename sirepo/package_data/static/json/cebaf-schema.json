@@ -90,6 +90,8 @@
             "serverAddress": ["Network Address", "OptionalString", "", "EPICS server network address, $\\text{<host>:<port>}$"],
             "connectToServer": ["Connected", "Boolean", "0"]
         },
+        "simulationStatus": {
+        },
         "HKICKER": {
             "name": ["Name", "ValidatedString"],
             "current_kick": ["Current [A]", "AmpField", 0.0],
@@ -155,6 +157,10 @@
             "basic": [
                 "configItems"
             ]
+        },
+        "simulationStatus": {
+            "title": "Simulation Status",
+            "advanced": []
         },
         "HKICKER": {
             "title": "HKICKER",

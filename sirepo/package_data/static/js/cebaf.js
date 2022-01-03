@@ -243,10 +243,16 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
         }
     };
 
+    self.simState = persistentSimulation.initSimulationState(self);
+
+    self.initMessage = () => 'Connecting';
+
+    self.runningMessage = () => 'Monitoring beamline';
+
     self.startSimulation = () => {
-        $scope.$broadcast('sr-clearElementValues');
-        appState.saveChanges('optimizerSettings', self.simState.runSimulation);
     };
+
+    self.startButtonLabel = () => 'Connect';
 
     $scope.$on('dataFile.changed', dataFileChanged);
 
