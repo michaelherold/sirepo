@@ -83,7 +83,8 @@
         },
         "mlModelConfig": {
             "file": ["ML Config File", "MLConfigFile", ""],
-            "configItems": ["ML Element Configuration", "MLConfigList", []]
+            "configItems": ["ML Element Configuration", "MLConfigList", []],
+            "mlModel": ["ML Model", "MLModelFile", ""]
         },
         "dataServerAnimation": {
             "serverType": ["Server Type", "ServerType", "local"],
@@ -160,7 +161,9 @@
         },
         "simulationStatus": {
             "title": "Simulation Status",
-            "advanced": []
+            "advanced": [
+                "mlModelConfig.mlModel"
+            ]
         },
         "HKICKER": {
             "title": "HKICKER",

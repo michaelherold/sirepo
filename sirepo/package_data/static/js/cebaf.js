@@ -515,5 +515,13 @@ SIREPO.viewLogic('beamlineView', function(appState, panelState, $scope) {
 });
 
 
+SIREPO.viewLogic('simulationStatusView', function(appState, panelState, $scope) {
+
+    $scope.watchFields = [
+        ["mlModelConfig.mlModel",], () => {
+        }
+    ];
+
+});
 
 

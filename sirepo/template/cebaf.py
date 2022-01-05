@@ -27,15 +27,12 @@ def background_percent_complete(report, run_dir, is_running):
         return PKDict(
             percentComplete=0,
             frameCount=0,
-            elementValues=_read_summary_line(run_dir),
+            predictions=_predicted_settings()
         )
     return PKDict(
         percentComplete=100,
         frameCount=1,
-        elementValues=_read_summary_line(
-            run_dir,
-            SCHEMA.constants.maxBPMPoints,
-        )
+        predictions=_predicted_settings()
     )
 
 
@@ -157,51 +154,7 @@ def _delete_unused_madx_models(data):
 
 def _generate_parameters_file(data):
     res, v = template_common.generate_parameters_file(data)
-    _generate_madx(v, data)
-    v.optimizerTargets = data.models.optimizerSettings.targets
-    v.summaryCSV = _SUMMARY_CSV_FILE
-    if data.get('report') == 'initialMonitorPositionsReport':
-        v.optimizerSettings_method = 'runOnce'
     return res + template_common.render_jinja(SIM_TYPE, v)
-
-
-def _generate_madx(v, data):
-
-    def _format_header(el_id, field):
-        return f'el_{el_id}.{field}'
-
-    def _set_opt(el, field, kicker):
-        count = len(kicker.kick)
-        kicker.kick.append(el[field])
-        el[field] = '{' + f'sr_opt{count}' + '}'
-        kicker.header.append(_format_header(el._id, field))
-
-    kicker = PKDict(
-        header=[],
-        kick=[],
-    )
-    madx = data.models.externalLattice.models
-    header = []
-    element_map = PKDict({e._id: e for e in madx.elements})
-    for el_id in madx.beamlines[0]['items']:
-        el = element_map[el_id]
-        if el.type == 'KICKER':
-            _set_opt(el, 'hkick', kicker)
-            _set_opt(el, 'vkick', kicker)
-        elif el.type in ('HKICKER', 'VKICKER'):
-            _set_opt(el, 'kick', kicker)
-        elif el.type == 'MONITOR':
-            header += [_format_header(el._id, x) for x in ('x', 'y')]
-        elif el.type == 'HMONITOR':
-            header += [_format_header(el._id, 'x')]
-        elif el.type == 'VMONITOR':
-            header += [_format_header(el._id, 'y')]
-    v.summaryCSVHeader = ','.join(kicker.header + header)
-    v.initialCorrectors = '[{}]'.format(','.join([str(x) for x in kicker.kick]))
-    v.correctorCount = len(kicker.kick)
-    v.monitorCount = len(header) / 2
-    data.models.externalLattice.report = ''
-    v.madxSource = sirepo.template.madx.generate_parameters_file(data.models.externalLattice)
 
 
 def _get_external_lattice(simulation_id):
