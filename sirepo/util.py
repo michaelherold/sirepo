@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function
 from pykern import pkcompat
 from pykern import pkconfig
 from pykern.pkcollections import PKDict
-from pykern.pkdebug import pkdlog, pkdp, pkdexc
+from pykern.pkdebug import pkdlog, pkdp, pkdexc, pkdc
 import asyncio
 import base64
 import concurrent.futures
@@ -189,6 +189,22 @@ def create_token(value):
 
 def err(obj, fmt='', *args, **kwargs):
     return '{}: '.format(obj) + fmt.format(*args, **kwargs)
+
+
+def find_obj(arr, key, value):
+    """Return the first object in the array such that obj[key] == value
+
+    Args:
+        arr (list): list of dict-like objects
+        key (str): object key
+        value (*): value
+    Returns:
+        object: the object, or None if not found
+    """
+    for o in arr:
+        if o[key] == value:
+            return o
+    return None
 
 
 def flask_app():
