@@ -16,12 +16,7 @@ def run(cfg_dir):
     template_common.exec_parameters()
     d = pkio.py_path(cfg_dir)
     template_common.write_sequential_result(
-        PKDict(
-            elementValues=template._read_summary_line(
-                d,
-                simulation_db.get_schema(template.SIM_TYPE).constants.maxBPMPoints,
-            )
-        ),
+        PKDict(),
         run_dir=d,
     )
 

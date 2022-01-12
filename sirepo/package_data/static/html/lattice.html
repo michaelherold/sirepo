@@ -14,11 +14,6 @@
                   <g data-ng-if="includeStatusPanel">
                     <rect data-ng-attr-x="{{ ::item.x + 0.1}}" data-ng-attr-y="{{ ::item.y + item.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ item.height / 2 - 0.2 }}" data-ng-attr-style="fill: green; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - nominal</title></rect>
                     <text style="font-size: 0.5px" data-ng-attr-x="{{ ::item.x + 1.5}}" data-ng-attr-y="{{ ::item.y + 1.25 * item.height + 0.45}}">NOMINAL</text>
-                    <!--
-                    <circle r="0.2" data-ng-attr-cx="{{ ::item.x + 0.2 + 0.2}}" data-ng-attr-cy="{{ item.y + 1.25 * item.height + 0.2}}" stroke-width="0.05" stroke="red" fill="red"></circle>
-                    <circle r="0.2" data-ng-attr-cx="{{ ::item.x + 0.2 + 0.8}}" data-ng-attr-cy="{{ item.y + 1.25 * item.height + 0.2}}" stroke-width="0.05" stroke="orange" fill="none"></circle>
-                    <circle r="0.2" data-ng-attr-cx="{{ ::item.x + 0.2 + 1.4}}" data-ng-attr-cy="{{ item.y + 1.25 * item.height + 0.2}}" stroke-width="0.05" stroke="green" fill="green"></circle>
-                    -->
                   </g>
                 </g>
               </g>

@@ -319,13 +319,13 @@ SIREPO.app.factory('latticeService', function(appState, panelState, rpnService, 
         };
     };
 
-    self.hasBeamlines = function() {
-        if (appState.isLoaded()) {
-            for (var i = 0; i < appState.models.beamlines.length; i++) {
-                var beamline = appState.models.beamlines[i];
-                if (beamline.items.length > 0) {
-                    return true;
-                }
+    self.hasBeamlines = () => {
+        if (! appState.isLoaded()) {
+            return false;
+        }
+        for (let i = 0; i < appState.models.beamlines.length; i++) {
+            if (appState.models.beamlines[i].items.length > 0) {
+                return true;
             }
         }
         return false;
@@ -1320,6 +1320,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             modelName: '@',
             flatten: '@',
             includeBeamlines: '@',
+            includeStatusPanel: '@',
             pathToModels: '@',
             schematic: '@',
             zoomDisabled: '@',
@@ -1337,6 +1338,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             const ABSOLUTE_POSITION_TYPE = 'absolutePosition';
             const flatten = $scope.flatten === '1';
             const includeBeamlines = $scope.includeBeamlines === '1';
+            const includeStatusPanel = includeBeamlines && $scope.includeStatusPanel === '1';
             const schematic = $scope.schematic === '1';
             const schematicLength = 0.1;
             const zoomDisabled = $scope.zoomDisabled === '1';
@@ -1889,6 +1891,10 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 return item.type || 'BEAMLINE';
             }
 
+            function hasOnlyBeamlines(beamline) {
+                return beamline.element.items.every(id => isBeamlineItem(latticeService.elementForId(id, $scope.models)));
+            }
+
             function isAngleItem(picType) {
                 return picType === 'bend' || picType === 'alpha' || picType === 'mirror' || picType === 'malign';
             }
@@ -2079,7 +2085,9 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
             };
 
-            $scope.init = function() {
+           $scope.hasOnlyBeamlines = beamline => hasOnlyBeamlines(beamline);
+
+           $scope.init = function() {
                 zoom = d3.behavior.zoom()
                     .scaleExtent([1, 50]);
                 if (! zoomDisabled) {
@@ -2091,9 +2099,9 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 $scope.resize();
             };
 
-            $scope.itemClicked = function(item) {
-                $rootScope.$broadcast('sr-beamlineItemSelected', item.beamlineIndex);
-            };
+           $scope.itemClicked = function(item) {
+               $rootScope.$broadcast('sr-beamlineItemSelected', item.beamlineIndex);
+           };
 
             $scope.itemDblClicked = function(item) {
                 if (isBeamlineItem(item)) {
@@ -2105,6 +2113,10 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
                 latticeService.editElement(item.type, item, $scope.models);
             };
+
+            $scope.isBeamlineItem = item => $scope.isBeamlinePic(item.picType) && ! hasOnlyBeamlines(item);
+
+            $scope.isBeamlinePic = picType => picType === 'beamline';
 
             $scope.picEntered = function(pic) {
                 updateBeamlinePic(pic, 0.50, 4.0 * $scope.beamlinePicStrokeWidth);

@@ -213,6 +213,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     }
 
     function updateBeamlineStatus(data) {
+        srdbg('UPDATE BL', data);
 
     }
 
@@ -235,12 +236,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     };
 
     self.simHandleStatus = data => {
-        if (data.readings) {
-            updateBeamlineStatus(data);
-        }
-        if (! self.simState.isProcessing()) {
-
-        }
+        updateBeamlineStatus(data);
     };
 
     self.simState = persistentSimulation.initSimulationState(self);
@@ -480,10 +476,10 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                 let item = {};
                 for (let i = 0; i < row.length; ++i) {
                     const h = $scope.header[i];
-                    const f = h.field;
-                    item[f] = {};
-                    item[f].value = row[i];
-                    item[f].displayType = h.type;
+                    item[h.field] = {
+                        value: row[i],
+                        displayType: h.type
+                    };
                 }
                 if (item.io.value === 'input') {
                     item.tolerance.value = 'N/A';

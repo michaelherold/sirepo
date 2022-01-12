@@ -27,12 +27,12 @@ def background_percent_complete(report, run_dir, is_running):
         return PKDict(
             percentComplete=0,
             frameCount=0,
-            predictions=_predicted_settings()
+            res=_predicted_settings([])
         )
     return PKDict(
         percentComplete=100,
         frameCount=1,
-        predictions=_predicted_settings()
+        res=_predicted_settings([])
     )
 
 
@@ -152,8 +152,16 @@ def _delete_unused_madx_models(data):
             data.models.pkdel(m)
 
 
+def _settings_for_io(ml_cfg_items, io_type):
+    return [i.setting.value for i in ml_cfg_items if i.io.value == io_type]
+
+
 def _generate_parameters_file(data):
     res, v = template_common.generate_parameters_file(data)
+    items = data.models.mlModelConfig.configItems
+    v.ml_cfg_inputs = _settings_for_io(items, 'input')
+    v.ml_cfg_outputs = _settings_for_io(items, 'output')
+    v.ml_model = data.models.mlModelConfig
     return res + template_common.render_jinja(SIM_TYPE, v)
 
 
@@ -190,10 +198,29 @@ def _has_kickers(model):
     return False
 
 
+def _read_outputs():
+    import random
+    return [(1 + 0.1 * random.random()) for i in range(9)]
+
+
 def _predicted_settings(monitor_vals, ml_model=None):
     import pickle
+    import numpy
+    from numpy import random
 
     predictions = None
+    p = numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    r = 0.95 + 0.1 * numpy.random.rand(len(p))
+    o = p * r
+    v = (p - o) / p
+    return PKDict(
+        inputs=monitor_vals,
+        outputs=o.tolist(),
+        predictions=p.tolist(),
+        variance=v.tolist(),
+    )
+
+
     if ml_model:
         with open(
             _SIM_DATA.lib_file_abspath(
@@ -206,32 +233,3 @@ def _predicted_settings(monitor_vals, ml_model=None):
         predictions=(predictions.tolist() if predictions is not None else [])
     )
 
-
-def _read_summary_line(run_dir, line_count=None):
-    path = run_dir.join(_SUMMARY_CSV_FILE)
-    if not path.exists():
-        return None
-    header = None
-    rows = []
-    with open(str(path)) as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if header == None:
-                header = row
-                if not line_count:
-                    break
-            else:
-                rows.append(row)
-                if len(rows) > line_count:
-                    rows.pop(0)
-    if line_count:
-        res = []
-        for row in rows:
-            res.append(PKDict(zip(header, row)))
-        return res
-    line = template_common.read_last_csv_line(path)
-    if header and line:
-        line = line.split(',')
-        if len(header) == len(line):
-            return [PKDict(zip(header, line))]
-    return None
