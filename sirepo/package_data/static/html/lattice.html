@@ -10,15 +10,15 @@
               <g data-ng-repeat="group in svgGroups track by group.trackHash" data-ng-attr-transform="rotate({{ ::group.rotate }},{{ ::group.rotateX }},{{ ::group.rotateY }})">
                 <g data-ng-repeat="item in ::group.items | filter:isBeamlineItem track by item.trackHash" data-ng-click="itemClicked(item.element)" data-ng-dblclick="itemDblClicked(item.element)" data-ng-mouseover="picEntered(this)" data-ng-mouseleave="picExited(this)">
                   <rect data-ng-attr-id="{{ ::item.trackHash }}" data-ng-attr-class="{{ ::item.element.indexClass }}" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ ::item.height }}" data-ng-attr-style="fill: {{ ::item.color }}; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - {{ beamlineDblClickMsg() }}</title></rect>
-                  <rect data-ng-if="includeStatusPanel" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y + item.height + 0.2 }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ item.height / 2 }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - status</title></rect>
                   <g data-ng-if="includeStatusPanel">
-                    <rect data-ng-attr-x="{{ ::item.x + 0.1}}" data-ng-attr-y="{{ ::item.y + item.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ item.height / 2 - 0.2 }}" data-ng-attr-style="fill: green; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - nominal</title></rect>
-                    <text style="font-size: 0.5px" data-ng-attr-x="{{ ::item.x + 1.5}}" data-ng-attr-y="{{ ::item.y + 1.25 * item.height + 0.45}}">NOMINAL</text>
+                    <rect data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y + item.height + 0.2 }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ item.height / 2 }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - status</title></rect>
+                    <rect data-ng-attr-x="{{ ::item.x + 0.1}}" data-ng-attr-y="{{ ::item.y + item.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ item.height / 2 - 0.2 }}" data-ng-attr-style="fill: {{ statusPanelColor($index) }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - nominal</title></rect>
+                    <text style="font-size: 0.5px" data-ng-attr-x="{{ ::item.x + 1.5}}" data-ng-attr-y="{{ ::item.y + 1.25 * item.height + 0.45}}">{{ statusPanelText($index) }}</text>
                   </g>
                 </g>
               </g>
             </g>
-            <!-- render drifts first, next lowest z index -->
+            <!-- render drifts next lowest z index -->
             <g ng-repeat="group in svgGroups track by group.trackHash" ng-attr-transform="rotate({{ ::group.rotate }},{{ ::group.rotateX }},{{ ::group.rotateY }})">
               <g ng-repeat="item in ::group.items track by item.trackHash" ng-click="itemClicked(item.element)" ng-dblclick="itemDblClicked(item.element)">
                 <rect ng-if="::item.picType == 'drift' || item.picType == 'aperture'" ng-attr-class="{{ ::item.element.indexClass }}" ng-attr-x="{{ ::item.x }}" ng-attr-y="{{ ::item.y }}" ng-attr-width="{{ ::item.width }}" ng-attr-height="{{ ::item.height }}" ng-attr-style="fill: {{ ::item.color }}"><title>{{ ::item.title }}</title></rect>

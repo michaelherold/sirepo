@@ -2170,6 +2170,11 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
             };
 
+            $scope.statusPanelColor = beamline => ['green', 'orange', 'red'][index % 3];
+
+            $scope.statusPanelText = beamline => ['NOMINAL', 'CAUTION', 'FAULT'][index % 3];
+
+
             $scope.updateFixedAxis = function(axis, leftMargin, yScale, height, yOffset) {
                 if (! axis.domain) {
                     return;
