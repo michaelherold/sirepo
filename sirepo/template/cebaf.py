@@ -6,6 +6,7 @@ u"""Controls execution template.
 """
 from __future__ import absolute_import, division, print_function
 from pykern import pkio
+from pykern import pkjson
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp
 from sirepo import util
@@ -21,18 +22,25 @@ import sirepo.template.madx
 _SIM_DATA, SIM_TYPE, SCHEMA = sirepo.sim_data.template_globals()
 _SUMMARY_CSV_FILE = 'summary.csv'
 
+_MACHINE_DATA_FILE = 'machine_data.dat'
 
 def background_percent_complete(report, run_dir, is_running):
+    res = PKDict()
+    try:
+        with open(_MACHINE_DATA_FILE, 'r') as f:
+            res = pkjson.load_any(f.readlines()[-1])
+    except FileNotFoundError:
+        pass
     if is_running:
         return PKDict(
             percentComplete=0,
             frameCount=0,
-            res=_predicted_settings([])
+            res=res
         )
     return PKDict(
         percentComplete=100,
         frameCount=1,
-        res=_predicted_settings([])
+        res=res
     )
 
 
@@ -162,6 +170,7 @@ def _generate_parameters_file(data):
     v.ml_cfg_inputs = _settings_for_io(items, 'input')
     v.ml_cfg_outputs = _settings_for_io(items, 'output')
     v.ml_model = data.models.mlModelConfig
+    v.machine_data_file = _MACHINE_DATA_FILE
     return res + template_common.render_jinja(SIM_TYPE, v)
 
 

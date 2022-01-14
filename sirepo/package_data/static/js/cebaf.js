@@ -213,7 +213,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     }
 
     function updateBeamlineStatus(data) {
-        srdbg('UPDATE BL', data);
+        //srdbg('UPDATE BL', data.res);
 
     }
 
@@ -236,7 +236,30 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     };
 
     self.simHandleStatus = data => {
-        updateBeamlineStatus(data);
+        if (! data.res || ! data.res.outputReadings) {
+            return;
+        }
+
+        const outputItems = appState.models.mlModelConfig.configItems.filter(item => item.io.value === 'output');
+        let blStatus = {};
+        let totalStatus = 0;
+        let levels = [0, 0, 0];
+        const readings = data.res.outputReadings
+        for (const s in readings) {
+            const c = outputItems.filter(item => item.setting.value === s)[0];
+            const r = readings[s];
+            const t = c.tolerance.value;
+            const level = Math.abs(r.variance) < Math.abs(t) ? 0 : (Math.abs(r.variance) < 2 * Math.abs(t) ? 1 : 2);
+            levels[level] += 1;
+            totalStatus += level;
+            blStatus[c.element.value] = {
+                value: parseFloat(r.value),
+                prediction: parseFloat(r.prediction),
+                status: level,
+            };
+        }
+        blStatus.status = levels[2] > 1 ? 2 : (levels[1] > 3 ? 1 : 0);
+        $scope.$broadcast('sr-beamlineStatusUpdate', blStatus);
     };
 
     self.simState = persistentSimulation.initSimulationState(self);

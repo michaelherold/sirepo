@@ -1,13 +1,16 @@
 # -*- python -*-
+from pykern import pkjson
 from pykern.pkcollections import PKDict
 import numpy
 import os
 import re
+import time
 
 
 def _get_machine_data(ml_cfg_inputs, ml_cfg_outputs):
     # stubbed data
-    return range(len(ml_cfg_inputs)), 0.95 + 0.1 * numpy.random.rand(len(ml_cfg_outputs))
+    dx = 0.15
+    return range(len(ml_cfg_inputs)), (1 - dx / 2) + dx * numpy.random.rand(len(ml_cfg_outputs))
 
 
 def _predicted_settings(inputs, ml_model_file):
@@ -19,17 +22,45 @@ def _predicted_settings(inputs, ml_model_file):
     #    return pickle.load(f).predict(inputs)
 
     # stubbed data
-    return numpy.array(range(9))
+    return numpy.array(range(12))
 
-i, o = _get_machine_data({{ ml_cfg_inputs }}, {{ ml_cfg_outputs }})
-p = _predicted_settings(i)
 
-o = p * r
-v = ((p - o) / p) ** 2
+ml_cfg_inputs = {{ ml_cfg_inputs }}
+ml_cfg_outputs = {{ ml_cfg_outputs }}
+print("RUN WITH CFG IN {{ ml_cfg_inputs }} OUT {{ ml_cfg_outputs }}")
+for j in range(5):
 
-return PKDict(
-    inputs=inputs.tolist(),
-    outputs=o.tolist(),
-    predictions=p.tolist(),
-    variance=v.tolist(),
-)
+    i, o = _get_machine_data(ml_cfg_inputs, ml_cfg_outputs)
+    p = _predicted_settings(i, None)
+
+    o = p * o
+    v = (p - o) ** 2
+
+    res_i = PKDict(
+        {k: PKDict() for k in ml_cfg_inputs}
+    )
+    for idx, x in enumerate(res_i.keys()):
+        res_i[x].value = i[idx]
+
+    res_o = PKDict(
+        {k: PKDict() for k in ml_cfg_outputs}
+    )
+    for idx, k in enumerate(res_o.keys()):
+        r = res_o[k]
+        r.value = o[idx]
+        r.prediction = p[idx]
+        r.variance = v[idx]
+
+    res = pkjson.dump_pretty(
+        PKDict(
+                inputReadings=res_i,
+                outputReadings=res_o,
+        ),
+        pretty=False,
+    )
+
+    print('RES {}'.format(res))
+    with open('{{ machine_data_file }}', 'a') as f:
+        f.write(f'{res}\n')
+
+    time.sleep(1)

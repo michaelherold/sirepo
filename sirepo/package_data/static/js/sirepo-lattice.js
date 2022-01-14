@@ -2170,10 +2170,29 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
             };
 
-            $scope.statusPanelColor = beamline => ['green', 'orange', 'red'][index % 3];
+            //TODO(mvk): beamline status panel should be in its own directive
+            $scope.status = {
+                color: 'lightgray',
+                text: 'IDLE',
+            };
 
-            $scope.statusPanelText = beamline => ['NOMINAL', 'CAUTION', 'FAULT'][index % 3];
+            $scope.statusPanelColor = beamline => {
+                //srdbg('color', beamline);
+                return 'green';
+                //['green', 'orange', 'red'][index % 3];
+            }
 
+            $scope.statusPanelText = beamline => {
+                //srdbg('text', beamline);
+                return 'NOMINAL';
+                //['NOMINAL', 'CAUTION', 'FAULT'][index % 3];
+            }
+
+            $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
+                srdbg('UPDATE BL STATUS', d);
+                $scope.color = ['green', 'orange', 'red'][d.status % 3];
+                $scope.text = ['NOMINAL', 'CAUTION', 'FAULT'][d.status % 3];
+            });
 
             $scope.updateFixedAxis = function(axis, leftMargin, yScale, height, yOffset) {
                 if (! axis.domain) {
