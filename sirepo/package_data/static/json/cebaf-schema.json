@@ -135,7 +135,9 @@
         }
     },
     "strings": {
-        "completionState": ""
+        "completionState": "",
+        "initMessage": "Monitoring beamline",
+        "typeOfSimulation": "session"
     },
     "view": {
         "dataFile": {
@@ -160,7 +162,7 @@
             ]
         },
         "simulationStatus": {
-            "title": "Simulation Status",
+            "title": "Beamline Monitor",
             "advanced": [
                 "mlModelConfig.mlModel"
             ]

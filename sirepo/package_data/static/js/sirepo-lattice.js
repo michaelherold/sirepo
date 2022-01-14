@@ -204,7 +204,6 @@ SIREPO.app.factory('latticeService', function(appState, panelState, rpnService, 
     };
 
     self.editElement = function(type, item, models) {
-        srdbg('edit', item);
         if (! appState.viewInfo(type)) {
             return;
         }
@@ -252,22 +251,26 @@ SIREPO.app.factory('latticeService', function(appState, panelState, rpnService, 
     };
 
     self.elementForId = function(id, models) {
-        models = models || appState.models;
         id = Math.abs(id);
-        for (let i = 0; i < models.beamlines.length; i++) {
-            let b = models.beamlines[i];
-            if (b.id == id) {
+        return elementForProperty('id', id, models) ||
+            elementForProperty('_id', id, models, 'elements');
+    };
+
+    self.elementForName = function(name, models) {
+        return elementForProperty('name', name, models) ||
+            elementForProperty('name', name, models, 'elements');
+    };
+
+    function elementForProperty(key, value, models, containerName='beamlines') {
+        models = models || appState.models;
+        for (let i = 0; i < models[containerName].length; i++) {
+            const b = models[containerName][i];
+            if (b[key] === value) {
                 return b;
             }
         }
-        for (let i = 0; i < models.elements.length; i++) {
-            let e = models.elements[i];
-            if (e._id == id) {
-                return e;
-            }
-        }
         return null;
-    };
+    }
 
     self.getActiveBeamline = function() {
         return self.elementForId(self.activeBeamlineId);
@@ -2170,30 +2173,6 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
             };
 
-            //TODO(mvk): beamline status panel should be in its own directive
-            $scope.status = {
-                color: 'lightgray',
-                text: 'IDLE',
-            };
-
-            $scope.statusPanelColor = beamline => {
-                //srdbg('color', beamline);
-                return 'green';
-                //['green', 'orange', 'red'][index % 3];
-            }
-
-            $scope.statusPanelText = beamline => {
-                //srdbg('text', beamline);
-                return 'NOMINAL';
-                //['NOMINAL', 'CAUTION', 'FAULT'][index % 3];
-            }
-
-            $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
-                srdbg('UPDATE BL STATUS', d);
-                $scope.color = ['green', 'orange', 'red'][d.status % 3];
-                $scope.text = ['NOMINAL', 'CAUTION', 'FAULT'][d.status % 3];
-            });
-
             $scope.updateFixedAxis = function(axis, leftMargin, yScale, height, yOffset) {
                 if (! axis.domain) {
                     return;
@@ -2262,6 +2241,69 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
         link: function link(scope, element) {
             plotting.linkPlot(scope, element);
             scope.$emit('sr-latticeLinked');
+        },
+    };
+});
+
+SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, panelState, plotting, rpnService, utilities, $rootScope, $window) {
+    return {
+        restrict: 'A',
+        scope: {
+            beamline: '<',
+        },
+        template: `
+            <rect data-ng-attr-x="{{ beamline.x }}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.2 }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ beamline.height / 2 }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - status</title></rect>
+            <rect data-ng-attr-x="{{ beamline.x + 0.1}}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ beamline.height / 2 - 0.2 }}" data-ng-attr-style="fill: {{ getStatus().color }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - {{ status.text }}</title></rect>
+            <text style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.25 * beamline.height + 0.45}}">{{ getStatus().text }}</text>            
+        `,
+        controller: function($scope) {
+
+            $scope.beamlinePicStrokeWidth = 0.01;
+            $scope.isClientOnly = true;
+
+            const beamlineId = $scope.beamline.element.id;
+            let status = {
+                color: 'lightgray',
+                text: 'IDLE',
+            };
+
+            function beamlineContainsElement(items, id, beamlineCache) {
+                if (items.indexOf(id) >= 0) {
+                    return true;
+                }
+                if (! beamlineCache) {
+                    beamlineCache = {};
+                    $scope.models.beamlines.forEach(function(b) {
+                        beamlineCache[b.id] = b.items;
+                    });
+                }
+                for (var i = 0; i < items.length; i++) {
+                    var bid = items[i];
+                    if (beamlineCache[bid]) {
+                        if (beamlineContainsElement(beamlineCache[bid], id, beamlineCache)) {
+                            return true;
+                        }
+                        delete beamlineCache[bid];
+                    }
+                }
+                return false;
+            }
+
+            $scope.getStatus = () => status;
+
+            $scope.$on('sr-beamlineStatusIdle', () => {
+                status.color = 'lightgray';
+                status.text = 'IDLE';
+            });
+
+            $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
+                const s = d[beamlineId];
+                status.color = ['green', 'orange', 'red'][s.statusLevel];
+                status.text = ['NOMINAL', 'CAUTION', 'FAULT'][s.statusLevel];
+            });
+
+        },
+        link: function link(scope, element) {
         },
     };
 });

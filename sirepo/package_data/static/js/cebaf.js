@@ -212,20 +212,29 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
         );
     }
 
-    function updateBeamlineStatus(data) {
-        //srdbg('UPDATE BL', data.res);
-
-    }
-
     function windowResize() {
         self.colClearFix = $window.matchMedia('(min-width: 1600px)').matches
             ? 6 : 4;
     }
 
+    function getBeamlinesWhichContainId(id) {
+        let res = [];
+        const bl = appState.models.externalLattice.models.beamlines;
+        for (var i = 0; i < bl.length; i++) {
+            const b = bl[i];
+            for (let j = 0; j < b.items.length; j++) {
+                if (id === Math.abs(b.items[j])) {
+                    res.push(b.id);
+                    break;
+                }
+            }
+        }
+        return res;
+    }
+
     $scope.cebafService = cebafService;
 
-    self.cancelCallback = () => $scope.$broadcast('sr-latticeUpdateComplete');
-
+    self.cancelCallback = () => $scope.$broadcast('sr-beamlineStatusComplete');
 
     self.init = () => {
 
@@ -242,33 +251,40 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
 
         const outputItems = appState.models.mlModelConfig.configItems.filter(item => item.io.value === 'output');
         let blStatus = {};
-        let totalStatus = 0;
-        let levels = [0, 0, 0];
         const readings = data.res.outputReadings
         for (const s in readings) {
             const c = outputItems.filter(item => item.setting.value === s)[0];
+            const e = latticeService.elementForName(c.element.value, appState.models.externalLattice.models);
+            const blId = getBeamlinesWhichContainId(e._id)[0];
+            if (blStatus[blId] === undefined) {
+                blStatus[blId] = {
+                    elements: {},
+                    statusLevel: 0,
+                    statusLevels: [0, 0, 0],
+                };
+            }
             const r = readings[s];
             const t = c.tolerance.value;
-            const level = Math.abs(r.variance) < Math.abs(t) ? 0 : (Math.abs(r.variance) < 2 * Math.abs(t) ? 1 : 2);
-            levels[level] += 1;
-            totalStatus += level;
-            blStatus[c.element.value] = {
+            const l = Math.abs(r.variance) < Math.abs(t) ? 0 : (Math.abs(r.variance) < 2 * Math.abs(t) ? 1 : 2);
+            blStatus[blId].statusLevels[l] += 1;
+            blStatus[blId].elements[c.element.value] = {
                 value: parseFloat(r.value),
                 prediction: parseFloat(r.prediction),
-                status: level,
+                statusLevel: l,
             };
         }
-        blStatus.status = levels[2] > 1 ? 2 : (levels[1] > 3 ? 1 : 0);
+        for (const blId in blStatus) {
+            const l = blStatus[blId].statusLevels;
+            blStatus[blId].statusLevel = l[2] > 0 ? 2 : (l[1] > 1 ? 1 : 0);
+        }
         $scope.$broadcast('sr-beamlineStatusUpdate', blStatus);
     };
 
     self.simState = persistentSimulation.initSimulationState(self);
 
-    self.initMessage = () => 'Connecting';
-
-    self.runningMessage = () => 'Monitoring beamline';
-
     self.startSimulation = () => {
+        $scope.$broadcast('sr-beamlineStatusIdle');
+        self.simState.saveAndRunSimulation('simulation');
     };
 
     self.startButtonLabel = () => 'Connect';
@@ -388,6 +404,8 @@ SIREPO.app.controller('CEBAFConfigController', function(appState, cebafService, 
 
     self.cancelCallback = () => $scope.$broadcast('sr-latticeUpdateComplete');
 
+    $scope.$on('dataFile.changed', dataFileChanged);
+    
     //TODO(pjm): init from template to allow listeners to register before data is received
     self.init = () => {
     };
@@ -516,7 +534,10 @@ SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelStat
                 appState.saveQuietly(modelName);
             }
 
-            $scope.$on(`${modelName}.changed`, loadConfig);
+            $scope.$on(`${modelName}.changed`, () => {
+                $scope.model.configItems = [];
+                loadConfig();
+            });
 
             loadConfig();
         },
