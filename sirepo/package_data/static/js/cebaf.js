@@ -222,11 +222,8 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
         const bl = appState.models.externalLattice.models.beamlines;
         for (var i = 0; i < bl.length; i++) {
             const b = bl[i];
-            for (let j = 0; j < b.items.length; j++) {
-                if (id === Math.abs(b.items[j])) {
-                    res.push(b.id);
-                    break;
-                }
+            if (b.items.map(item => Math.abs(item)).some(item => id === item)) {
+                res.push(b.id);
             }
         }
         return res;

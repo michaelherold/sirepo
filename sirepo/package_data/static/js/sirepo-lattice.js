@@ -1793,7 +1793,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 for (var i = 0; i < explodedItems.length; i++) {
                     var item = explodedItems[i];
                     const type = getType(item);
-                    if (groupDone || type == ABSOLUTE_POSITION_TYPE) {
+                    if (groupDone || type === ABSOLUTE_POSITION_TYPE) {
                         applyGroup(group, pos);
                         group = [];
                         groupDone = false;
@@ -1807,7 +1807,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     }
                     var picType = getPicType(type);
                     //TODO(pjm): CHANGREF is zgoubi-specific
-                    if (picType != 'drift' && type.indexOf('CHANGREF') < 0) {
+                    if (picType !== 'drift' && type.indexOf('CHANGREF') < 0) {
                         pos.count++;
                     }
                     if (isAngleItem(picType)) {
@@ -2262,45 +2262,28 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
             $scope.isClientOnly = true;
 
             const beamlineId = $scope.beamline.element.id;
-            let status = {
-                color: 'lightgray',
-                text: 'IDLE',
-            };
+            let status = {};
 
-            function beamlineContainsElement(items, id, beamlineCache) {
-                if (items.indexOf(id) >= 0) {
-                    return true;
-                }
-                if (! beamlineCache) {
-                    beamlineCache = {};
-                    $scope.models.beamlines.forEach(function(b) {
-                        beamlineCache[b.id] = b.items;
-                    });
-                }
-                for (var i = 0; i < items.length; i++) {
-                    var bid = items[i];
-                    if (beamlineCache[bid]) {
-                        if (beamlineContainsElement(beamlineCache[bid], id, beamlineCache)) {
-                            return true;
-                        }
-                        delete beamlineCache[bid];
-                    }
-                }
-                return false;
+            function setStatusIdle() {
+                updateStatus(-1);
+            }
+            
+            function updateStatus(level) {
+                status.color = ['green', 'orange', 'red'][level] || 'lightgray';
+                status.text = ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
             }
 
             $scope.getStatus = () => status;
 
             $scope.$on('sr-beamlineStatusIdle', () => {
-                status.color = 'lightgray';
-                status.text = 'IDLE';
+                setStatusIdle();
             });
 
             $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
-                const s = d[beamlineId];
-                status.color = ['green', 'orange', 'red'][s.statusLevel];
-                status.text = ['NOMINAL', 'CAUTION', 'FAULT'][s.statusLevel];
+                updateStatus(d[beamlineId].statusLevel);
             });
+
+            setStatusIdle();
 
         },
         link: function link(scope, element) {

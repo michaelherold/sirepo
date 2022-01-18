@@ -84,7 +84,8 @@
         "mlModelConfig": {
             "file": ["ML Config File", "MLConfigFile", ""],
             "configItems": ["ML Element Configuration", "MLConfigList", []],
-            "mlModel": ["ML Model", "MLModelFile", ""]
+            "mlModel": ["ML Model", "MLModelFile", ""],
+            "sessionHistoryLimit": ["Session History Limit", "Integer", 120, "Keep at most this many lines in the history file", 1]
         },
         "dataServerAnimation": {
             "serverType": ["Server Type", "ServerType", "local"],
@@ -164,7 +165,8 @@
         "simulationStatus": {
             "title": "Beamline Monitor",
             "advanced": [
-                "mlModelConfig.mlModel"
+                "mlModelConfig.mlModel",
+                "mlModelConfig.sessionHistoryLimit"
             ]
         },
         "HKICKER": {

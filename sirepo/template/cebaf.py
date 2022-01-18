@@ -4,7 +4,6 @@ u"""Controls execution template.
 :copyright: Copyright (c) 2020 RadiaSoft LLC.  All Rights Reserved.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
-from __future__ import absolute_import, division, print_function
 from pykern import pkio
 from pykern import pkjson
 from pykern.pkcollections import PKDict
@@ -24,11 +23,11 @@ _SUMMARY_CSV_FILE = 'summary.csv'
 
 _MACHINE_DATA_FILE = 'machine_data.dat'
 
+
 def background_percent_complete(report, run_dir, is_running):
     res = PKDict()
     try:
-        with open(_MACHINE_DATA_FILE, 'r') as f:
-            res = pkjson.load_any(f.readlines()[-1])
+        res = pkjson.load_any(pkio.read_text(_MACHINE_DATA_FILE)).h[-1]
     except FileNotFoundError:
         pass
     if is_running:
@@ -63,10 +62,6 @@ def stateful_compute_get_madx_sim_list(data):
 
 def stateful_compute_get_external_lattice(data):
     return _get_external_lattice(data.simulationId)
-
-
-def stateless_compute_predicted_settings(data):
-    return _predicted_settings(data.monitor_vals, data.ml_model)
 
 
 def stateless_compute_load_thresholds(data):
@@ -171,6 +166,7 @@ def _generate_parameters_file(data):
     v.ml_cfg_outputs = _settings_for_io(items, 'output')
     v.ml_model = data.models.mlModelConfig
     v.machine_data_file = _MACHINE_DATA_FILE
+    v.history_limit = data.models.mlModelConfig.sessionHistoryLimit
     return res + template_common.render_jinja(SIM_TYPE, v)
 
 
@@ -210,35 +206,3 @@ def _has_kickers(model):
 def _read_outputs():
     import random
     return [(1 + 0.1 * random.random()) for i in range(9)]
-
-
-def _predicted_settings(monitor_vals, ml_model=None):
-    import pickle
-    import numpy
-    from numpy import random
-
-    predictions = None
-    p = numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
-    r = 0.95 + 0.1 * numpy.random.rand(len(p))
-    o = p * r
-    v = (p - o) / p
-    return PKDict(
-        inputs=monitor_vals,
-        outputs=o.tolist(),
-        predictions=p.tolist(),
-        variance=v.tolist(),
-    )
-
-
-    if ml_model:
-        with open(
-            _SIM_DATA.lib_file_abspath(
-                _SIM_DATA.lib_file_name_with_type(ml_model, 'ml')
-            ), 'rb'
-        ) as f:
-            m = pickle.load(f)
-        predictions = m.predict(monitor_vals)[0]
-    return PKDict(
-        predictions=(predictions.tolist() if predictions is not None else [])
-    )
-
