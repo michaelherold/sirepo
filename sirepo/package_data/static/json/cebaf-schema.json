@@ -78,10 +78,15 @@
         }
     },
     "model": {
+        "beamlineStatus": {},
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
         },
         "mlModelConfig": {
+            "beamlineStatusCautionThreshold": ["Caution Threshold", "Integer", 1, "A beamline has a status of CAUTION if the number of elements in CAUTION exceeds this threshold", 0],
+            "beamlineStatusFaultThreshold": ["Fault Threshold", "Integer", 0, "A beamline has a status of FAULT if the number of elements in FAULT exceeds this threshold", 0],
+            "elementStatusCautionFactor": ["Caution Factor", "Float", 0.66, "A beamline element has a status of CAUTION if the reading differs from the prediction by this factor times the tolerance", 0.0],
+            "elementStatusFaultFactor": ["Fault Factor", "Float", 1.0, "A beamline element has a status of FAULT if the reading differs from the prediction by this factor times the tolerance", 0.0],
             "file": ["ML Config File", "MLConfigFile", ""],
             "configItems": ["ML Element Configuration", "MLConfigList", []],
             "mlModel": ["ML Model", "MLModelFile", ""],
@@ -166,6 +171,10 @@
             "title": "Beamline Monitor",
             "advanced": [
                 "mlModelConfig.mlModel",
+                "mlModelConfig.elementStatusCautionFactor",
+                "mlModelConfig.elementStatusFaultFactor",
+                "mlModelConfig.beamlineStatusCautionThreshold",
+                "mlModelConfig.beamlineStatusFaultThreshold",
                 "mlModelConfig.sessionHistoryLimit"
             ]
         },

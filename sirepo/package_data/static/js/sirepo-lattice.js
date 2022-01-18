@@ -2264,10 +2264,6 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
             const beamlineId = $scope.beamline.element.id;
             let status = {};
 
-            function setStatusIdle() {
-                updateStatus(-1);
-            }
-            
             function updateStatus(level) {
                 status.color = ['green', 'orange', 'red'][level] || 'lightgray';
                 status.text = ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
@@ -2275,18 +2271,11 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
 
             $scope.getStatus = () => status;
 
-            $scope.$on('sr-beamlineStatusIdle', () => {
-                setStatusIdle();
-            });
-
             $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
                 updateStatus(d[beamlineId].statusLevel);
             });
 
-            setStatusIdle();
-
-        },
-        link: function link(scope, element) {
+            updateStatus();
         },
     };
 });

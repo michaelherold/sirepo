@@ -37,6 +37,8 @@ class SimData(sirepo.sim_data.SimDataBase):
         )
         if 'externalLattice' in dm:
             sirepo.sim_data.get_class('madx').fixup_old_data(dm.externalLattice)
+        if 'beamlineStatus' not in dm:
+            dm.beamlineStatus = {}
 
     @classmethod
     def _compute_job_fields(cls, data, r, compute_model):

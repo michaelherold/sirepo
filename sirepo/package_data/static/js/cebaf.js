@@ -194,6 +194,13 @@ SIREPO.app.factory('cebafService', function(appState) {
 
 SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService, frameCache, latticeService, panelState, persistentSimulation, requestSender, $scope, $window) {
     const self = this;
+    const STATUS_NOMINAL = 0;
+    const STATUS_CAUTION = 1;
+    const STATUS_FAULT = 2;
+    const STATUS_IDLE = -1;
+    const mlModelConfig = appState.models.mlModelConfig;
+    const outputItems = mlModelConfig.configItems.filter(item => item.io.value === 'output');
+
     self.appState = appState;
     self.simScope = $scope;
     self.simAnalysisModel = 'dataServerAnimation';
@@ -210,6 +217,57 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
                 simulationId: appState.models.dataFile.madxSirepo
             }
         );
+    }
+
+    function computeElementStatusLevel(variance, tolerance) {
+        const v = Math.abs(variance);
+        const t = Math.abs(tolerance);
+        return v < mlModelConfig.elementStatusCautionFactor * t ? STATUS_NOMINAL :
+            (v < mlModelConfig.elementStatusFaultFactor * t ? STATUS_CAUTION : STATUS_FAULT);
+    }
+
+    function computeBeamlineStatusLevel(elementLevels) {
+        return elementLevels[STATUS_FAULT] > mlModelConfig.beamlineStatusFaultThreshold ? STATUS_FAULT :
+            (elementLevels[STATUS_CAUTION] > mlModelConfig.elementStatusCautionFactor ? STATUS_CAUTION : STATUS_NOMINAL);
+    }
+
+    function resetStatusLevels() {
+        let blStatus = appState.models.beamlineStatus;
+        for (const blId in blStatus) {
+            blStatus[blId].statusLevel = STATUS_IDLE;
+            blStatus[blId].statusLevels = [0, 0, 0];
+            for (const e in blStatus[blId].statusLevel.elements) {
+                blStatus[blId].statusLevel.elements[e].statusLevel = statusLevel;
+            }
+        }
+    }
+
+    function updateStatusLevels(readings) {
+        let blStatus = appState.models.beamlineStatus;
+        for (const s in readings) {
+            const c = outputItems.filter(item => item.setting.value === s)[0];
+            const blId = getBeamlinesWhichContainId(
+                latticeService.elementForName(c.element.value, appState.models.externalLattice.models)._id
+            )[0];
+            if (blStatus[blId] === undefined) {
+                blStatus[blId] = {
+                    elements: {},
+                    statusLevel: STATUS_NOMINAL,
+                };
+            }
+            blStatus[blId].statusLevels = [0, 0, 0];
+            const r = readings[s];
+            const l = computeElementStatusLevel(r.variance, c.tolerance.value);
+            blStatus[blId].statusLevels[l] += 1;
+            blStatus[blId].elements[c.element.value] = {
+                value: parseFloat(r.value),
+                prediction: parseFloat(r.prediction),
+                statusLevel: l,
+            };
+        }
+        for (const blId in blStatus) {
+            blStatus[blId].statusLevel = computeBeamlineStatusLevel(blStatus[blId].statusLevels);
+        }
     }
 
     function windowResize() {
@@ -242,46 +300,21 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     };
 
     self.simHandleStatus = data => {
-        if (! data.res || ! data.res.outputReadings) {
-            return;
+        if (data.state !== 'running' || ! data.res || ! data.res.outputReadings) {
+            resetStatusLevels();
         }
-
-        const outputItems = appState.models.mlModelConfig.configItems.filter(item => item.io.value === 'output');
-        let blStatus = {};
-        const readings = data.res.outputReadings
-        for (const s in readings) {
-            const c = outputItems.filter(item => item.setting.value === s)[0];
-            const e = latticeService.elementForName(c.element.value, appState.models.externalLattice.models);
-            const blId = getBeamlinesWhichContainId(e._id)[0];
-            if (blStatus[blId] === undefined) {
-                blStatus[blId] = {
-                    elements: {},
-                    statusLevel: 0,
-                    statusLevels: [0, 0, 0],
-                };
-            }
-            const r = readings[s];
-            const t = c.tolerance.value;
-            const l = Math.abs(r.variance) < Math.abs(t) ? 0 : (Math.abs(r.variance) < 2 * Math.abs(t) ? 1 : 2);
-            blStatus[blId].statusLevels[l] += 1;
-            blStatus[blId].elements[c.element.value] = {
-                value: parseFloat(r.value),
-                prediction: parseFloat(r.prediction),
-                statusLevel: l,
-            };
+        else {
+            updateStatusLevels(data.res.outputReadings);
         }
-        for (const blId in blStatus) {
-            const l = blStatus[blId].statusLevels;
-            blStatus[blId].statusLevel = l[2] > 0 ? 2 : (l[1] > 1 ? 1 : 0);
-        }
-        $scope.$broadcast('sr-beamlineStatusUpdate', blStatus);
+        appState.saveChanges('beamlineStatus', () => {
+            $scope.$broadcast('sr-beamlineStatusUpdate', appState.models.beamlineStatus);
+        });
     };
 
     self.simState = persistentSimulation.initSimulationState(self);
 
     self.startSimulation = () => {
-        $scope.$broadcast('sr-beamlineStatusIdle');
-        self.simState.saveAndRunSimulation('simulation');
+        self.simState.saveAndRunSimulation(['beamlineStatus', 'simulation']);
     };
 
     self.startButtonLabel = () => 'Connect';
