@@ -278,7 +278,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     function getBeamlinesWhichContainId(id) {
         let res = [];
         const bl = appState.models.externalLattice.models.beamlines;
-        for (var i = 0; i < bl.length; i++) {
+        for (let i = 0; i < bl.length; i++) {
             const b = bl[i];
             if (b.items.map(item => Math.abs(item)).some(item => id === item)) {
                 res.push(b.id);
@@ -291,16 +291,8 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
 
     self.cancelCallback = () => $scope.$broadcast('sr-beamlineStatusComplete');
 
-    self.init = () => {
-
-    };
-
-    self.reset = () => {
-
-    };
-
     self.simHandleStatus = data => {
-        if (data.state !== 'running' || ! data.res || ! data.res.outputReadings) {
+        if (self.simState.isStateRunning() || ! data.res || ! data.res.outputReadings) {
             resetStatusLevels();
         }
         else {
@@ -316,8 +308,6 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     self.startSimulation = () => {
         self.simState.saveAndRunSimulation(['beamlineStatus', 'simulation']);
     };
-
-    self.startButtonLabel = () => 'Connect';
 
     $scope.$on('dataFile.changed', dataFileChanged);
 

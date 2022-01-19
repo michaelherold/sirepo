@@ -10,7 +10,7 @@
               <g data-ng-repeat="group in svgGroups track by group.trackHash" data-ng-attr-transform="rotate({{ ::group.rotate }},{{ ::group.rotateX }},{{ ::group.rotateY }})">
                 <g data-ng-repeat="item in ::group.items | filter:isBeamlineItem track by item.trackHash" data-ng-click="itemClicked(item.element)" data-ng-dblclick="itemDblClicked(item.element)" data-ng-mouseover="picEntered(this)" data-ng-mouseleave="picExited(this)">
                   <rect data-ng-attr-id="{{ ::item.trackHash }}" data-ng-attr-class="{{ ::item.element.indexClass }}" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ ::item.height }}" data-ng-attr-style="fill: {{ ::item.color }}; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - {{ beamlineDblClickMsg() }}</title></rect>
-                  <g data-beamline-status-panel="" data-beamline="item" data-ng-if="includeStatusPanel"></g>
+                  <g data-beamline-status-panel="" data-beamline="item" data-is-drilled-in="isDrilledIn()" data-ng-if="includeStatusPanel"></g>
                 </g>
               </g>
             </g>
