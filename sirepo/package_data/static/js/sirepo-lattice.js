@@ -2259,7 +2259,43 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
             <rect data-ng-attr-x="{{ beamline.x }}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.2 }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ beamline.height / 2 }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - status</title></rect>
             <rect data-ng-attr-x="{{ beamline.x + 0.1}}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ beamline.height / 2 - 0.2 }}" data-ng-attr-style="fill: {{ status.color }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - {{ status.text }}</title></rect>
             <text style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.25 * beamline.height + 0.45}}">{{ status.text }}</text>            
-            <text data-ng-show="isDrilledIn" style="font-size: 0.3px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 2.0 * beamline.height }}">ELEMENT DETAILS</text>            
+            <text data-ng-show="isDrilledIn" style="font-size: 0.3px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.8 * beamline.height }}">ELEMENT DETAILS</text>            
+       `,
+        controller: function($scope) {
+
+            $scope.beamlinePicStrokeWidth = 0.01;
+            $scope.isClientOnly = true;
+
+            const beamlineId = $scope.beamline.element.id;
+            $scope.status = {};
+
+            $scope.panelHeight = () => {
+                if (! $scope.isDrilledIn) {
+                    return $beamline.height / 2;
+                }
+                return $beamline.height;
+            };
+
+            function updateStatus(level) {
+                $scope.status.color = ['green', 'orange', 'red'][level] || 'lightgray';
+                $scope.status.text = ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
+            }
+
+            $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
+                updateStatus(d[beamlineId].statusLevel);
+            });
+
+            updateStatus();
+        },
+    };
+});
+
+SIREPO.app.directive('beamlineStatusTimeline', function(appState, latticeService, panelState, plotting, rpnService, utilities, $rootScope, $window) {
+    return {
+        restrict: 'A',
+        scope: {
+        },
+        template: `
        `,
         controller: function($scope) {
 

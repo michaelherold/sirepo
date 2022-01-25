@@ -292,7 +292,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     self.cancelCallback = () => $scope.$broadcast('sr-beamlineStatusComplete');
 
     self.simHandleStatus = data => {
-        if (self.simState.isStateRunning() || ! data.res || ! data.res.outputReadings) {
+        if (! self.simState.isStateRunning() || ! data.res || ! data.res.outputReadings) {
             resetStatusLevels();
         }
         else {

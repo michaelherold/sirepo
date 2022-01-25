@@ -25,8 +25,6 @@ _MACHINE_DATA_FILE = 'machine_data.dat'
 
 
 def background_percent_complete(report, run_dir, is_running):
-    assert False
-    x = 1 / 0
     res = PKDict()
     try:
         res = pkjson.load_any(pkio.read_text(_MACHINE_DATA_FILE)).h[-1]

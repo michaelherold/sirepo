@@ -131,14 +131,6 @@ def _delete_unused_madx_commands(data):
     for c in data.models.commands:
         if c._type in by_name and not by_name[c._type]:
             by_name[c._type] = c
-<<<<<<< HEAD
-    if by_name.twiss:
-        by_name.twiss.sectorfile = '0'
-        by_name.twiss.sectormap = '0'
-        by_name.twiss.file = '1'
-    data.models.bunch.beamDefinition = 'gamma'
-    _SIM_DATA.update_beam_gamma(by_name.beam)
-=======
 
     if not by_name.twiss:
         by_name.twiss = PKDict(
@@ -149,7 +141,6 @@ def _delete_unused_madx_commands(data):
     by_name.twiss.sectorfile = '0'
     by_name.twiss.sectormap = '0'
     by_name.twiss.file = '1'
->>>>>>> master
     data.models.commands = [
         by_name.beam,
         PKDict(
