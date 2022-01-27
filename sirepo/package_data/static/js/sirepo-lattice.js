@@ -1352,6 +1352,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             $scope.margin = $scope.margin || (flatten ? 0 : 3);
             $scope.width = 1;
             $scope.height = 1;
+            $scope.maxHeight = 0;
             $scope.xScale = 1;
             $scope.yScale = 1;
             $scope.xOffset = 0;
@@ -1701,6 +1702,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                             groupItem.y = pos.y - groupItem.height / 2;
                         }
                         maxHeight = Math.max(maxHeight, groupItem.height);
+                        $scope.maxHeight = maxHeight;
                         groupItem.trackHash = itemTrackHash(item, group, length);
                         group.items.push(groupItem);
                         if (length > 0) {
@@ -2248,7 +2250,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
 });
 
 //TODO(mvk): dynamic sizing and placement of text
-SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, panelState, plotting, rpnService, utilities, $rootScope, $window) {
+SIREPO.app.directive('beamlineStatusPanel', function() {
     return {
         restrict: 'A',
         scope: {
@@ -2256,18 +2258,63 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
             isDrilledIn: '<',
         },
         template: `
-            <rect data-ng-attr-x="{{ beamline.x }}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.2 }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ beamline.height / 2 }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - status</title></rect>
-            <rect data-ng-attr-x="{{ beamline.x + 0.1}}" data-ng-attr-y="{{ beamline.y + beamline.height + 0.3 }}" width="1.0" data-ng-attr-height="{{ beamline.height / 2 - 0.2 }}" data-ng-attr-style="fill: {{ status.color }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - {{ status.text }}</title></rect>
-            <text style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.25 * beamline.height + 0.45}}">{{ status.text }}</text>            
-            <text data-ng-show="isDrilledIn" style="font-size: 0.3px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.8 * beamline.height }}">ELEMENT DETAILS</text>            
-       `,
+            <rect data-ng-attr-x="{{ beamline.x + getOffsets().statusPanel.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().statusPanel.y }}" data-ng-attr-width="{{ getSizes().statusPanel.width }}" data-ng-attr-height="{{ getSizes().statusPanel.height }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - status</title></rect>
+            <rect data-ng-attr-x="{{ beamline.x + getOffsets().alarmIndicator.x}}" data-ng-attr-y="{{ beamline.y + getOffsets().alarmIndicator.y }}" data-ng-attr-width="{{ getSizes().alarmIndicator.width }}" data-ng-attr-height="{{ getSizes().alarmIndicator.height }}" data-ng-attr-style="fill: {{ status.color }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;"><title>{{ beamline.title }} - {{ status.text }}</title></rect>
+            <text data-ng-attr-style="font-size: {{ alarmTextFontSize }}px" data-ng-attr-x="{{ beamline.x + getOffsets().alarmText.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().alarmText.y }}">{{ status.text }}</text>            
+            <!--<text data-ng-show="isDrilledIn" style="font-size: 0.3px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.8 * beamline.height }}">ELEMENT DETAILS</text>-->
+            <rect data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ historySegmentSize().height }}" style="fill: lightGray;" ><title>timeline</title></rect>
+            <rect data-ng-repeat="x in history track by $index" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x + $index * historySegmentSize().width }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ historySegmentSize().width }}" data-ng-attr-height="{{ historySegmentSize().height }}" data-ng-attr-style="fill: {{ statusColor(x[beamlineId].statusLevel) }}; stroke: white; stroke-width: {{ 2.0 * beamlinePicStrokeWidth }};" ><title>{{ historySegmentTime(x[beamlineId].time) }}</title></rect>-->
+        `,
         controller: function($scope) {
 
             $scope.beamlinePicStrokeWidth = 0.01;
+            $scope.alarmTextFontSize = 0.5;
+
             $scope.isClientOnly = true;
 
-            const beamlineId = $scope.beamline.element.id;
+            $scope.beamlineId = $scope.beamline.element.id;
+            $scope.history = [];
             $scope.status = {};
+
+            $scope.statusColor = level => ['green', 'orange', 'red'][level] || 'lightgray';
+
+            $scope.statusText = level => ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
+
+            $scope.getFrameCount = () => $scope.status.frameCount || 0;
+
+            let offsets = {
+                alarmIndicator: {x: 0.1, y: $scope.beamline.height + 0.3},
+                alarmText: {x: 3.0 * $scope.alarmTextFontSize, y: 0.0},
+                statusPanel: {x: 0.0, y: $scope.beamline.height + 0.2},
+                timeline: {x: 0.0, y: 0.0},
+            };
+
+            let sizes = {
+                alarmIndicator: {width: 1.0, height: 1.0},
+                statusPanel: {width: $scope.beamline.width, height: 0.5 * $scope.beamline.height},
+            }
+
+
+            $scope.getOffsets = () => {
+                offsets.alarmText.y = offsets.statusPanel.y + 0.5 * sizes.statusPanel.height + 0.5 * $scope.alarmTextFontSize;
+                offsets.timeline.y = offsets.statusPanel.y + sizes.statusPanel.height + 0.2;
+                return offsets;
+            };
+
+            $scope.getSizes = () => {
+                sizes.alarmIndicator.height = 0.5 * $scope.beamline.height - 2.0 * offsets.alarmIndicator.x;
+                sizes.alarmIndicator.width = sizes.alarmIndicator.height;
+                return sizes;
+            };
+
+            $scope.historySegmentSize = () => {
+                return {
+                    width: $scope.beamline.width / (($scope.history || []).length || 1.0),
+                    height: 0.5,
+                };
+            }
+
+            $scope.historySegmentTime= (seconds) => (new Date(1000 * seconds)).toISOString();
 
             $scope.panelHeight = () => {
                 if (! $scope.isDrilledIn) {
@@ -2276,13 +2323,14 @@ SIREPO.app.directive('beamlineStatusPanel', function(appState, latticeService, p
                 return $beamline.height;
             };
 
-            function updateStatus(level) {
-                $scope.status.color = ['green', 'orange', 'red'][level] || 'lightgray';
-                $scope.status.text = ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
+            function updateStatus(level, history) {
+                $scope.status.color = $scope.statusColor(level);
+                $scope.status.text = $scope.statusText(level);
+                $scope.history = history;
             }
 
             $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
-                updateStatus(d[beamlineId].statusLevel);
+                updateStatus(d.current[$scope.beamlineId].statusLevel, d.history);
             });
 
             updateStatus();
@@ -2294,31 +2342,21 @@ SIREPO.app.directive('beamlineStatusTimeline', function(appState, latticeService
     return {
         restrict: 'A',
         scope: {
+            position: '<',
+            width: '<',
         },
         template: `
+            <rect data-ng-attr-x="{{ position.x }}" data-ng-attr-y="{{ position.y }}" data-ng-attr-width="{{ width }}" height="0.02" style="fill: lightgray;"></rect>        
        `,
         controller: function($scope) {
-
-            $scope.beamlinePicStrokeWidth = 0.01;
             $scope.isClientOnly = true;
 
-            const beamlineId = $scope.beamline.element.id;
-            $scope.status = {};
-
-            $scope.panelHeight = () => {
-                if (! $scope.isDrilledIn) {
-                    return $beamline.height / 2;
-                }
-                return $beamline.height;
-            };
-
-            function updateStatus(level) {
-                $scope.status.color = ['green', 'orange', 'red'][level] || 'lightgray';
-                $scope.status.text = ['NOMINAL', 'CAUTION', 'FAULT'][level] || 'IDLE';
+            function updateStatus(data) {
+                srdbg('UPDATE TIMELINE', data);
             }
 
             $scope.$on('sr-beamlineStatusUpdate', (e, d) => {
-                updateStatus(d[beamlineId].statusLevel);
+                updateStatus(d);
             });
 
             updateStatus();

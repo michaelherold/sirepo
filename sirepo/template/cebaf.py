@@ -27,18 +27,18 @@ _MACHINE_DATA_FILE = 'machine_data.dat'
 def background_percent_complete(report, run_dir, is_running):
     res = PKDict()
     try:
-        res = pkjson.load_any(pkio.read_text(_MACHINE_DATA_FILE)).h[-1]
+        res = pkjson.load_any(pkio.read_text(_MACHINE_DATA_FILE)).h
     except FileNotFoundError:
         pass
     if is_running:
         return PKDict(
             percentComplete=0,
-            frameCount=0,
+            frameCount=len(res),
             res=res
         )
     return PKDict(
         percentComplete=100,
-        frameCount=1,
+        frameCount=len(res),
         res=res
     )
 

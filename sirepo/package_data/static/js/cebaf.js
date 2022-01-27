@@ -111,16 +111,6 @@ SIREPO.app.factory('cebafService', function(appState) {
 
     self.hasMadxLattice = () => ! ! appState.applicationState().externalLattice;
 
-    self.monitors = () => {
-        const l = self.latticeModels();
-        if (! l) {
-            return;
-        }
-        return l.beamlines[0].items
-            .map(i => self.elementForId(i))
-            .filter(e => ['HMONITOR', 'MONITOR', 'VMONITOR'].includes(e.type));
-    };
-
     self.buildReverseMap = (tableName) => {
         const table = self.getAmpTables()[tableName];
         if (table) {
@@ -205,18 +195,13 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     self.simScope = $scope;
     self.simAnalysisModel = 'dataServerAnimation';
 
-    function dataFileChanged() {
-        requestSender.sendStatefulCompute(
-            appState,
-            data => {
-                appState.models.externalLattice = data.externalLattice;
-                appState.saveChanges(['externalLattice']);
-            },
-            {
-                method: 'get_external_lattice',
-                simulationId: appState.models.dataFile.madxSirepo
-            }
-        );
+    function buildBeamlineStatus(intialStatus) {
+        return {
+            elements: {},
+            statusLevel: intialStatus,
+            statusLevels: [0, 0, 0],
+            time: Date.now() / 1000,
+        };
     }
 
     function computeElementStatusLevel(variance, tolerance) {
@@ -231,34 +216,57 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
             (elementLevels[STATUS_CAUTION] > mlModelConfig.elementStatusCautionFactor ? STATUS_CAUTION : STATUS_NOMINAL);
     }
 
+    function dataFileChanged() {
+        requestSender.sendStatefulCompute(
+            appState,
+            data => {
+                appState.models.externalLattice = data.externalLattice;
+                appState.saveChanges(['externalLattice']);
+            },
+            {
+                method: 'get_external_lattice',
+                simulationId: appState.models.dataFile.madxSirepo
+            }
+        );
+    }
+
+    function getBeamlineIds() {
+        return cebafService.latticeModels().beamlines.map(x => x.id);
+    }
+
+
     function resetStatusLevels() {
-        let blStatus = appState.models.beamlineStatus;
-        for (const blId in blStatus) {
+        if (! appState.models.beamlineStatus.current) {
+            appState.models.beamlineStatus.current = {};
+        }
+        let blStatus = appState.models.beamlineStatus.current;
+        for (const blId of getBeamlineIds()) {
+            if (! blStatus[blId]) {
+                blStatus[blId] = buildBeamlineStatus(STATUS_IDLE);
+            }
             blStatus[blId].statusLevel = STATUS_IDLE;
             blStatus[blId].statusLevels = [0, 0, 0];
             for (const e in blStatus[blId].statusLevel.elements) {
-                blStatus[blId].statusLevel.elements[e].statusLevel = statusLevel;
+                blStatus[blId].statusLevel.elements[e].statusLevel = STATUS_IDLE;
             }
         }
+        appState.models.beamlineStatus.history = [];
     }
 
-    function updateStatusLevels(readings) {
-        let blStatus = appState.models.beamlineStatus;
+    function updateStatusLevels(history) {
+        let blStatus = {};
+        const h =  history[history.length - 1];
+        const readings = h.outputReadings;
         for (const s in readings) {
+            const r = readings[s];
             const c = outputItems.filter(item => item.setting.value === s)[0];
             const blId = getBeamlinesWhichContainId(
                 latticeService.elementForName(c.element.value, appState.models.externalLattice.models)._id
             )[0];
-            if (blStatus[blId] === undefined) {
-                blStatus[blId] = {
-                    elements: {},
-                    statusLevel: STATUS_NOMINAL,
-                };
-            }
-            blStatus[blId].statusLevels = [0, 0, 0];
-            const r = readings[s];
+            blStatus[blId] = buildBeamlineStatus(STATUS_NOMINAL);
             const l = computeElementStatusLevel(r.variance, c.tolerance.value);
             blStatus[blId].statusLevels[l] += 1;
+            blStatus[blId].time = h.time;
             blStatus[blId].elements[c.element.value] = {
                 value: parseFloat(r.value),
                 prediction: parseFloat(r.prediction),
@@ -267,6 +275,11 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
         }
         for (const blId in blStatus) {
             blStatus[blId].statusLevel = computeBeamlineStatusLevel(blStatus[blId].statusLevels);
+        }
+        appState.models.beamlineStatus.current = blStatus;
+        appState.models.beamlineStatus.history.push(blStatus);
+        if (appState.models.beamlineStatus.history.length > appState.models.mlModelConfig.sessionHistoryLimit) {
+            appState.models.beamlineStatus.history.shift();
         }
     }
 
@@ -277,7 +290,7 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
 
     function getBeamlinesWhichContainId(id) {
         let res = [];
-        const bl = appState.models.externalLattice.models.beamlines;
+        const bl = cebafService.latticeModels().beamlines;
         for (let i = 0; i < bl.length; i++) {
             const b = bl[i];
             if (b.items.map(item => Math.abs(item)).some(item => id === item)) {
@@ -292,11 +305,11 @@ SIREPO.app.controller('CEBAFBeamlineController', function(appState, cebafService
     self.cancelCallback = () => $scope.$broadcast('sr-beamlineStatusComplete');
 
     self.simHandleStatus = data => {
-        if (! self.simState.isStateRunning() || ! data.res || ! data.res.outputReadings) {
+        if (! self.simState.isStateRunning() || ! data.res || ! data.res.length || ! data.res[data.res.length - 1].outputReadings) {
             resetStatusLevels();
         }
         else {
-            updateStatusLevels(data.res.outputReadings);
+            updateStatusLevels(data.res);
         }
         appState.saveChanges('beamlineStatus', () => {
             $scope.$broadcast('sr-beamlineStatusUpdate', appState.models.beamlineStatus);
@@ -476,6 +489,24 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
         },
     };
 });
+
+/*
+SIREPO.app.directive('latticeFooter', function(appState, latticeService, panelState, utilities, $timeout) {
+    return {
+        restrict: 'A',
+        scope: {
+            width: '@',
+        },
+        template: `
+            <div>
+                <button class="btn btn-default">Clear Faults</button>
+            </div>
+        `,
+        controller: function($scope) {
+        },
+    };
+});
+*/
 
 SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelState, plot2dService, plotting, requestSender, utilities) {
     return {

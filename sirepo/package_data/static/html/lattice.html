@@ -12,6 +12,7 @@
                   <rect data-ng-attr-id="{{ ::item.trackHash }}" data-ng-attr-class="{{ ::item.element.indexClass }}" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ ::item.height }}" data-ng-attr-style="fill: {{ ::item.color }}; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - {{ beamlineDblClickMsg() }}</title></rect>
                   <g data-beamline-status-panel="" data-beamline="item" data-is-drilled-in="isDrilledIn()" data-ng-if="includeStatusPanel"></g>
                 </g>
+                <!--<g data-beamline-status-timeline="" data-ng-if="includeStatusPanel" data-width="width" data-positon=""></g>-->
               </g>
             </g>
             <!-- render drifts next lowest z index -->
