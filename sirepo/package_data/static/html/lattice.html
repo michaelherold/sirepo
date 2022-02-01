@@ -2,7 +2,7 @@
   <div class="lead" style="position: absolute; left: 0; top: 0;" data-ng-if="isLoading"><span class="glyphicon glyphicon-hourglass"></span> Updating Lattice...</div>
   <div class="sr-lattice-holder" ng-attr-style="{{ ::plotStyle }}"><svg class="sr-plot" ng-attr-width="{{ width }}" ng-attr-height="{{ height }}">
       <rect ng-attr-width="{{ width }}" ng-attr-height="{{ height }}" style="fill: none;"></rect>
-      <g ng-attr-transform="translate({{ ::margin }},{{ ::margin }})">
+      <g ng-attr-transform="translate({{ ::margin }},0)">
         <g class="sr-zoom-plot sr-lattice">
           <g ng-attr-transform="translate({{ xOffset }},{{ yOffset }}) scale({{ xScale }},{{ yScale }})">
             <!-- render beamlines, if any, lowest z index -->

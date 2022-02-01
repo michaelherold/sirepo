@@ -490,7 +490,7 @@ SIREPO.app.directive('appHeader', function(cebafService, appState, panelState) {
     };
 });
 
-/*
+
 SIREPO.app.directive('latticeFooter', function(appState, latticeService, panelState, utilities, $timeout) {
     return {
         restrict: 'A',
@@ -506,7 +506,7 @@ SIREPO.app.directive('latticeFooter', function(appState, latticeService, panelSt
         },
     };
 });
-*/
+
 
 SIREPO.app.directive('mlModelConfig', function(appState, cebafService, panelState, plot2dService, plotting, requestSender, utilities) {
     return {

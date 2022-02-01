@@ -2261,9 +2261,9 @@ SIREPO.app.directive('beamlineStatusPanel', function() {
             <rect data-ng-attr-x="{{ beamline.x + getOffsets().statusPanel.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().statusPanel.y }}" data-ng-attr-width="{{ getSizes().statusPanel.width }}" data-ng-attr-height="{{ getSizes().statusPanel.height }}" data-ng-attr-style="fill: white; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ beamline.title }} - status</title></rect>
             <rect data-ng-attr-x="{{ beamline.x + getOffsets().alarmIndicator.x}}" data-ng-attr-y="{{ beamline.y + getOffsets().alarmIndicator.y }}" data-ng-attr-width="{{ getSizes().alarmIndicator.width }}" data-ng-attr-height="{{ getSizes().alarmIndicator.height }}" data-ng-attr-style="fill: {{ status.color }}; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;"><title>{{ beamline.title }} - {{ status.text }}</title></rect>
             <text data-ng-attr-style="font-size: {{ alarmTextFontSize }}px" data-ng-attr-x="{{ beamline.x + getOffsets().alarmText.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().alarmText.y }}">{{ status.text }}</text>            
-            <!--<text data-ng-show="isDrilledIn" style="font-size: 0.3px" data-ng-attr-x="{{ beamline.x + 1.5}}" data-ng-attr-y="{{ beamline.y + 1.8 * beamline.height }}">ELEMENT DETAILS</text>-->
             <rect data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ historySegmentSize().height }}" style="fill: lightGray;" ><title>timeline</title></rect>
-            <rect data-ng-repeat="x in history track by $index" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x + $index * historySegmentSize().width }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ historySegmentSize().width }}" data-ng-attr-height="{{ historySegmentSize().height }}" data-ng-attr-style="fill: {{ statusColor(x[beamlineId].statusLevel) }}; stroke: white; stroke-width: {{ 2.0 * beamlinePicStrokeWidth }};" ><title>{{ historySegmentTime(x[beamlineId].time) }}</title></rect>-->
+            <rect data-ng-repeat="x in history track by $index" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x + $index * historySegmentSize().width }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ historySegmentSize().width }}" data-ng-attr-height="{{ historySegmentSize().height }}" data-ng-attr-style="fill: {{ statusColor(x[beamlineId].statusLevel) }}; stroke: white; stroke-width: {{ 2.0 * beamlinePicStrokeWidth }};" ><title>{{ historySegmentTime(x[beamlineId].time) }}</title></rect>
+            <text data-ng-repeat="s in currentStatus()" data-ng-show="isDrilledIn" style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y + 1 }}">{{ statusDetails(s) }}</text>
         `,
         controller: function($scope) {
 
@@ -2293,6 +2293,22 @@ SIREPO.app.directive('beamlineStatusPanel', function() {
                 alarmIndicator: {width: 1.0, height: 1.0},
                 statusPanel: {width: $scope.beamline.width, height: 0.5 * $scope.beamline.height},
             }
+
+
+            $scope.currentStatus = () => {
+                return (($scope.history || [])[0] || {})[$scope.beamlineId] || {};
+            }
+
+            $scope.statusDetails = s => {
+                let d = '';
+                if (! s) {
+                    return d;
+                }
+                for (const e in s.elements) {
+                    d += `${e}: value ${s.elements[e].value} prediction ${s.elements[e].prediction}`;
+                }
+                return d;
+            };
 
 
             $scope.getOffsets = () => {
