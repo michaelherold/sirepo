@@ -1319,11 +1319,12 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
     return {
         restrict: 'A',
         scope: {
-            margin: '<',
-            modelName: '@',
+            doStackBeamlines: '@',
             flatten: '@',
             includeBeamlines: '@',
             includeStatusPanel: '@',
+            margin: '<',
+            modelName: '@',
             pathToModels: '@',
             schematic: '@',
             zoomDisabled: '@',
@@ -1339,9 +1340,9 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             let zoomScale = 1;
 
             const ABSOLUTE_POSITION_TYPE = 'absolutePosition';
+            const doStackBeamlines = $scope.doStackBeamlines === '1';
             const flatten = $scope.flatten === '1';
             const includeBeamlines = $scope.includeBeamlines === '1';
-            const includeStatusPanel = includeBeamlines && $scope.includeStatusPanel === '1';
             const schematic = $scope.schematic === '1';
             const schematicLength = 0.1;
             const zoomDisabled = $scope.zoomDisabled === '1';
@@ -1349,7 +1350,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             $scope.beamlinePicStrokeWidth = 0.01;
             $scope.plotStyle = zoomDisabled ? '' : 'cursor: zoom-in;';
             $scope.isClientOnly = true;
-            $scope.margin = $scope.margin || (flatten ? 0 : 3);
+            $scope.margin = $scope.margin || (flatten ? {x: 0, y: 0} : {x: 3, y: 3});
             $scope.width = 1;
             $scope.height = 1;
             $scope.maxHeight = 0;
@@ -2146,7 +2147,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 var windowHeight = $($window).height();
                 var maxHeightFactor = utilities.isFullscreen() ? 1.5 : 2.5;
                 if ($scope.height > windowHeight / maxHeightFactor) {
-                    $scope.height = windowHeight / maxHeightFactor + $scope.margin;
+                    $scope.height = windowHeight / maxHeightFactor + $scope.margin.y;
                 }
 
                 if (svgBounds) {
@@ -2155,18 +2156,18 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     if (w === 0 || h === 0) {
                         return;
                     }
-                    var scaleWidth = ($scope.width - $scope.margin * 2) / w;
-                    var scaleHeight = ($scope.height - $scope.margin * 2) / h;
+                    var scaleWidth = ($scope.width - $scope.margin.x * 2) / w;
+                    var scaleHeight = ($scope.height - $scope.margin.y * 2) / h;
                     var scale = 1;
                     var xOffset = 0;
                     var yOffset = 0;
                     if (scaleWidth < scaleHeight) {
                         scale = scaleWidth;
-                        yOffset = ($scope.height - $scope.margin * 2 - h * scale) / 2;
+                        yOffset = ($scope.height - $scope.margin.y * 2 - h * scale) / 2;
                     }
                     else {
                         scale = scaleHeight;
-                        xOffset = ($scope.width - $scope.margin * 2 - w * scale) / 2;
+                        xOffset = ($scope.width - $scope.margin.x * 2 - w * scale) / 2;
                     }
                     $scope.xScale = scale;
                     $scope.yScale = scale;
@@ -2263,7 +2264,7 @@ SIREPO.app.directive('beamlineStatusPanel', function() {
             <text data-ng-attr-style="font-size: {{ alarmTextFontSize }}px" data-ng-attr-x="{{ beamline.x + getOffsets().alarmText.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().alarmText.y }}">{{ status.text }}</text>            
             <rect data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ beamline.width }}" data-ng-attr-height="{{ historySegmentSize().height }}" style="fill: lightGray;" ><title>timeline</title></rect>
             <rect data-ng-repeat="x in history track by $index" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x + $index * historySegmentSize().width }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}" data-ng-attr-width="{{ historySegmentSize().width }}" data-ng-attr-height="{{ historySegmentSize().height }}" data-ng-attr-style="fill: {{ statusColor(x[beamlineId].statusLevel) }}; stroke: white; stroke-width: {{ 2.0 * beamlinePicStrokeWidth }};" ><title>{{ historySegmentTime(x[beamlineId].time) }}</title></rect>
-            <text data-ng-repeat="s in currentStatus()" data-ng-show="isDrilledIn" style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y + 1 }}">{{ statusDetails(s) }}</text>
+            <text data-ng-repeat="s in currentStatus()" style="font-size: 0.5px" data-ng-attr-x="{{ beamline.x + getOffsets().timeline.x }}" data-ng-attr-y="{{ beamline.y + getOffsets().timeline.y }}">{{ statusDetails(s) }}</text>
         `,
         controller: function($scope) {
 
@@ -2368,7 +2369,7 @@ SIREPO.app.directive('beamlineStatusTimeline', function(appState, latticeService
             $scope.isClientOnly = true;
 
             function updateStatus(data) {
-                srdbg('UPDATE TIMELINE', data);
+                //srdbg('UPDATE TIMELINE', data);
             }
 
             $scope.$on('sr-beamlineStatusUpdate', (e, d) => {

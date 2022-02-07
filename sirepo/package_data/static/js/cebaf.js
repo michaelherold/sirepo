@@ -25,7 +25,7 @@ SIREPO.app.config(() => {
         elementColor: {
             BEAMLINE: 'lightblue',
             OCTUPOLE: 'yellow',
-            QUADRUPOLE: 'red',
+            QUADRUPOLE: 'purple',
             SEXTUPOLE: 'lightgreen',
             KICKER: 'black',
             HKICKER: 'black',
@@ -63,6 +63,11 @@ SIREPO.app.factory('cebafService', function(appState) {
         VKICKER: 'KICK',
     };
     self.isReadoutTableActive = false;
+
+    self.beamlineMargin = {
+        x: 40,
+        y: 0,
+    };
 
     function beamInfo() {
         const beam = appState.applicationState().command_beam;

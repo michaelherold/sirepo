@@ -59,6 +59,11 @@ SIREPO.app.factory('controlsService', function(appState, latticeService, request
         VKICKER: 'KICK',
     };
 
+    self.beamlineMargin = {
+        x: 40,
+        y:40,
+    };
+
     self.beamlineElements = () => {
         const models = self.latticeModels();
         return models.beamlines[0].items.map(elId => latticeService.elementForId(elId, models));

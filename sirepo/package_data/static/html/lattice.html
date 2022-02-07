@@ -2,7 +2,7 @@
   <div class="lead" style="position: absolute; left: 0; top: 0;" data-ng-if="isLoading"><span class="glyphicon glyphicon-hourglass"></span> Updating Lattice...</div>
   <div class="sr-lattice-holder" ng-attr-style="{{ ::plotStyle }}"><svg class="sr-plot" ng-attr-width="{{ width }}" ng-attr-height="{{ height }}">
       <rect ng-attr-width="{{ width }}" ng-attr-height="{{ height }}" style="fill: none;"></rect>
-      <g ng-attr-transform="translate({{ ::margin }},0)">
+      <g ng-attr-transform="translate({{ ::margin.x }},{{ ::margin.y }})">
         <g class="sr-zoom-plot sr-lattice">
           <g ng-attr-transform="translate({{ xOffset }},{{ yOffset }}) scale({{ xScale }},{{ yScale }})">
             <!-- render beamlines, if any, lowest z index -->
@@ -12,7 +12,6 @@
                   <rect data-ng-attr-id="{{ ::item.trackHash }}" data-ng-attr-class="{{ ::item.element.indexClass }}" data-ng-attr-x="{{ ::item.x }}" data-ng-attr-y="{{ ::item.y }}" data-ng-attr-width="{{ ::item.width }}" data-ng-attr-height="{{ ::item.height }}" data-ng-attr-style="fill: {{ ::item.color }}; fill-opacity: 0.25; stroke: black; stroke-width: {{ beamlinePicStrokeWidth }}px;" rx="0.1"><title>{{ ::item.title }} - {{ beamlineDblClickMsg() }}</title></rect>
                   <g data-beamline-status-panel="" data-beamline="item" data-is-drilled-in="isDrilledIn()" data-ng-if="includeStatusPanel"></g>
                 </g>
-                <!--<g data-beamline-status-timeline="" data-ng-if="includeStatusPanel" data-width="width" data-positon=""></g>-->
               </g>
             </g>
             <!-- render drifts next lowest z index -->
@@ -71,7 +70,7 @@
           </g>
         </g>
       </g>
-      <g data-ng-if="markerUnits" ng-attr-transform="translate({{ width - margin - 40 }},{{ height - margin - 15 }})">
+      <g data-ng-if="markerUnits" ng-attr-transform="translate({{ width - margin.x - 40 }},{{ height - margin.y - 15 }})">
         <path ng-attr-d="{{ 'M-' + markerWidth + ' -26 L -' + markerWidth + ' 14 M-' + markerWidth + ' -6 L 0 -6 M 0 -26 L 0 14' }}" style="stroke: black; stroke-width: 1" />
         <text dx="5" style="font-size: 12px">{{ markerUnits }}</text>
       </g>
