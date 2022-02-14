@@ -374,7 +374,6 @@ def _read_srw_file(filename):
 
 def _rsopt_run(filename):
     from pykern import pkio
-    from sirepo.template import template_common
     import h5py
     import multiprocessing
     import time
@@ -428,14 +427,10 @@ def _rsopt_run(filename):
     params_all = numpy.concatenate(task_arrays, axis=0)
 
     ###### consolidated input and output file used for ML
-    template_common.write_dict_to_h5(
-        {
-            'params': [{{ rsOptFuctionSignature(true) }}],
-            'paramVals': params_all.tolist(),
-            'beamIntensities': beams_all.tolist(),
-        },
-        f'{_DATASET_DIR}/results.h5'
-    )
+    with h5py.File(f'{_DATASET_DIR}/results.h5', 'w') as f:
+        f.create_dataset('params', data=[{{ rsOptFuctionSignature(true) }}])
+        f.create_dataset('paramVals', data=params_all.tolist())
+        f.create_dataset('beamIntensities', data=beams_all.tolist())
 
 def _rsopt_run_set(param_arr, start, end, proc_num):
     pkdlog(f'Process {proc_num} to complete {end - start} tasks')
@@ -485,7 +480,7 @@ def _rsopt_set_params({{ rsOptFuctionSignature() }}):
     a = [0.0, 0.0, 0.0]
     {% for t in e.rotation.initial %}
     {% if e.rotation.offsets[loop.index0] != 0 %}
-    a[{{ loop.index0 }}] = {{ e.title }}_{{ e[p].fieldNames[loop.index0] }}
+    a[{{ loop.index0 }}] = {{ e.title }}_{{ e.rotation.fieldNames[loop.index0] }}
     {% endif %}
     {% endfor %}
     n = _apply_rotation(a, {{ e.rotation.initial }})
