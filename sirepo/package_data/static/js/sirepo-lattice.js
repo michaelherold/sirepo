@@ -1698,7 +1698,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         else if (picType === 'beamline') {
                             groupItem.color = getPicColor(item, 'lightgreen');
                             groupItem.height = 2.5;
-                            groupItem.y = pos.y - groupItem.height / 2;
+                            groupItem.y = pos.y;  // - groupItem.height / 2;
                         }
                         else {
                             groupItem.color = getPicColor(item, 'green');
@@ -1796,6 +1796,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
                 var group = [];
                 var groupDone = false;
+                let j = 0;
                 for (var i = 0; i < explodedItems.length; i++) {
                     var item = explodedItems[i];
                     const type = getType(item);
@@ -1820,6 +1821,15 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         groupDone = true;
                     }
                     group.push(item);
+                    if (isBeamlineItem(item) && flatten && doStackBeamlines) {
+                        const el = latticeService.elementForId(item.id, $scope.models);
+                        if (hasOnlyBeamlines(el)) {
+                            continue;
+                        }
+                        pos.x = 0;
+                        pos.y = j * 2.5;
+                        ++j;
+                    }
                 }
                 if (group.length) {
                     applyGroup(group, pos);
@@ -1901,7 +1911,8 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             }
 
             function hasOnlyBeamlines(beamline) {
-                return beamline.element.items.every(id => isBeamlineItem(latticeService.elementForId(id, $scope.models)));
+                const items = beamline.items || beamline.element.items;
+                return items.every(id => isBeamlineItem(latticeService.elementForId(id, $scope.models)));
             }
 
             function isAngleItem(picType) {
@@ -2174,7 +2185,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     }
                     $scope.xScale = scale;
                     $scope.yScale = scale;
-                    $scope.xOffset = - svgBounds[0] * scale + xOffset;
+                    $scope.xOffset = 0;  //- svgBounds[0] * scale + xOffset;
                     $scope.yOffset = - svgBounds[1] * scale + yOffset;
                     recalcScaleMarker();
                     $scope.$broadcast('sr-renderBeamline');
