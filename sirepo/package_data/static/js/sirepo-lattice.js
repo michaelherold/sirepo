@@ -1343,12 +1343,13 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             let zoomScale = 1;
 
             const ABSOLUTE_POSITION_TYPE = 'absolutePosition';
-            const doStackBeamlines = $scope.doStackBeamlines === '1';
+            const beamlineHeight = 2.5;
             const flatten = $scope.flatten === '1';
             const includeBeamlines = $scope.includeBeamlines === '1';
             const schematic = $scope.schematic === '1';
             const schematicLength = 0.1;
             const zoomDisabled = $scope.zoomDisabled === '1';
+            const doStackBeamlines = $scope.doStackBeamlines === '1' && flatten;
 
             $scope.beamlinePicStrokeWidth = 0.01;
             $scope.plotStyle = zoomDisabled ? '' : 'cursor: zoom-in;';
@@ -1697,8 +1698,9 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         }
                         else if (picType === 'beamline') {
                             groupItem.color = getPicColor(item, 'lightgreen');
-                            groupItem.height = 2.5;
-                            groupItem.y = pos.y;  // - groupItem.height / 2;
+                            groupItem.height = beamlineHeight;
+                            groupItem.y = doStackBeamlines ? pos.y : pos.y - groupItem.height / 2;
+                            groupItem.x = doStackBeamlines ? 0 : pos.x;
                         }
                         else {
                             groupItem.color = getPicColor(item, 'green');
@@ -1794,11 +1796,11 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 if (includeSelf) {
                     explodedItems.unshift(selectedBeamline);
                 }
-                var group = [];
-                var groupDone = false;
+                let group = [];
+                let groupDone = false;
                 let j = 0;
-                for (var i = 0; i < explodedItems.length; i++) {
-                    var item = explodedItems[i];
+                for (let i = 0; i < explodedItems.length; i++) {
+                    const item = explodedItems[i];
                     const type = getType(item);
                     if (groupDone || type === ABSOLUTE_POSITION_TYPE) {
                         applyGroup(group, pos);
@@ -1826,8 +1828,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         if (hasOnlyBeamlines(el)) {
                             continue;
                         }
-                        pos.x = 0;
-                        pos.y = j * 2.5;
+                        pos.y = j * beamlineHeight;
                         ++j;
                     }
                 }
