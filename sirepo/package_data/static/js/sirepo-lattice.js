@@ -1334,6 +1334,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
         },
         templateUrl: '/static/html/lattice.html' + SIREPO.SOURCE_CACHE_KEY,
         controller: function($scope) {
+            let beamlinePicGeom = {};
             let panTranslate = [0, 0];
             let picTypeCache = null;
             let rootBeamline;
@@ -1699,8 +1700,8 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         else if (picType === 'beamline') {
                             groupItem.color = getPicColor(item, 'lightgreen');
                             groupItem.height = beamlineHeight;
-                            groupItem.y = doStackBeamlines ? pos.y : pos.y - groupItem.height / 2;
-                            groupItem.x = doStackBeamlines ? 0 : pos.x;
+                            groupItem.y = pos.y - groupItem.height / 2;
+                            groupItem.x = pos.x;
                         }
                         else {
                             groupItem.color = getPicColor(item, 'green');
@@ -1799,8 +1800,38 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 let group = [];
                 let groupDone = false;
                 let j = 0;
+
+                for (const item of explodedItems.filter(isBeamlineItem)) {
+                    if (doStackBeamlines) {
+                        if (hasOnlyBeamlines(latticeService.elementForId(item.id, $scope.models))) {
+                            continue;
+                        }
+                        beamlinePicGeom[item.id] = {
+                            x: 0,
+                            y: j * beamlineHeight,
+                            width: 1,
+                            height: beamlineHeight
+                        };
+                        ++j;
+                    }
+                }
+
+
                 for (let i = 0; i < explodedItems.length; i++) {
                     const item = explodedItems[i];
+
+                    if (doStackBeamlines) {
+                        if (! isBeamlineItem(item)) {
+                            pos.y = beamlinePicGeom[item.beamlineId].y;
+                        }
+                        else {
+                            if (hasOnlyBeamlines(latticeService.elementForId(item.id, $scope.models))) {
+                                continue;
+                            }
+                            groupDone = true;
+                        }
+                    }
+
                     const type = getType(item);
                     if (groupDone || type === ABSOLUTE_POSITION_TYPE) {
                         applyGroup(group, pos);
@@ -1823,14 +1854,6 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                         groupDone = true;
                     }
                     group.push(item);
-                    if (isBeamlineItem(item) && flatten && doStackBeamlines) {
-                        const el = latticeService.elementForId(item.id, $scope.models);
-                        if (hasOnlyBeamlines(el)) {
-                            continue;
-                        }
-                        pos.y = j * beamlineHeight;
-                        ++j;
-                    }
                 }
                 if (group.length) {
                     applyGroup(group, pos);
@@ -2032,8 +2055,34 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     if (items.length === 0) {
                         continue;
                     }
-                    bl.x = itemX(items[0]);
-                    bl.width = itemX(items[items.length - 1]) + itemWidth(items[items.length - 1]) - bl.x;
+                    const x0 = itemX(items[0])
+                    bl.x = x0;
+                    bl.width = itemX(items[items.length - 1]) + itemWidth(items[items.length - 1]) - x0;
+                    if (! doStackBeamlines) {
+                        continue;
+                    }
+                    bl.x = 0.0;
+                    for (let item of items) {
+                        adjustItemPos(item, -x0);
+                    }
+                }
+            }
+
+            function adjustItemPos(item, dx=0, dy=0) {
+                if (item.x !== undefined) {
+                    item.x += dx;
+                    item.y += dy;
+                }
+                if (item.points) {
+                    for (let p of item.points) {
+                        p[0] += dx;
+                        p[1] += dy;
+                    }
+                }
+                if (item.ovals) {
+                    for (let i in item.ovals) {
+                        item.ovals[i] += dx;
+                    }
                 }
             }
 
