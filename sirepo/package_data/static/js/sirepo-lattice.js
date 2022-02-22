@@ -1347,6 +1347,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
             const beamlineHeight = 2.5;
             const flatten = $scope.flatten === '1';
             const includeBeamlines = $scope.includeBeamlines === '1';
+            const includeStatusPanel = $scope.includeStatusPanel === '1';
             const schematic = $scope.schematic === '1';
             const schematicLength = 0.1;
             const zoomDisabled = $scope.zoomDisabled === '1';
@@ -1731,7 +1732,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     pos.x += Math.sin(latticeService.degreesToRadians(90 - pos.angle)) * (x + oldRadius);
                     pos.y += Math.sin(latticeService.degreesToRadians(pos.angle)) * (x + oldRadius);
                 }
-                updateBounds(pos.bounds, pos.x, pos.y, Math.max(maxHeight, pos.radius));
+                updateBounds(pos.bounds, pos.x, pos.y, Math.max(maxHeight, pos.radius) + 1.5);
                 if (flatten) {
                     newAngle = 0;
                 }
@@ -1799,23 +1800,22 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
                 let group = [];
                 let groupDone = false;
-                let j = 0;
 
-                for (const item of explodedItems.filter(isBeamlineItem)) {
-                    if (doStackBeamlines) {
+                if (doStackBeamlines) {
+                    let j = 0;
+                    for (const item of explodedItems.filter(isBeamlineItem)) {
                         if (hasOnlyBeamlines(latticeService.elementForId(item.id, $scope.models))) {
                             continue;
                         }
                         beamlinePicGeom[item.id] = {
                             x: 0,
-                            y: j * beamlineHeight,
+                            y: j * (beamlineHeight * (includeStatusPanel ? 1.5 : 1.0) + 1.5),
                             width: 1,
                             height: beamlineHeight
                         };
                         ++j;
                     }
                 }
-
 
                 for (let i = 0; i < explodedItems.length; i++) {
                     const item = explodedItems[i];
@@ -2002,7 +2002,7 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 }
                 selectedBeamline = appState.clone(beamline);
                 $scope.svgGroups = [];
-                var pos = computePositions(includeBeamlines, selectedBeamline != rootBeamline);
+                const pos = computePositions(includeBeamlines, selectedBeamline != rootBeamline);
                 resizeBeamlineItems();
                 if (! flatten && beamlineValue(beamline, 'distance', Math.sqrt(Math.pow(pos.x, 2) + Math.pow(pos.y, 2)))
                     + beamlineValue(beamline, 'length', pos.length)
@@ -2209,22 +2209,22 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                 $scope.width = width;
                 $scope.height = $scope.width;
                 var windowHeight = $($window).height();
-                var maxHeightFactor = utilities.isFullscreen() ? 1.5 : 2.5;
+                var maxHeightFactor = utilities.isFullscreen() ? 1.5 : (doStackBeamlines ? 1.5 : 2.5);
                 if ($scope.height > windowHeight / maxHeightFactor) {
                     $scope.height = windowHeight / maxHeightFactor + $scope.margin.y;
                 }
 
                 if (svgBounds) {
-                    var w = svgBounds[2] - svgBounds[0];
-                    var h = svgBounds[3] - svgBounds[1];
+                    const w = svgBounds[2] - svgBounds[0];
+                    const h = svgBounds[3] - svgBounds[1];
                     if (w === 0 || h === 0) {
                         return;
                     }
-                    var scaleWidth = ($scope.width - $scope.margin.x * 2) / w;
-                    var scaleHeight = ($scope.height - $scope.margin.y * 2) / h;
-                    var scale = 1;
-                    var xOffset = 0;
-                    var yOffset = 0;
+                    const scaleWidth = ($scope.width - $scope.margin.x * 2) / w;
+                    const scaleHeight = ($scope.height - $scope.margin.y * 2) / h;
+                    let scale = 1;
+                    let xOffset = 0;
+                    let yOffset = 0;
                     if (scaleWidth < scaleHeight) {
                         scale = scaleWidth;
                         yOffset = ($scope.height - $scope.margin.y * 2 - h * scale) / 2;
@@ -2235,8 +2235,8 @@ SIREPO.app.directive('lattice', function(appState, latticeService, panelState, p
                     }
                     $scope.xScale = scale;
                     $scope.yScale = scale;
-                    $scope.xOffset = 0;  //- svgBounds[0] * scale + xOffset;
-                    $scope.yOffset = - svgBounds[1] * scale + yOffset;
+                    $scope.xOffset = doStackBeamlines ? 0.0 : -svgBounds[0] * scale + xOffset;
+                    $scope.yOffset = scale * (doStackBeamlines ? beamlineHeight / 2 : -svgBounds[1] ) + yOffset;
                     recalcScaleMarker();
                     $scope.$broadcast('sr-renderBeamline');
                 }
