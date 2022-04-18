@@ -4,7 +4,6 @@ u"""Support for unit tests
 :copyright: Copyright (c) 2016 RadiaSoft LLC.  All Rights Reserved.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
-from __future__ import absolute_import, division, print_function
 from pykern import pkcompat
 from pykern.pkcollections import PKDict
 import contextlib
@@ -226,13 +225,12 @@ class _TestClient(flask.testing.FlaskClient):
         self.sr_sim_type = None
         self.sr_uid = None
 
-    def sr_animation_run(self, sim_name, compute_model, reports=None, **kwargs):
+    def sr_animation_run(self, data, compute_model, reports=None, **kwargs):
         from pykern import pkunit
         from pykern.pkcollections import PKDict
         from pykern.pkdebug import pkdp, pkdlog
         import re
 
-        data = self.sr_sim_data(sim_name)
         run = self.sr_run_sim(data, compute_model, **kwargs)
         for r, a in reports.items():
             if 'runSimulation' in a:
@@ -512,7 +510,14 @@ class _TestClient(flask.testing.FlaskClient):
                 self.sr_run_sim(d, compute_model, expect_completed=False)
             self.sr_sbatch_login(compute_model, d)
             self.sr_sbatch_logged_in = True
-        self.sr_animation_run(sim_name, compute_model, reports, **kwargs)
+        self.sr_animation_run(
+            self.sr_sim_data(sim_name),
+            compute_model,
+            reports,
+            # Things take longer with Slurm.
+            timeout=90,
+            **kwargs,
+        )
 
     def sr_sbatch_login(self, compute_model, data):
         import getpass

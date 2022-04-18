@@ -14,6 +14,15 @@ from numpy import linalg
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp
 
+AXES = ['x', 'y', 'z']
+
+AXIS_VECTORS = PKDict(
+    x=numpy.array([1, 0, 0]),
+    y=numpy.array([0, 1, 0]),
+    z=numpy.array([0, 0, 1]),
+)
+
+
 FIELD_TYPE_MAG_A = 'A'
 FIELD_TYPE_MAG_B = 'B'
 FIELD_TYPE_MAG_H = 'H'
@@ -105,6 +114,11 @@ def _apply_rotation(g_id, xform):
     )
 
 
+def _apply_segments(g_id, segments):
+    if segments and any([s > 1 for s in segments]):
+        radia.ObjDivMag(g_id, segments)
+
+
 def _apply_symmetry(g_id, xform):
     xform = PKDict(xform)
     plane = sirepo.util.split_comma_delimited_string(xform.symmetryPlane, float)
@@ -123,7 +137,7 @@ def _apply_translation(g_id, xform):
     )
 
 
-def _geom_bnds(g_id):
+def _geom_bounds(g_id):
     bnds = radia.ObjGeoLim(g_id)
     return PKDict(
         center=[0.5 * (bnds[i + 1] + bnds[i]) for i in range(3)],
@@ -148,26 +162,26 @@ _TRANSFORMS = PKDict(
 
 
 #TODO(mvk): simplify input params with dict/kwargs, clarify the edge-indexed arrays
-def apply_bevel(g_id, beam_dir, gap_dir, trans_dir, obj_ctr, obj_size, bevel):
+def apply_bevel(g_id, obj_ctr, obj_size, bevel):
 
-    b = numpy.array(beam_dir)
-    g = numpy.array(gap_dir)
-    x = numpy.array(trans_dir)
+    b = numpy.array(bevel.cutDir)
+    g = numpy.array(bevel.heightDir)
+    x = numpy.array(bevel.widthDir)
     sz = numpy.array(obj_size)
     ctr = numpy.array(obj_ctr)
     e = int(bevel.edge)
     half_size = sz / 2
     corner = ctr + half_size * [-x + g + b, x + g + b, x - g + b, -x - g + b][e]
-    trans_offset = bevel.amountTrans * x * [1, -1, -1, 1][e]
-    gap_offset = bevel.amountGap * g * [-1, -1, 1, 1][e]
+    w_offset = bevel.amountHoriz * x * [1, -1, -1, 1][e]
+    h_offset = bevel.amountVert * g * [-1, -1, 1, 1][e]
 
-    v = trans_offset - gap_offset
-    vx2 = numpy.dot(trans_offset, trans_offset)
-    vg2 = numpy.dot(gap_offset, gap_offset)
+    v = w_offset - h_offset
+    vx2 = numpy.dot(w_offset, w_offset)
+    vg2 = numpy.dot(h_offset, h_offset)
     v2 = numpy.dot(v, v)
 
     plane = x * [-1, 1, 1, -1][e] * numpy.sqrt(vg2 / v2) + g * [1, 1, -1, -1][e] * numpy.sqrt(vx2 / v2)
-    pt = corner + trans_offset
+    pt = corner + w_offset
 
     # object id, plane normal, point in plane - returns a new id in an array for some reason
     return radia.ObjCutMag(g_id, pt.tolist(), plane.tolist())[0]
@@ -177,20 +191,29 @@ def apply_color(g_id, color):
     radia.ObjDrwAtr(g_id, color)
 
 
+def multiply_vector_by_matrix(v, m):
+    return numpy.array(m).dot(numpy.array(v)).tolist()
+
+
 def apply_transform(g_id, xform):
     _TRANSFORMS[xform['model']](g_id, xform)
 
 
-def build_cuboid(center, size, material, magnetization, rem_mag, segments, h_m_curve=None):
-    g_id = radia.ObjRecMag(center, size, magnetization)
-    if segments and any([s > 1 for s in segments]):
-        radia.ObjDivMag(g_id, segments)
-    radia.MatApl(g_id, _radia_material(material, rem_mag, h_m_curve))
+def build_cuboid(**kwargs):
+    d = PKDict(kwargs)
+    g_id = radia.ObjRecMag(d.center, d.size, d.magnetization)
+    _apply_segments(g_id, d.segments)
+    radia.MatApl(g_id, _radia_material(d.material, d.rem_mag, d.h_m_curve))
     return g_id
 
 
 def build_container(g_ids):
     return radia.ObjCnt(g_ids)
+
+
+def build_racetrack(**kwargs):
+    d = PKDict(kwargs)
+    return radia.ObjRaceTrk(d.center, d.radii, d.sides, d.height, d.num_segs, d.curr_density, d.calc, d.axis)
 
 
 def dump(g_id):
@@ -201,17 +224,20 @@ def dump_bin(g_id):
     return radia.UtiDmp(g_id, 'bin')
 
 
-def extrude(center, size, beam_dir, beam_axis, pts, material, magnetization, rem_mag, h_m_curve=None):
-    b = numpy.array(beam_dir)
+def extrude(**kwargs):
+    d = PKDict(kwargs)
+    b = AXIS_VECTORS[d.extrusion_axis]
     g_id = radia.ObjMltExtTri(
-        numpy.sum(b * center),
-        numpy.sum(b * size),
-        pts,
-        numpy.full((len(pts), 2), [1, 1]).tolist(),
-        beam_axis,
-        magnetization
+        numpy.sum(b * d.center),
+        numpy.sum(b * d.size),
+        d.points,
+        numpy.full((len(d.points), 2), [1, 1]).tolist(),
+        d.extrusion_axis,
+        d.magnetization,
+        f'TriAreaMax->{0.125 * d.area * (1.04 - d.t_level)}' if d.t_level > 0 else ''
     )
-    radia.MatApl(g_id, _radia_material(material, rem_mag, h_m_curve))
+    _apply_segments(g_id, d.segments)
+    radia.MatApl(g_id, _radia_material(d.material, d.rem_mag, d.h_m_curve))
     return g_id
 
 
@@ -237,7 +263,7 @@ def geom_to_data(g_id, name=None, divide=True):
     n = (name if name is not None else str(g_id)) + '.Geom'
     pd = PKDict(name=n, id=g_id, data=[])
     d = _to_pkdict(radia.ObjDrwVTK(g_id, 'Axes->No'))
-    d.update(_geom_bnds(g_id))
+    d.update(_geom_bounds(g_id))
     n_verts = len(d.polygons.vertices)
     c = radia.ObjCntStuf(g_id)
     l = len(c)
@@ -252,7 +278,7 @@ def geom_to_data(g_id, name=None, divide=True):
             # for fully recursive array
             # for g in get_all_geom(geom):
             s_d = _to_pkdict(radia.ObjDrwVTK(g, 'Axes->No'))
-            s_d.update(_geom_bnds(g))
+            s_d.update(_geom_bounds(g))
             n_s_verts += len(s_d.polygons.vertices)
             s_d.id = g
             d_arr.append(s_d)

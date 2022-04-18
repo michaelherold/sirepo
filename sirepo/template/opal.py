@@ -5,6 +5,8 @@ u"""OPAL execution template.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
 from __future__ import absolute_import, division, print_function
+import ast
+import astunparse
 from pykern import pkcompat
 from pykern import pkio
 from pykern import pkjinja
@@ -35,6 +37,25 @@ _DIM_INDEX = PKDict(
     y=1,
     z=2,
 )
+_OPAL_PI = 3.14159265358979323846
+_OPAL_CONSTANTS = PKDict(
+    pi=_OPAL_PI,
+    twopi=_OPAL_PI * 2.0,
+    raddeg=180.0 / _OPAL_PI,
+    degrad=_OPAL_PI / 180.0,
+    e=2.7182818284590452354,
+    emass=0.51099892e-03,
+    pmass=0.93827204e+00,
+    hmmass=0.939277e+00,
+    umass=238 * 0.931494027e+00,
+    cmass=12 * 0.931494027e+00,
+    mmass=0.10565837,
+    dmass=2*0.931494027e+00,
+    xemass=124*0.931494027e+00,
+    clight=299792458.0,
+    p0=1,
+    seed=123456789,
+)
 _OPAL_H5_FILE = 'opal.h5'
 _OPAL_SDDS_FILE = 'opal.stat'
 _OPAL_VTK_FILE = 'opal_ElementPositions.vtk'
@@ -46,10 +67,10 @@ class LibAdapter(sirepo.lib.LibAdapterBase):
 
     def parse_file(self, path):
         from sirepo.template import opal_parser
-
         data, input_files = opal_parser.parse_file(
             pkio.read_text(path),
             filename=path.basename,
+            update_filenames=False,
         )
         self._verify_files(path, [f.filename for f in input_files])
         return self._convert(data)
@@ -66,12 +87,15 @@ class LibAdapter(sirepo.lib.LibAdapterBase):
             def _input_file(self, model_name, field, filename):
                 return f'"{filename}"'
 
+            def _output_file(self, model, field):
+                return f'"{model[field]}"'
+
         g = _G(data)
         r = PKDict(commands=dest_dir.join(source_path.basename))
         pkio.write_text(r.commands, g.sim())
         self._write_input_files(data, source_path, dest_dir)
         r.output_files = LatticeUtil(data, SCHEMA).iterate_models(
-            OpalOutputFileIterator(),
+            OpalOutputFileIterator(preserve_output_filenames=True),
         ).result.keys_in_order
         return r
 
@@ -92,17 +116,21 @@ class OpalElementIterator(lattice.ElementIterator):
         return field == 'name'
 
 class OpalOutputFileIterator(lattice.ModelIterator):
-    def __init__(self):
+    def __init__(self, preserve_output_filenames=False):
         self.result = PKDict(
             keys_in_order=[],
         )
         self.model_index = PKDict()
+        self.preserve_output_filenames = preserve_output_filenames
 
     def field(self, model, field_schema, field):
         self.field_index += 1
         # for now only interested in element outfn output files
         if field == 'outfn' and field_schema[1] == 'OutputFile':
-            filename = '{}.{}.h5'.format(model.name, field)
+            if self.preserve_output_filenames:
+                filename = model[field]
+            else:
+                filename = '{}.{}.h5'.format(model.name, field)
             k = LatticeUtil.file_id(model._id, self.field_index)
             self.result[k] = filename
             self.result.keys_in_order.append(k)
@@ -124,7 +152,7 @@ class OpalMadxConverter(MadxConverter):
             ['SBEND', 'l', 'angle', 'e1', 'e2', 'gap=hgap', 'psi=tilt'],
         ],
         ['RBEND',
-            ['RBEND', 'l', 'angle', 'e1', 'e2', 'gap=hgap', 'psi=tilt'],
+            ['RBEND', 'l', 'angle', 'e1', 'gap=hgap', 'psi=tilt'],
         ],
         ['QUADRUPOLE',
             ['QUADRUPOLE', 'l', 'k1', 'k1s', 'psi=tilt'],
@@ -207,7 +235,7 @@ class OpalMadxConverter(MadxConverter):
         return madx
 
     def from_madx(self, madx):
-        data = super().from_madx(madx)
+        data = self.fill_in_missing_constants(super().from_madx(madx), _OPAL_CONSTANTS)
         data.models.simulation.elementPosition = 'relative'
         mb = LatticeUtil.find_first_command(madx, 'beam')
         LatticeUtil.find_first_command(data, 'option').version = 20000
@@ -301,25 +329,8 @@ def background_percent_complete(report, run_dir, is_running):
 def code_var(variables):
     class _P(code_variable.PurePythonEval):
         #TODO(pjm): parse from opal files into schema
-        _OPAL_PI = 3.14159265358979323846
-        _OPAL_CONSTANTS = PKDict(
-            pi=_OPAL_PI,
-            twopi=_OPAL_PI * 2.0,
-            raddeg=180.0 / _OPAL_PI,
-            degrad=_OPAL_PI / 180.0,
-            e=2.7182818284590452354,
-            emass=0.51099892e-03,
-            pmass=0.93827204e+00,
-            hmmass=0.939277e+00,
-            umass=238 * 0.931494027e+00,
-            cmass=12 * 0.931494027e+00,
-            mmass=0.10565837,
-            dmass=2*0.931494027e+00,
-            xemass=124*0.931494027e+00,
-            clight=299792458.0,
-            p0=1,
-            seed=123456789,
-        )
+        _OPAL_PI = _OPAL_PI
+        _OPAL_CONSTANTS = _OPAL_CONSTANTS
 
         def __init__(self):
             super().__init__(self._OPAL_CONSTANTS)
@@ -617,8 +628,7 @@ class _Generate(sirepo.lib.GenerateBase):
         elif el_type == 'InputFile':
             value = self._input_file(LatticeUtil.model_name_for_data(model), field, value)
         elif el_type == 'OutputFile':
-            ext = 'dat' if model.get('_type', '') == 'list' else 'h5'
-            value = '"{}.{}.{}"'.format(model.name, field, ext)
+            value = self._output_file(model, field)
         elif re.search(r'List$', el_type):
             value = state.id_map[int(value)].name
         elif re.search(r'String', el_type):
@@ -726,6 +736,10 @@ class _Generate(sirepo.lib.GenerateBase):
             field,
             filename,
         ))
+
+    def _output_file(self, model, field):
+        ext = 'dat' if model.get('_type', '') == 'list' else 'h5'
+        return '"{}.{}.{}"'.format(model.name, field, ext)
 
 
 def _compute_3d_bounds(run_dir):

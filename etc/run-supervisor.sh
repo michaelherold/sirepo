@@ -29,7 +29,7 @@ radia_run redhat-docker
         nersc_user=$3
         export SIREPO_JOB_DRIVER_MODULES=local:sbatch
         export SIREPO_JOB_DRIVER_SBATCH_HOST=cori.nersc.gov
-        export SIREPO_JOB_DRIVER_SBATCH_SHIFTER_IMAGE=radiasoft/sirepo:sbatch
+        export SIREPO_JOB_DRIVER_SBATCH_SHIFTER_IMAGE="$docker_image"
         export SIREPO_JOB_DRIVER_SBATCH_SIREPO_CMD=/global/homes/${nersc_user::1}/$nersc_user/.pyenv/versions/$(pyenv version-name)/bin/sirepo
         export SIREPO_JOB_DRIVER_SBATCH_SRDB_ROOT='/global/cscratch1/sd/{sbatch_user}/sirepo-dev'
         export SIREPO_JOB_SUPERVISOR_SBATCH_POLL_SECS=15
@@ -56,6 +56,11 @@ radia_run slurm-dev
         export SIREPO_JOB_DRIVER_SBATCH_SRDB_ROOT='/var/tmp/{sbatch_user}/sirepo'
         export SIREPO_JOB_SUPERVISOR_SBATCH_POLL_SECS=5
         export SIREPO_SIMULATION_DB_SBATCH_DISPLAY='Vagrant Cluster'
+	# In dev the node goes down randomly. This resets it.
+	sudo scontrol << EOF
+update NodeName=debug State=DOWN Reason="undraining"
+update NodeName=debug State=RESUME
+EOF
         ;;
     *)
         echo 'usage: bash run-supervisor.sh [docker|local|sbatch [slurm host]|nersc proxy-host nersc-user]'

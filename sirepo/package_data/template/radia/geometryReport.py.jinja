@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import h5py
 import os
 import re
@@ -20,33 +18,67 @@ _MODEL_JAY= 'jay'
 _MODEL_GROUP = 'geomGroup'
 _MODEL_OBJECT = 'geomObject'
 _MODEL_EXTRUDED_POLY = 'extrudedPoly'
+_MODEL_RACETRACK = 'racetrack'
 _EXTRUDED_MODELS = [_MODEL_CEE, _MODEL_ELL, _MODEL_JAY, _MODEL_EXTRUDED_POLY]
 _GROUP_MODELS = [_MODEL_GROUP]
-_OBJ_MODELS = [_MODEL_CUBOID, _MODEL_OBJECT] + _EXTRUDED_MODELS
+_OBJ_MODELS = [_MODEL_CUBOID, _MODEL_RACETRACK, _MODEL_OBJECT] + _EXTRUDED_MODELS
 _MODELS = _OBJ_MODELS + _GROUP_MODELS
 
 sirepo_objs = {{ objects }}
 
 def _add_object(o, radia_objs, id_map):
+    model = o.get('model')
     t = o.get('type')
     sc = o.get('super_classes', [])
+    mat = {{ matrix }}
     if _MODEL_OBJECT in sc:
         ctr = sirepo.util.split_comma_delimited_string(o.center, float)
         sz = sirepo.util.split_comma_delimited_string(o.size, float)
-        m = sirepo.util.split_comma_delimited_string(o.magnetization, float)
+        m = radia_util.multiply_vector_by_matrix(sirepo.util.split_comma_delimited_string(o.magnetization, float), mat)
+        segs = radia_util.multiply_vector_by_matrix(sirepo.util.split_comma_delimited_string(o.segments, int), mat)
     if t == _MODEL_CUBOID:
-        div = sirepo.util.split_comma_delimited_string(o.segments, int)
-        g_id = radia_util.build_cuboid(ctr, sz, o.material, m, o.remanentMag, div, h_m_curve=o.h_m_curve)
+        g_id = radia_util.build_cuboid(
+            center=ctr,
+            size=sz,
+            material=o.material,
+            magnetization=m,
+            rem_mag=o.remanentMag,
+            segments=segs,
+            h_m_curve=o.h_m_curve
+        )
     if _MODEL_EXTRUDED_POLY in sc:
-        g_id = radia_util.extrude(ctr, sz, {{ beam_dir }}, '{{ beam_axis }}', o.points, o.material, m, o.remanentMag, h_m_curve=o.h_m_curve)
+        g_id = radia_util.extrude(
+            area=o.area,
+            center=ctr,
+            size=sz,
+            extrusion_axis=o.extrusionAxis,
+            points=o.points,
+            material=o.material,
+            magnetization=m,
+            rem_mag=o.remanentMag,
+            segments=segs,
+            t_level=o.triangulationLevel,
+            h_m_curve=o.h_m_curve
+    )
+    if t == _MODEL_RACETRACK:
+        g_id = radia_util.build_racetrack(
+            center=sirepo.util.split_comma_delimited_string(o.center, float),
+            axis=o.axis,
+            calc=o.fieldCalc,
+            radii=sirepo.util.split_comma_delimited_string(o.radii, float),
+            sides=sirepo.util.split_comma_delimited_string(o.sides, float),
+            height=o.height,
+            num_segs=o.numSegments,
+            curr_density=o.currentDensity,
+        )
     if t in _OBJ_MODELS:
         for b in o.get('bevels', []):
-            g_id = radia_util.apply_bevel(g_id, {{ beam_dir }}, {{ height_dir }}, {{ width_dir }}, ctr, sz, PKDict(b))
+            g_id = radia_util.apply_bevel(g_id, ctr, sz, PKDict(b))
         radia_util.apply_color(
             g_id,
             [c / 255.0 for c in tuple(int(o.color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))]
         )
-    if o.model in _GROUP_MODELS:
+    if model in _GROUP_MODELS:
         grp = []
         for obj_id in o.members:
             obj = [mobj for mobj in sirepo_objs if mobj['id'] == obj_id][0]
@@ -68,6 +100,7 @@ def _add_object(o, radia_objs, id_map):
         radia_objs.append(g_id)
     return g_id
 
+
 def _build_radia_geom():
     id_map = PKDict()
     radia_objs = []
@@ -80,7 +113,7 @@ def _build_radia_geom():
 {% else %}
     for obj in sirepo_objs:
         o = PKDict(obj)
-        if o.model not in _MODELS or o.id in id_map.values():
+        if o.id in id_map.values():
             continue
         o_id = _add_object(o, radia_objs, id_map)
         id_map[o_id] = o.id

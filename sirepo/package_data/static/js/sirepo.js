@@ -4,17 +4,18 @@ SIREPO.srdbg = console.log.bind(console);
 
 // No timeout for now (https://github.com/radiasoft/sirepo/issues/317)
 SIREPO.http_timeout = 0;
+SIREPO.debounce_timeout = 350;
 
 var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
 SIREPO.beamlineItemLogic = function(name, init) {
-    SIREPO.app.directive(name, function(beamlineService) {
+    SIREPO.app.directive(name, function(beamlineService, utilities) {
 
         function watchFields(scope, fieldInfo, filterOldUndefined) {
             for (var idx = 0; idx < fieldInfo.length; idx += 2) {
                 var fields = fieldInfo[idx];
-                var callback = fieldInfo[idx + 1];
+                var callback = utilities.debounce(fieldInfo[idx + 1], SIREPO.debounce_timeout);
                 beamlineService.watchBeamlineField(
                     scope, scope.modelName, fields, callback, filterOldUndefined);
             }
@@ -53,7 +54,7 @@ SIREPO.beamlineItemLogic = function(name, init) {
 };
 
 SIREPO.viewLogic = function(name, init) {
-    SIREPO.app.directive(name, function(appState) {
+    SIREPO.app.directive(name, function(appState, utilities) {
         return {
             restrict: 'A',
             scope: {
@@ -78,7 +79,7 @@ SIREPO.viewLogic = function(name, init) {
                 if (scope.watchFields) {
                     for (var idx = 0; idx < scope.watchFields.length; idx += 2) {
                         var fields = scope.watchFields[idx];
-                        var callback = scope.watchFields[idx + 1];
+                        var callback = utilities.debounce(scope.watchFields[idx + 1], SIREPO.debounce_timeout);
                         appState.watchModelFields(scope, fields, callback);
                     }
                 }
@@ -311,7 +312,7 @@ SIREPO.app.factory('activeSection', function(authState, requestSender, $location
     return self;
 });
 
-SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue, requestSender, simulationDataCache, $document, $interval, $rootScope, $filter) {
+SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue, requestSender, simulationDataCache, utilities, $document, $interval, $rootScope, $filter) {
     var self = {
         models: {},
     };
@@ -374,14 +375,13 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         if (! self.isLoaded()) {
             return false;
         }
-        var models = self.models;
-        for (var m in fieldsByModel) {
+        let models = self.models;
+        for (let m in fieldsByModel) {
             if (models[m]) {
                 if (! savedModelValues[m]) {
                     return true;
                 }
-                for (var i = 0; i < fieldsByModel[m].length; i++) {
-                    var f = fieldsByModel[m][i];
+                for (const f of Array.from(fieldsByModel[m])) {
                     if (! self.deepEquals(models[m][f], savedModelValues[m][f])) {
                         return true;
                     }
@@ -629,6 +629,10 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         return  name.indexOf('Report') >= 0 || self.isAnimationModelName(name) || name.indexOf('Status') >= 0;
     };
 
+    self.isSubclass = function(model1, model2) {
+        return this.superClasses(model1).includes(model2);
+    };
+
     self.listSimulations = function(op, search) {
         requestSender.sendRequest(
             'listSimulations',
@@ -645,7 +649,7 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         if (self.isLoaded() && self.models.simulation.simulationId == simulationId) {
             return;
         }
-	simulationDataCache.clear();
+        simulationDataCache.clear();
         self.clearModels();
         var routeObj = {
             routeName: 'simulationData',
@@ -792,7 +796,10 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
     };
 
     self.setFieldDefaults = function(model, field, fieldInfo, overWrite=false) {
-        let defaultVal = fieldInfo[2];
+        let defaultVal = fieldInfo[SIREPO.INFO_INDEX_DEFAULT_VALUE];
+        if (fieldInfo[SIREPO.INFO_INDEX_TYPE] === 'RandomId') {
+            defaultVal = utilities.randomString();
+        }
         if (! model[field] || overWrite) {
             if (defaultVal !== undefined) {
                 // for cases where the default value is an object, we must
@@ -807,9 +814,25 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         const schema = SIREPO.APP_SCHEMA.model[modelName];
         const fields = Object.keys(schema);
         for (let i = 0; i < fields.length; i++) {
-            self.setFieldDefaults(model, fields[i], schema[fields[i]]);
+            const s = schema[fields[i]];
+            self.setFieldDefaults(model, fields[i], s);
+            const m = self.parseModelField(s[SIREPO.INFO_INDEX_TYPE]);
+            if (! m || m[0] !== 'model') {
+                continue;
+            }
+            model[fields[i]] = self.setModelDefaults({}, m[1]);
         }
         return model;
+    };
+
+    self.superClasses = (modelName) => {
+        const m = SIREPO.APP_SCHEMA.model[modelName];
+        const f = '_super';
+        if (! m || ! m[f]) {
+            return [];
+        }
+        // the first two slots are the label (usually '_') and 'model'
+        return m[f].slice(2);
     };
 
     self.uniqueName = function(items, idField, template) {
@@ -848,7 +871,7 @@ SIREPO.app.factory('appState', function(errorService, fileManager, requestQueue,
         $scope.appState = self;
         modelFields.forEach(function(f) {
             // allows watching fields when creating a new simulation (isLoaded() returns false)
-            const isSim = self.models.simulation && self.parseModelField(f)[0] === 'simulation';
+            const isSim = self.parseModelField(f)[0] === 'simulation';
             // elegant uses '-' in modelKey
             $scope.$watch('appState.models' + propertyToIndexForm(f), function (newValue, oldValue) {
                 if ((self.isLoaded() || isSim) && newValue !== null && newValue !== undefined && newValue !== oldValue) {
@@ -970,14 +993,18 @@ SIREPO.app.factory('notificationService', function(cookieService, $sce) {
     return self;
 });
 
+/*
+Cache for data not on models (never sent to the server) that can be used
+within a single simulation (sid).
+*/
 SIREPO.app.factory('simulationDataCache', function ($rootScope){
     const self = {};
     self.clear = () => {
-	for (let k in self) {
-	    if (k !== 'clear') {
-		delete self[k];
-	    }
-	}
+        for (let k in self) {
+            if (k !== 'clear') {
+                delete self[k];
+            }
+        }
     };
     return self;
 });
@@ -1024,21 +1051,25 @@ SIREPO.app.factory('timeService', function() {
     const UNIX_TIMESTAMP_SCALE = 1000;
     const self = {};
 
-    self.getUnixTime = (date) => {
-	return date.getTime() / UNIX_TIMESTAMP_SCALE;
+    self.unixTime = (date) => {
+        return Math.round(date.getTime() / UNIX_TIMESTAMP_SCALE);
+    };
+
+    self.unixTimeNow = () => {
+        return self.unixTime(new Date());
     };
 
     self.unixTimeToDate = (unixTime) => {
-	return new Date(unixTime * UNIX_TIMESTAMP_SCALE);
+        return new Date(unixTime * UNIX_TIMESTAMP_SCALE);
     };
 
     self.unixTimeToDateString = (unixTime) => {
-	return self.unixTimeToDate(unixTime).toLocaleString(
-	    'en-US',
-	    {
-		timeZoneName: 'short'
-	    }
-	);
+        return self.unixTimeToDate(unixTime).toLocaleString(
+            'en-US',
+            {
+                timeZoneName: 'short'
+            }
+        );
     };
 
     return self;
@@ -1234,7 +1265,7 @@ SIREPO.app.factory('frameCache', function(appState, panelState, requestSender, $
             return;
         }
         function onError() {
-	    panelState.reportNotGenerated(modelName);
+            panelState.reportNotGenerated(modelName);
         }
         var isHidden = panelState.isHidden(modelName);
         var frameRequestTime = new Date().getTime();
@@ -1394,7 +1425,7 @@ SIREPO.app.factory('authService', function(authState, requestSender, stringsServ
  *     return self;
  * });
  * */
-SIREPO.app.factory('panelState', function(appState, requestSender, simulationQueue, utilities, validationService, $compile, $rootScope, $timeout, $window) {
+SIREPO.app.factory('panelState', function(appState, requestSender, simulationQueue, utilities, $compile, $rootScope, $timeout, $window) {
     // Tracks the data, error, hidden and loading values
     var self = {};
     var panels = {};
@@ -1456,26 +1487,33 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
         // iterate the view definition and build a {modelName => [field, ...]} map.
         // may be a string field, [tab-name, [cols]], or [[col-header, [cols]], [col-header, [cols]]]
         if (typeof(field) == 'string') {
-            var modelField = appState.parseModelField(field);
+            let modelField = appState.parseModelField(field);
             if (! modelField) {
                 modelField = [primaryModelName, field];
             }
-            if (! names[modelField[0]]) {
-                names[modelField[0]] = [];
+            // handle compound fields of the form <modelName>.<fieldName>
+            // since a top-level model can have a number of these, put the field names
+            // in a Set (order does not matter)
+            const x = appState.parseModelField(modelField[1]);
+            if (x && x.length === 2) {
+                const t = SIREPO.APP_SCHEMA.model[modelField[0]][x[0]][SIREPO.INFO_INDEX_TYPE];
+                modelField = [t.split('.')[1], x[1]];
             }
-            names[modelField[0]].push(modelField[1]);
+            if (! names[modelField[0]]) {
+                names[modelField[0]] = new Set();
+            }
+            names[modelField[0]].add(modelField[1]);
         }
         else {
-            var i;
             // [name, [cols]]
             if (typeof(field[0]) == 'string') {
-                for (i = 0; i < field[1].length; i++) {
+                for (let i = 0; i < field[1].length; i++) {
                     iterateFields(primaryModelName, field[1][i], names);
                 }
             }
             // [[name, [cols]], [name, [cols]], ...]
             else {
-                for (i = 0; i < field.length; i++) {
+                for (let i = 0; i < field.length; i++) {
                     iterateFields(primaryModelName, field[i], names);
                 }
             }
@@ -1608,7 +1646,7 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
 
     self.getFieldsByModel = function(primaryModelName, fields) {
         var names = {};
-        names[primaryModelName] = [];
+        names[primaryModelName] = new Set();
         for (var i = 0; i < fields.length; i++) {
             iterateFields(primaryModelName, fields[i], names);
         }
@@ -1651,14 +1689,6 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
         return queueItems[name] && queueItems[name].qState == 'processing' ? true : false;
     };
 
-    self.isSubclass = function(model1, model2) {
-        const m1 = SIREPO.APP_SCHEMA.model[model1];
-        if (! m1._super) {
-            return false;
-        }
-        return m1._super.indexOf(model2) >= 0;
-    };
-
     self.exportJupyterNotebook = function(simulationId, modelName, reportTitle) {
         var args = {
             '<simulation_id>': simulationId,
@@ -1671,6 +1701,18 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
             args['<title>'] = reportTitle;
         }
         requestSender.newWindow('exportJupyterNotebook', args);
+    };
+
+    self.maybeSetState = function(model, state) {
+        if (!model) {
+            return;
+        }
+        const d = {
+            error: () => self.reportNotGenerated(model),
+            loading: () => self.setLoading(model, true),
+            loadingDone: () => self.setLoading(model, false)
+        };
+        return d[state]();
     };
 
     self.modalId = function(name) {
@@ -1692,8 +1734,8 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
     };
 
     self.reportNotGenerated = function(modelName) {
-	self.setLoading(modelName, false);
-	self.setError(modelName, 'Report not generated');
+        self.setLoading(modelName, false);
+        self.setError(modelName, 'Report not generated');
     };
 
     self.requestData = function(name, callback, forceRun, errorCallback) {
@@ -1863,7 +1905,7 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
     return self;
 });
 
-SIREPO.app.factory('requestSender', function(cookieService, errorService, $http, $location, $interval, $q, $rootScope, $window) {
+SIREPO.app.factory('requestSender', function(cookieService, errorService, utilities, $http, $location, $injector, $interval, $q, $rootScope, $window) {
     var self = {};
     var HTML_TITLE_RE = new RegExp('>([^<]+)</', 'i');
     var IS_HTML_ERROR_RE = new RegExp('^(?:<html|<!doctype)', 'i');
@@ -2074,7 +2116,7 @@ SIREPO.app.factory('requestSender', function(cookieService, errorService, $http,
                     }
                 }
             });
-        }, 350, 1);
+        }, SIREPO.debounce_timeout, 1);
     };
 
     self.getAuxiliaryData = function(name) {
@@ -2196,6 +2238,10 @@ SIREPO.app.factory('requestSender', function(cookieService, errorService, $http,
         return r.params.some(function(p) {
             return p.name == paramName;
         });
+    };
+
+    self.sendAnalysisJob = function(appState, callback, data) {
+        sendWithSimulationFields('analysisJob', appState, callback, data);
     };
 
     self.sendRequest = function(urlOrParams, successCallback, data, errorCallback) {
@@ -2325,56 +2371,48 @@ SIREPO.app.factory('requestSender', function(cookieService, errorService, $http,
         );
     };
 
-    self.sendRpn = function(appState, callback, data) {
-        data.variables = appState.models.rpnVariables;
-        self.sendStatefulCompute(appState, callback, data);
-    };
+    self.sendRpn = utilities.debounce(
+        (appState, callback, data) => {
+            data.variables = appState.models.rpnVariables;
+            self.sendStatefulCompute(appState, callback, data);
+        }, SIREPO.debounce_timeout);
 
     self.sendStatefulCompute = function(appState, callback, data) {
         sendWithSimulationFields('statefulCompute', appState, callback, data);
     };
 
-    self.sendStatelessCompute = function(appState, successCallback, data, options) {
-	const onError = (data) => {
-	    srlog('statelessCompute error: ', data.error);
-	    if (options.onError) {
-		options.onError(data);
-		return;
-	    }
-	    setPanelState('error');
-	};
+    self.sendStatelessCompute = function(appState, successCallback, data, options={}) {
+        const maybeSetPanelState = (state) => {
+            if (! options.panelState) {
+                return;
+            }
+            options.panelState.maybeSetState(options.modelName, state);
+        };
 
-	const setPanelState = (method) => {
-	    if (! options) {
-		return;
-	    }
-	    const p = options.panelStateHandle;
-	    const m = options.modelName;
-	    if (! (p && m)) {
-		return;
-	    }
-	    return {
-		error: () => p.reportNotGenerated(m),
-		loading: () => p.setLoading(m, true),
-		loadingDone: () => p.setLoading(m, false)
-	    }[method]();
-	};
+        const onError = (data) => {
+            srlog('statelessCompute error: ', data.error);
+            if (options.onError) {
+                options.onError(data);
+                return;
+            }
+            maybeSetPanelState('error');
+        };
 
-	setPanelState('loading');
-	sendWithSimulationFields(
-	    'statelessCompute',
-	    appState,
-	    (data) => {
-		if (data.state === 'error') {
-		    onError(data);
-		    return;
-		}
-		setPanelState('loadingDone');
-		successCallback(data);
-	    },
-	    data,
-	    onError
-	);
+        maybeSetPanelState('loading');
+        sendWithSimulationFields(
+            'statelessCompute',
+            appState,
+            (data) => {
+                if (data.state === 'error') {
+                    onError(data);
+                    return;
+                }
+                maybeSetPanelState('loadingDone');
+                successCallback(data);
+            },
+            data,
+            onError
+        );
     };
 
     $rootScope.$on('$routeChangeStart', checkCookieRedirect);
@@ -2804,6 +2842,14 @@ SIREPO.app.factory('persistentSimulation', function(simulationQueue, appState, a
             return ! state.isProcessing();
         };
 
+        state.isWaitingOnAnotherSimulation = function() {
+            return state.jobStatusMessage() === 'Waiting for another simulation to complete';
+        };
+
+        state.jobStatusMessage = function() {
+            return simulationStatus().jobStatusMessage;
+        };
+
         state.resetSimulation = function() {
             setSimulationStatus({state: 'missing'});
             frameCache.setFrameCount(0);
@@ -2843,7 +2889,11 @@ SIREPO.app.factory('persistentSimulation', function(simulationQueue, appState, a
             if (state.isStateError()) {
                 var e = state.getError();
                 if (e) {
-                    return 'Error: ' + e.split(/[\n\r]+/)[0];
+                    let m = e.split(/[\n\r]+/)[0];
+                    if (m.toLowerCase().includes('504')){
+                        return 'Timeout Error. Please contact support@radiasoft.net if the problem persists';
+                    }
+                    return 'Error: ' + m;
                 }
             }
             return stringsService.ucfirst(simulationStatus().state);

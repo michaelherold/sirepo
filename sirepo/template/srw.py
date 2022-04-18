@@ -143,6 +143,7 @@ _RSOPT_PARAMS = {
     i for sublist in [v for v in [list(SCHEMA.constants.rsOptElements[k].keys()) for
         k in SCHEMA.constants.rsOptElements]] for i in sublist
 }
+_RSOPT_PARAMS_NO_ROTATION = [p for p in _RSOPT_PARAMS if p != 'rotation']
 
 _TABULATED_UNDULATOR_DATA_DIR = 'tabulatedUndulator'
 
@@ -388,13 +389,18 @@ def export_rsopt_config(data, filename):
     v = _rsopt_jinja_context(data.models.exportRsOpt)
 
     fz = pkio.py_path(filename)
-    f = re.sub(r'[^\w\.]+', '-', fz.purebasename).strip('-')
+    f = re.sub(r'[^\w.]+', '-', fz.purebasename).strip('-')
     v.runDir = f'{f}_scan'
     v.fileBase = f
     tf = {k: PKDict(file=f'{f}.{k}') for k in ['py', 'sh', 'yml']}
     for t in tf:
         v[f'{t}FileName'] = tf[t].file
     v.outFileName = f'{f}.out'
+    v.readmeFileName = 'README.txt'
+    v.libFiles = [f.basename for f in _SIM_DATA.lib_files_for_export(data)]
+    v.hasLibFiles = len(v.libFiles) > 0
+    v.randomSeed = data.models.exportRsOpt.randomSeed if \
+        data.models.exportRsOpt.randomSeed is not None else ''
 
     # do this in a second loop so v is fully updated
     # note that the rsopt context is regenerated in python_source_for_model()
@@ -402,6 +408,7 @@ def export_rsopt_config(data, filename):
         tf[t].content = python_source_for_model(data, 'rsoptExport', plot_reports=False) \
             if t == 'py' else \
             template_common.render_jinja(SIM_TYPE, v, f'rsoptExport.{t}')
+    readme = template_common.render_jinja(SIM_TYPE, v, v.readmeFileName)
 
     with zipfile.ZipFile(
         fz,
@@ -411,6 +418,7 @@ def export_rsopt_config(data, filename):
     ) as z:
         for t in tf:
             z.writestr(tf[t].file, tf[t].content)
+        z.writestr(v.readmeFileName, readme)
         for d in _SIM_DATA.lib_files_for_export(data):
             z.write(d, d.basename)
     return fz
@@ -727,6 +735,23 @@ def python_source_for_model(data, model, plot_reports=True):
     return _generate_parameters_file(data, plot_reports=plot_reports)
 
 
+def run_epilogue():
+    # POSIT: only called from template.run_epilogue
+    def _op():
+        from pykern import pkio
+        from sirepo import simulation_db
+        from sirepo.template import template_common
+        sim_in = simulation_db.read_json(template_common.INPUT_BASE_NAME)
+        if sim_in.report == 'coherentModesAnimation':
+            # this sim creates _really_ large intermediate files which should get removed
+            for p in pkio.sorted_glob('*_mi.h5'):
+                p.remove()
+
+    import sirepo.mpi
+    sirepo.mpi.restrict_op_to_first_rank(_op)
+
+
+
 def stateful_compute_compute_undulator_length(data):
     return compute_undulator_length(data['tabulated_undulator'])
 
@@ -919,6 +944,9 @@ def write_parameters(data, run_dir, is_parallel):
         run_dir.join(template_common.PARAMETERS_PYTHON_FILE),
         _trim(_generate_parameters_file(data, run_dir=run_dir))
     )
+    if is_parallel:
+        return template_common.get_exec_parameters_cmd(_SIM_DATA.is_run_mpi(data))
+    return None
 
 
 def _beamline_animation_percent_complete(run_dir, res):
@@ -1590,18 +1618,22 @@ def _generate_beamline_optics(report, data):
 
 def _generate_parameters_file(data, plot_reports=False, run_dir=None):
     report = data.report
+    is_for_rsopt = _is_for_rsopt(report)
     dm = data.models
     # do this before validation or arrays get turned into strings
-    if report == 'rsoptExport':
+    if is_for_rsopt:
         rsopt_ctx = _rsopt_jinja_context(dm.exportRsOpt)
     _validate_data(data, SCHEMA)
     _update_model_fields(dm)
     _update_models_for_report(report, dm)
-    res, v = template_common.generate_parameters_file(data)
+    res, v = template_common.generate_parameters_file(
+        data,
+        is_run_mpi=_SIM_DATA.is_run_mpi(data),
+    )
     v.rs_type = dm.simulation.sourceType
     if v.rs_type == 't' and dm.tabulatedUndulator.undulatorType == 'u_i':
         v.rs_type = 'u'
-    if report == 'rsoptExport':
+    if is_for_rsopt:
         v.update(rsopt_ctx)
     # rsopt uses this as a lookup param so want it in one place
     v.ws_fni_desc = 'file name for saving propagated single-e intensity distribution vs horizontal and vertical position'
@@ -1617,19 +1649,20 @@ def _generate_parameters_file(data, plot_reports=False, run_dir=None):
         pkio.write_text(v.python_file, dm.backgroundImport.python)
         return template_common.render_jinja(SIM_TYPE, v, 'import.py')
     _set_parameters(v, data, plot_reports, run_dir)
+    v.in_server = run_dir is not None
     return _trim(res + template_common.render_jinja(SIM_TYPE, v))
 
 
 def _generate_srw_main(data, plot_reports, beamline_info):
     report = data.report
-    for_rsopt = report == 'rsoptExport'
+    is_for_rsopt = _is_for_rsopt(report)
     source_type = data.models.simulation.sourceType
-    run_all = report == _SIM_DATA.SRW_RUN_ALL_MODEL or report == 'rsoptExport'
-    vp_var = 'vp' if for_rsopt else 'varParam'
+    run_all = report == _SIM_DATA.SRW_RUN_ALL_MODEL or is_for_rsopt
+    vp_var = 'vp' if is_for_rsopt else 'varParam'
     content = [
         f'v = srwl_bl.srwl_uti_parse_options(srwl_bl.srwl_uti_ext_options({vp_var}), use_sys_argv={plot_reports})',
     ]
-    if plot_reports and _SIM_DATA.srw_uses_tabulated_zipfile(data):
+    if (plot_reports or is_for_rsopt) and _SIM_DATA.srw_uses_tabulated_zipfile(data):
         content.append('setup_magnetic_measurement_files("{}", v)'.format(data.models.tabulatedUndulator.magneticFile))
     if report == 'beamlineAnimation':
         content.append("v.si_fn = ''")
@@ -1666,28 +1699,37 @@ def _generate_srw_main(data, plot_reports, beamline_info):
             content.append("v.ws_pl = 'xy'")
     else:
         content.append('op = None')
-    if (run_all and source_type != 'g') or report == 'intensityReport':
-        content.append('v.ss = True')
-        if plot_reports:
-            content.append("v.ss_pl = 'e'")
-    if (run_all and source_type not in ('g', 'm')) or report in 'fluxReport':
-        content.append('v.sm = True')
-        if plot_reports:
-            content.append("v.sm_pl = 'e'")
-    if (run_all and source_type != 'g') or report == 'powerDensityReport':
-        content.append('v.pw = True')
-        if plot_reports:
-            content.append("v.pw_pl = 'xy'")
-    if run_all or report in ['initialIntensityReport', 'sourceIntensityReport']:
-        content.append('v.si = True')
-        if plot_reports:
-            content.append("v.si_pl = 'xy'")
-    if (run_all and source_type != 'g') or report == 'trajectoryReport':
-        content.append('v.tr = True')
-        if plot_reports:
-            content.append("v.tr_pl = 'xz'")
+    if is_for_rsopt:
+        content.extend([
+            'v.ss = False',
+            'v.sm = False',
+            'v.pw = False',
+            'v.si = False',
+            'v.tr = False'
+        ])
+    else:
+        if (run_all and source_type != 'g') or report == 'intensityReport':
+            content.append('v.ss = True')
+            if plot_reports:
+                content.append("v.ss_pl = 'e'")
+        if (run_all and source_type not in ('g', 'm')) or report in 'fluxReport':
+            content.append('v.sm = True')
+            if plot_reports:
+                content.append("v.sm_pl = 'e'")
+        if (run_all and source_type != 'g') or report == 'powerDensityReport':
+            content.append('v.pw = True')
+            if plot_reports:
+                content.append("v.pw_pl = 'xy'")
+        if run_all or report in ['initialIntensityReport', 'sourceIntensityReport']:
+            content.append('v.si = True')
+            if plot_reports:
+                content.append("v.si_pl = 'xy'")
+        if (run_all and source_type != 'g') or report == 'trajectoryReport':
+            content.append('v.tr = True')
+            if plot_reports:
+                content.append("v.tr_pl = 'xz'")
     content.append('srwl_bl.SRWLBeamline(_name=v.name).calc_all(v, op)')
-    return '\n'.join([f'    {x}' for x in content] + [''] + ([] if for_rsopt \
+    return '\n'.join([f'    {x}' for x in content] + [''] + ([] if is_for_rsopt \
         else ['main()', '']))
 
 
@@ -1723,6 +1765,10 @@ def _intensity_units(sim_in):
             i = sim_in.models.simulation.fieldUnits
         return SCHEMA.enum.FieldUnits[int(i)][1]
     return 'ph/s/.1%bw/mm^2'
+
+
+def _is_for_rsopt(report):
+    return report == 'rsoptExport'
 
 
 def _load_user_model_list(model_name):
@@ -1917,14 +1963,18 @@ def _rotate_report(report, ar2d, x_range, y_range, info):
 
 def _rsopt_jinja_context(model):
     import multiprocessing
+    e = _process_rsopt_elements(model.elements)
     return PKDict(
         forRSOpt=True,
         numCores=int(model.numCores),
         numWorkers=max(1, multiprocessing.cpu_count() - 1),
         numSamples=int(model.numSamples),
-        rsOptElements=_process_rsopt_elements(model.elements),
+        rsOptElements=e,
         rsOptParams=_RSOPT_PARAMS,
+        rsOptParamsNoRot=_RSOPT_PARAMS_NO_ROTATION,
+        rsOptOutFileName='scan_results',
         scanType=model.scanType,
+        totalSamples=model.totalSamples,
     )
 
 
@@ -1965,7 +2015,8 @@ def _save_user_model_list(model_name, beam_list):
 
 
 def _set_magnetic_measurement_parameters(run_dir, v):
-    src_zip = str(run_dir.join(v.tabulatedUndulator_magneticFile))
+    src_zip = str(run_dir.join(v.tabulatedUndulator_magneticFile)) if run_dir else \
+        str(_SIM_DATA.lib_file_abspath(v.tabulatedUndulator_magneticFile))
     target_dir = str(run_dir.join(_TABULATED_UNDULATOR_DATA_DIR))
     # The MagnMeasZip class defined above has convenient properties we can use here
     mmz = MagnMeasZip(src_zip)
@@ -1981,6 +2032,7 @@ def _set_magnetic_measurement_parameters(run_dir, v):
 
 def _set_parameters(v, data, plot_reports, run_dir):
     report = data.report
+    is_for_rsopt = _is_for_rsopt(report)
     dm = data.models
     v.beamlineOptics, v.beamlineOpticsParameters, beamline_info = _generate_beamline_optics(report, data)
     v.beamlineFirstElementPosition = _get_first_element_position(report, data)
@@ -1989,15 +2041,14 @@ def _set_parameters(v, data, plot_reports, run_dir):
     v[report] = 1
     for k in _OUTPUT_FOR_MODEL:
         v['{}Filename'.format(k)] = _OUTPUT_FOR_MODEL[k].filename
-    v.setupMagneticMeasurementFiles = plot_reports and _SIM_DATA.srw_uses_tabulated_zipfile(data)
+    v.setupMagneticMeasurementFiles = (plot_reports or is_for_rsopt) and _SIM_DATA.srw_uses_tabulated_zipfile(data)
     v.srwMain = _generate_srw_main(data, plot_reports, beamline_info)
-    if run_dir and _SIM_DATA.srw_uses_tabulated_zipfile(data):
-        _set_magnetic_measurement_parameters(run_dir, v)
+    if (run_dir or is_for_rsopt) and _SIM_DATA.srw_uses_tabulated_zipfile(data):
+        _set_magnetic_measurement_parameters(run_dir or '', v)
     if _SIM_DATA.srw_is_background_report(report) and 'beamlineAnimation' not in report:
-        if report in dm and dm[report].get('jobRunMode', '') == 'sbatch':
+        if sirepo.mpi.cfg.in_slurm:
             v.sbatchBackup = '1'
-        # Number of "iterations" per save is best set to num processes
-        v.multiElectronNumberOfIterations = sirepo.mpi.cfg.cores
+            v.multiElectronNumberOfIterations = 25
         if report == 'multiElectronAnimation':
             if dm.multiElectronAnimation.calcCoherence == '1':
                 v.multiElectronCharacteristic = 41

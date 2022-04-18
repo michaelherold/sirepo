@@ -32,6 +32,7 @@
         },
         "detailFields": {
             "fieldPath": {
+                "axisPath": ["start", "stop"],
                 "circlePath": ["ctrX", "ctrY", "ctrZ", "radius", "theta", "phi"],
                 "fieldMapPath": ["ctrX", "ctrY", "ctrZ", "lenX", "lenY", "lenZ"],
                 "filePath": ["fileName"],
@@ -106,24 +107,6 @@
             "item": ":"
         },
         "objectScale": 0.001,
-        "parameterizedMagnets": {
-            "dipole": {
-                "objectNames": {
-                    "coil": "Coil",
-                    "magnet": "Magnet",
-                    "pole": "Pole"
-                }
-            },
-            "hybridUndulator": {
-                "objectNames": {
-                    "halfPole": "Half Pole",
-                    "magnetBlock": "Magnet Block",
-                    "pole": "Pole",
-                    "magPole": "Magnet-Pole Pair",
-                    "endBlock": "End Block"
-                }
-            }
-        },
         "pathPtsFileType": "path-pts",
         "radiaDmpFileType": "radia-dmp",
         "rawExamples": ["Dipole", "Wiggler"],
@@ -172,23 +155,14 @@
                 "canDrag": false,
                 "contents": [
                     {
-                        "isButton": true,
-                        "isInactive": true,
+                        "isButton": false,
                         "layoutShape": "rect",
                         "model": "racetrack",
                         "title": "Racetrack",
                         "type": "racetrack"
-                    },
-                    {
-                        "isButton": true,
-                        "isInactive": true,
-                        "layoutShape": "rect",
-                        "model": "undulatorGroup",
-                        "title": "Quick Undulator",
-                        "type": "undulatorGroup"
                     }
                 ],
-                "name": "In Progress"
+                "name": "Field Sources"
             },
             {
                 "canDrag": true,
@@ -271,11 +245,20 @@
             ["y", "y"],
             ["z", "z"]
         ],
+        "CoordinateSystem": [
+            ["standard", "Standard"],
+            ["beam", "Beam"]
+        ],
         "BevelEdge": [
             ["0", "Top Left"],
             ["1", "Top Right"],
             ["2", "Bottom Right"],
             ["3", "Bottom Left"]
+        ],
+        "DipoleType": [
+            ["dipoleBasic", "Basic"],
+            ["dipoleC", "C-Bend"],
+            ["dipoleH", "H-Bend"]
         ],
         "DivisionType": [
             ["cyl", "Cylindrical"],
@@ -294,12 +277,16 @@
             ["H", "H"],
             ["J", "J"]
         ],
+        "FreehandType": [
+            ["freehand", ""]
+        ],
         "KickMapComponent": [
             ["h", "Horizontal"],
             ["v", "Vertical"]
         ],
         "MagnetType": [
             ["freehand", "Freehand"],
+            ["dipole", "Dipole"],
             ["undulator", "Undulator"]
         ],
         "MaterialType": [
@@ -323,6 +310,7 @@
             ["tee", "Extruded Tee"]
         ],
         "PathType": [
+            ["axis", "Axis"],
             ["line", "Line"],
             ["circle", "Circle"],
             ["manual", "Manual Group"],
@@ -351,6 +339,10 @@
             ["magnet", "Magnet"],
             ["pole", "Pole"]
         ],
+        "UndulatorType": [
+            ["undulatorBasic", "Basic"],
+            ["undulatorHybrid", "Hybrid"]
+        ],
         "ViewType": [
             ["objects", "Objects"],
             ["fields", "Fields"]
@@ -377,6 +369,13 @@
         }
     },
     "model": {
+        "axisPath": {
+            "_super": ["_", "model", "linePath"],
+            "axis": ["Axis", "BeamAxis", "z"],
+            "start": ["Start", "Float", -10.0, "Start point"],
+            "stop": ["End", "Float", 10.0, "End point"],
+            "type": ["_", "PathType", "axis"]
+        },
         "cuboid": {
             "_super": ["_", "model", "geomObject"],
             "type": ["_", "ObjectType", "cuboid"]
@@ -407,24 +406,249 @@
             "numCopies": ["Number of Copies", "Integer", 1, "", 1],
             "transforms": ["", "TransformTable", [], ""]
         },
-        "dipole": {
+        "dipoleBasic": {
             "_super": ["_", "model", "radiaObject"],
-            "coilBaseObjectId": ["_", "UUID", ""],
-            "coilColor": ["Color", "Color", "#ff0000"],
-            "coilCurrent": ["Current [A]", "Float", -2000.0],
-            "coilRadii": ["Radii of Coil [mm]", "FloatStringArray", "5.0, 40.0", "", "Inner, Outer"],
-            "coilHeight": ["Coil Height [mm]", "Float", 105.0, "", 0.0],
-            "coilSides": ["Coil Side Lengths [mm]", "FloatStringArray", "62.5, 50.0", "", "Transverse, Beam"],
-            "gap": ["Gap", "Float", 1.0],
-            "magnetRemanentMag": ["Remanent Magnetization [T]", "Float", 1.2, "", 0.0],
-            "magnetBaseObjectId": ["_", "UUID", ""],
-            "magnetColor": ["Color", "Color", "#ff00ff"],
-            "magnetDivision": ["Segments per Octant", "IntStringArray", "2, 5, 2", "Segmentation is applied to one octant of the magent. Radia duplicates it across symmetry planes to build the full undulator", "Transverse, Gap, Beam"],
-            "magnetMagnetization": ["Magentization [T]", "FloatStringArray", "0.0, 0.0, 0.0", "", "Transverse, Gap, Beam"],
-            "magnetMaterial": ["Material", "MaterialType", "custom"],
-            "magnetMaterialFile": ["Tabulated H-M Curve File", "InputFile", "VaPermendur.csv", "H, M (T)"],
-            "magnetObjType": ["Shape", "ObjectType", "cuboid"],
-            "magnetSize": ["Magnet Size [mm]", "FloatStringArray", "150.0, 200.0, 40.0", "", "Transverse, Gap, Beam"]
+            "dipoleType": ["_", "DipoleType", "dipoleBasic"],
+            "gap": ["Gap [mm]", "Float", 1.0, "", 0.0],
+            "pole": ["Pole", "model.geomObject", {
+                "bevels": [],
+                "center": "0.0, 0.0, 1.0",
+                "color": "#ff00ff",
+                "segments": "4, 4, 4",
+                "magnetization": "0.0, 0.0, 1.0",
+                "name": "pole",
+                "remanentMag": 1.0,
+                "material": "NdFeB",
+                "type": "cuboid",
+                "transforms": [
+                    {
+                        "_super": "transform",
+                        "color": null,
+                        "model": "symmetryTransform",
+                        "object": "",
+                        "symmetryPlane": "0,0,1",
+                        "symmetryPoint": "0,0,0",
+                        "symmetryType": "parallel"
+                    }
+                ],
+                "size": "5.0, 5.0, 5.0"
+            }]
+        },
+        "dipoleC": {
+            "_super": ["_", "model", "dipoleBasic"],
+            "coil": ["Coil", "model.racetrack", {
+                "axis": "z",
+                "center": "0.0, 131.25, 0.0",
+                "color": "#ff0000",
+                "currentDensity": -2000.0,
+                "fieldCalc": "auto",
+                "height": 105.0,
+                "name": "coil",
+                "numSegments": 3,
+                "planeAxis1": "x",
+                "planeAxis2": "y",
+                "radii": "5.0, 40.0",
+                "sides": "50.0, 62.5",
+                "size": "1.0, 1.0, 105.0",
+                "type": "racetrack"
+            }],
+            "magnet": ["Magnet", "model.cee", {
+                "armHeight": 50.0,
+                "armPosition": "1",
+                "center": "0.0, 71.25, 0.0",
+                "color": "#0000ff",
+                "extrusionAxis": "x",
+                "extrusionAxisSegments": 2,
+                "magnetization": "0.0, 0.0, 0.0",
+                "name": "core",
+                "remanentMag": 1.0,
+                "material": "Xc06",
+                "type": "cee",
+                "size": "50.0, 182.5, 210.0",
+                "stemWidth": 62.5,
+                "stemPosition": "1"
+            }],
+            "pole": ["Pole", "model.cuboid", {
+                "bevels": [
+                    {
+                        "amountHoriz": 8,
+                        "amountVert": 8,
+                        "cutAxis": "x",
+                        "cutDir": [
+                            1,
+                            0,
+                            0
+                        ],
+                        "edge": "2",
+                        "heightDir": [
+                            0,
+                            0,
+                            1
+                        ],
+                        "widthDir": [
+                            0,
+                            1,
+                            0
+                        ]
+                    },
+                    {
+                        "amountHoriz": 8,
+                        "amountVert": 8,
+                        "cutAxis": "x",
+                        "cutDir": [
+                            1,
+                            0,
+                            0
+                        ],
+                        "edge": "3",
+                        "heightDir": [
+                            0,
+                            0,
+                            1
+                        ],
+                        "widthDir": [
+                            0,
+                            1,
+                            0
+                        ]
+                    },
+                    {
+                        "amountHoriz": 8,
+                        "amountVert": 8,
+                        "cutAxis": "y",
+                        "cutDir": [
+                            0,
+                            1,
+                            0
+                        ],
+                        "edge": "2",
+                        "heightDir": [
+                            0,
+                            0,
+                            1
+                        ],
+                        "widthDir": [
+                            1,
+                            0,
+                            0
+                        ]
+                    },
+                    {
+                        "amountHoriz": 8,
+                        "amountVert": 8,
+                        "cutAxis": "y",
+                        "cutDir": [
+                            0,
+                            1,
+                            0
+                        ],
+                        "edge": "3",
+                        "heightDir": [
+                            0,
+                            0,
+                            1
+                        ],
+                        "widthDir": [
+                            1,
+                            0,
+                            0
+                        ]
+                    }
+                ],
+                "center": "0.0, 0.0, 30.0",
+                "color": "#0000ff",
+                "segments": "4, 4, 4",
+                "magnetization": "0.0, 0.0, 1.0",
+                "name": "pole",
+                "remanentMag": 1.0,
+                "material": "Xc06",
+                "type": "cuboid",
+                "size": "50.0, 40.0, 50.0"
+            }],
+            "corePoleGroup": ["_", "model.geomGroup", {
+                "name": "core + pole"
+            }],
+            "magnetCoilGroup": ["_", "model.geomGroup", {
+                "name": "magnet + coil"
+            }],
+            "poleWidth": ["Width ({{ appState.models.simulation.widthAxis }})", "Float", 50.0, "", 0.0],
+            "gap": ["Gap", "Float", 10.0, "", 0.0],
+            "dipoleType": ["_", "DipoleType", "dipoleC"]
+        },
+        "dipoleH": {
+            "_super": ["_", "model", "dipoleC"],
+            "coil": ["Coil", "model.racetrack", {
+                "axis": "z",
+                "center": "0.0, 0.0, 1.5",
+                "color": "#33e69a",
+                "currentDensity": -10000.0,
+                "fieldCalc": "auto",
+                "height": 1.0,
+                "name": "coil",
+                "numSegments": 3,
+                "planeAxis1": "x",
+                "planeAxis2": "y",
+                "radii": "0.1, 0.4",
+                "sides": "10.05, 10.05",
+                "size": "10.05, 10.05, 1.0",
+                "type": "racetrack"
+            }],
+            "magnet": ["Magnet", "model.ell", {
+                "armHeight": 1.5,
+                "armPosition": "0",
+                "center": "0.0, 4.0, 3.75",
+                "color": "#0066cd",
+                "extrusionAxis": "x",
+                "extrusionAxisSegments": 2,
+                "magnetization": "0.0, 0.0, 0.0",
+                "name": "core",
+                "remanentMag": 1.0,
+                "material": "Xc06",
+                "type": "ell",
+                "size": "10.0, 8.0, 3.75",
+                "stemWidth": 1.5,
+                "stemPosition": "1",
+                "transforms": []
+            }],
+            "pole": ["Pole", "model.cuboid", {
+                "bevels": [
+                    {
+                        "amountHoriz": 0.5,
+                        "amountVert": 0.5,
+                        "cutAxis": "x",
+                        "edge": "2",
+                        "cutDir": [
+                            1,
+                            0,
+                            0
+                        ],
+                        "heightDir": [
+                            0,
+                            0,
+                            1
+                        ],
+                        "widthDir": [
+                            0,
+                            1,
+                            0
+                        ]
+                    }
+                ],
+                "center": "0.0, 2.5, 1.5",
+                "color": "#0066cd",
+                "magnetization": "0.0, 0.0, 1.0",
+                "material": "Xc06",
+                "name": "pole",
+                "remanentMag": 1.0,
+                "segments": "4, 4, 4",
+                "size": "10.0, 5.0, 1.5",
+                "transforms": [],
+                "type": "cuboid"
+            }],
+            "magnetSize": ["Size [mm]", "FloatStringArray", "10.0, 16.0, 7.5", "", "Length ({{ appState.models.simulation.beamAxis }}), Width ({{ appState.models.simulation.widthAxis }}), Height ({{ appState.models.simulation.heightAxis }})"],
+            "poleWidth": ["Width ({{ appState.models.simulation.widthAxis }})", "Float", 10.0, "", 0.0],
+            "gap": ["Gap", "Float", 1.5, "", 0.0],
+            "dipoleType": ["_", "DipoleType", "dipoleH"]
         },
         "ell": {
             "_super": ["_", "model", "stemmed"],
@@ -432,17 +656,25 @@
         },
         "extrudedPoly": {
             "_super": ["_", "model", "geomObject"],
-            "points": ["Points", "Points", []]
+            "area": ["_", "Float", 0,0],
+            "extrusionAxis": ["Extrusion Direction", "BeamAxis", "z"],
+            "extrusionAxisSegments": ["Segments in Extrusion Direction", "Integer", 1, "", 1],
+            "heightAxis": ["_", "BeamAxis", "y"],
+            "points": ["Points", "Points", []],
+            "triangulationLevel": ["Triangulation Detail", "Range", 0.5, "Governs the max size of triangles used to subdivide the shape, from coarse to fine. Smaller triangles gain accuracy at the expense of longer solve times.", 0.0, 1.0],
+            "widthAxis": ["_", "BeamAxis", "x"]
         },
+        "freehand": {},
         "fieldDisplay": {
             "colorMap": ["Color Map", "ColorMap", "viridis"],
             "scaling": ["Scaling", "FieldScaling", "uniform"]
         },
         "fieldLineoutReport": {
-            "fieldPath": ["_", "Object", {}],
+            "fieldPath": ["_", "model.fieldPath", {}],
             "fieldPaths": ["Path", "FieldPaths", []],
             "fieldType": ["Field", "FieldType", "B"],
-            "inProgressText": ["_", "String", "Calculating"]
+            "inProgressText": ["_", "String", "Calculating"],
+            "plotAxis": ["Plot Axis", "BeamAxis", "z"]
         },
         "fieldIntegralReport": {
             "lastCalculated": ["_", "Integer", -1]
@@ -459,6 +691,7 @@
             "type": ["_", "PathType", "fieldMap"]
         },
         "fieldPath": {
+            "id": ["_", "RandomId", ""],
             "name": ["Name", "String", ""]
         },
         "fieldPaths": {
@@ -472,7 +705,7 @@
         },
         "geometryReport": {
             "doGenerate": ["_", "Boolean", "1"],
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "isSolvable": ["_", "Boolean", "1"],
             "name": ["Name", "String", ""],
             "objects": ["_", "Group", []]
@@ -480,14 +713,15 @@
         "geomGroup": {
             "_super": ["_", "model", "radiaObject"],
             "layoutShape":  ["_", "String", "rect"],
-            "members": ["_", "Group", []]
+            "members": ["_", "Group", []],
+            "model": ["_", "String", "geomGroup"]
         },
         "geomObject": {
             "_super": ["_", "model", "radiaObject"],
             "bevels": ["Bevels", "BevelTable", []],
-            "center": ["Center", "FloatStringArray", "0.0, 0.0, 0.0", "", "x (mm), y (mm), z (mm)"],
+            "center": ["Center [mm]", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
             "segments": ["Num Divisions", "IntStringArray", "1, 1, 1", "", "Nx, Ny, Nz"],
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "layoutShape":  ["_", "String", "rect"],
             "magnetization": ["Magentization [T]", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
             "remanentMag": ["Remanent Magnetization [T]", "Float", 0.0, "", 0.0],
@@ -495,39 +729,7 @@
             "materialFile": ["Tabulated H-B from File", "InputFile", "", "H, B (T)"],
             "shapeButton": ["Shape", "ShapeButton", {}],
             "type": ["Shape Type", "ObjectType", "cuboid"],
-            "size": ["Size", "FloatStringArray", "10.0, 10.0, 10.0", "", "x (mm), y (mm), z (mm)"]
-        },
-        "hybridUndulator": {
-            "_super": ["_", "model", "undulator"],
-            "magnetArmHeight": ["_", "Float", 1.0],
-            "magnetArmPosition": ["_", "ArmPosition", "0"],
-            "magnetBaseObjectId": ["_", "UUID", ""],
-            "magnetColor": ["Color", "Color", "#00ffff"],
-            "magnetCrossSection": ["Cross Section [mm]", "FloatStringArray", "65.0, 45.0", "", "Width, Height"],
-            "magnetSegments": ["Segments per Octant", "IntStringArray", "1, 1, 3", "Segmentation is applied to one octant of the magent. Radia duplicates it across symmetry planes to build the full undulator", "Transverse, Vertical, Beam"],
-            "magnetLength": ["Thickness [mm]", "Float", 18.0, "Period length/2 - pole length"],
-            "magnetMagnetization": ["Magentization [T]", "FloatStringArray", "0.0, 0.0, -1.0", "", "Transverse, Vertical, Beam"],
-            "magnetMaterial": ["Material", "MaterialType", "NdFeB"],
-            "magnetMaterialFile": ["Tabulated H-M Curve File", "HMFile", "", "H, M (T)"],
-            "magnetRemanentMag": ["Remanent Magnetization [T]", "Float", 1.2, "", 0.0],
-            "magnetObjType": ["Shape", "ObjectType", "cuboid"],
-            "magnetStemWidth": ["_", "Float", 1.0],
-            "magnetStemPosition": ["_", "StemPosition", "0"],
-            "gapOffset": ["Gap Offset [mm]", "Float", 1.0, "Additional offset of magnets away from the beam along the gap axis"],
-            "poleArmHeight": ["_", "Float", 3.0],
-            "poleArmPosition": ["_", "ArmPosition", "1"],
-            "poleBaseObjectId": ["_", "UUID", ""],
-            "poleColor": ["Color", "Color", "#ff00ff"],
-            "poleCrossSection": ["Cross Section [mm]", "FloatStringArray", "45.0, 25.0", "", "Width, Height"],
-            "poleSegments": ["Segments per Octant", "IntStringArray", "2, 5, 2", "Segmentation is applied to one octant of the magent. Radia duplicates it across symmetry planes to build the full undulator", "Transverse, Vertical, Beam"],
-            "poleLength": ["Thickness [mm]", "Float", 5.0, "Length along beam axis"],
-            "poleMagnetization": ["Magentization [T]", "FloatStringArray", "0.0, 0.0, 0.0", "", "Transverse, Vertical, Beam"],
-            "poleMaterial": ["Material", "MaterialType", "custom"],
-            "poleMaterialFile": ["Tabulated H-M Curve File", "InputFile", "VaPermendur.csv", "H, M (T)"],
-            "poleRemanentMag": ["Remanent Magnetization [T]", "Float", 0.0, "", 0.0],
-            "poleObjType": ["Shape", "ObjectType", "ell"],
-            "poleStemWidth": ["_", "Float", 19.5],
-            "poleStemPosition": ["_", "StemPosition", "0"]
+            "size": ["Size [mm]", "FloatStringArray", "10.0, 10.0, 10.0", "", "x, y, z"]
         },
         "jay": {
             "_super": ["_", "model", "stemmed"],
@@ -554,7 +756,7 @@
         "layoutObject": {
             "color": ["Color", "Color", "#cccccc"],
             "groupId": ["_", "String", ""],
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "layoutShape":  ["_", "String", "rect"]
         },
         "linePath": {
@@ -583,21 +785,30 @@
             "name": ["Name", "String", ""]
         },
         "objectBevel": {
-            "amountGap": ["Cut Distance in Gap Direction (mm)", "Float", 1.0],
-            "amountTrans": ["Cut Distance in Transverse Direction (mm)", "Float", 1.0],
-            "edge": ["Bevel Edge", "BevelEdge", "0", "Index of base shape edge to bevel, relative to the view axis"]
+            "amountVert": ["Cut Distance in Vertical Direction [mm]", "Float", 1.0],
+            "amountHoriz": ["Cut Distance in Horizontal Direction [mm]", "Float", 1.0],
+            "cutAxis": ["Cut Axis", "BeamAxis", "z", "Direction perpendicular to cross-section of interest"],
+            "cutDir": ["", "Array", [0, 0, 1]],
+            "edge": ["Bevel Edge", "BevelEdge", "0", "Index of base shape edge to bevel, relative to the view axis"],
+            "heightDir": ["", "Array", [0, 1, 0]],
+            "widthDir": ["", "Array", [1, 0, 0]]
         },
          "objectShape": {
             "viewAxis": ["View Along Axis", "BeamAxis", "z"]
         },
         "racetrack": {
-            "_super": ["_", "model", "geomObject"],
-            "axis": ["Axis", "BeamAxis", "z"],
-            "currentDensity": ["Current Density (A/mm)", "Float", 1.0],
-            "fieldCalc": ["Field Calculation", "AutoManual", "man", ""],
-            "numSegments": ["Number of Corner Segments", "Integer", 1, "", 0],
-            "rInner": ["Inner Radius", "Float", 6.0],
-            "rOuter": ["Outer Radius", "Float", 10.0],
+            "_super": ["_", "model", "radiaObject"],
+            "axis": ["Axis", "BeamAxis", "y"],
+            "center": ["Center [mm]", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
+            "currentDensity": ["Current Density [A/mm]", "Float", -2000.0],
+            "fieldCalc": ["Field Calculation", "AutoManual", "auto", ""],
+            "height": ["Height ({{ appState.models.simulation.heightAxis }}) [mm]", "Float", 105.0, "", "Size along axis"],
+            "numSegments": ["Number of Corner Segments", "Integer", 3, "", 0],
+            "planeAxis1": ["_", "BeamAxis", "z"],
+            "planeAxis2": ["_", "BeamAxis", "x"],
+            "radii": ["Radii [mm]", "FloatStringArray", "5.0, 40.0", "", "Inner, Outer"],
+            "sides": ["Straight Sides [mm]", "FloatStringArray", "50.0, 62.5", "", "Length ({{ appState.models.simulation.beamAxis }}), Width ({{ appState.models.simulation.widthAxis }})"],
+            "size": ["_", "FloatStringArray", "1.0, 1.0, 105.0"],
             "type": ["_", "ObjectType", "racetrack"]
         },
         "radiaObject": {
@@ -614,7 +825,7 @@
             "name": ["Name", "String", "Rotate"]
         },
         "rotateClone": {
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "angle": ["Angle (deg)", "Float", "0.0"],
             "axis": ["Axis", "FloatStringArray", "0.0, 0.0, 1.0", "", "x, y, z"],
             "center": ["Center", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
@@ -622,9 +833,13 @@
         },
         "simulation": {
             "beamAxis": ["Beam Axis", "BeamAxis", "z", "The beam will travel along this axis, used when exporting fields"],
+            "coordinateSystem": ["Coordinate System", "CoordinateSystem" , "standard", "Ordering of spatial variables. Use Standard for [x, y, z] or Beam for [width, height, length]"],
+            "dipoleType": ["Dipole Type", "DipoleType", "dipoleBasic"],
             "enableKickMaps": ["Enable Kick Maps", "Boolean", "0", "For use with undulators"],
+            "freehandType": ["", "FreehandType", "freehand"],
             "heightAxis": ["Height Axis", "BeamAxis", "y", "Height is measured along this axis. For undulators the gap is usually defined in this direction"],
             "magnetType": ["Magnet Type", "MagnetType", "freehand"],
+            "undulatorType": ["Undulator Type", "UndulatorType", "undulatorBasic"],
             "widthAxis": ["Width Axis", "BeamAxis", "x", "Width is measured along this axis"]
         },
         "solverAnimation":  {
@@ -661,11 +876,11 @@
         },
         "termination": {
             "airGap": ["Air Gap [mm]", "Float", 0.0, "Distance from previous object"],
-            "length": ["Object Length [mm]", "Float", 9.0],
-            "type": ["Object Type", "TerminationType", "magnet", ""]
+            "gapOffset": ["Gap Offset [mm]", "Float", 0.0, "Additional offset away from the beam along the height axis"],
+            "object": ["Object", "model.geomObject", {}]
         },
         "transform": {
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "name": ["Name", "String", "Transform"],
             "object": ["Apply to", "geomObject", ""]
         },
@@ -674,26 +889,90 @@
             "name": ["Name", "String", "Translate"]
         },
         "translateClone": {
-            "id": ["_", "UUID", ""],
+            "id": ["_", "RandomId", ""],
             "distance": ["Direction", "FloatStringArray", "10.0, 0.0, 0.0", "", "x, y, z"],
             "name": ["Name", "String", "Translate"]
         },
-        "undulator": {
+        "undulatorBasic": {
             "_super": ["_", "model", "radiaObject"],
+            "airGap": ["Air Gap [mm]", "Float", 0.0, "Distance between magnets"],
             "enableKickMaps": ["Enable Kick Maps", "Boolean", "1"],
             "gap": ["Gap [mm]", "Float", 20.0, "", 0.0, "Measured along the height axis"],
+            "magnet": ["Magnet Block", "model.geomObject", {
+                "color": "#00ffff",
+                "magnetization": "0.0, 0.0, -1.0",
+                "name": "magnet",
+                "remanentMag": 1.2,
+                "material": "NdFeB",
+                "type": "cuboid",
+                "segments": "1, 1, 3",
+                "size": "65.0, 18.0, 45.0"
+            }],
             "numPeriods": ["Number of Periods", "Integer", 2, "", 1],
+            "octantGroup": ["_", "model.geomGroup", {
+                "name": "octant"
+            }],
             "periodLength": ["Period Length [mm]", "Float", 46.0],
-            "terminations": ["Termination Groups", "TerminationTable",
+            "phaseCount": ["Phase per Period", "Integer", 2, "The magnetization of each successive magnet is rotated by 2π/n about the beam direction", 2],
+            "undulatorType": ["_", "UndulatorType", "undulatorBasic"]
+        },
+        "undulatorHybrid": {
+            "_super": ["_", "model", "undulatorBasic"],
+            "halfPole": ["_", "model.geomObject", {
+                "name": "half pole"
+            }],
+            "magnet": ["Magnet Block", "model.geomObject", {
+                "color": "#00ffff",
+                "magnetization": "0.0, 0.0, 1.0",
+                "name": "magnet",
+                "remanentMag": 1.2,
+                "material": "NdFeB",
+                "type": "cuboid",
+                "segments": "1, 1, 3",
+                "size": "65.0, 18.0, 45.0"
+            }],
+            "magnetCrossSection": ["Cross Section [mm]", "FloatStringArray", "65.0, 45.0", "", "Width ({{ appState.models.simulation.widthAxis }}), Height ({{ appState.models.simulation.heightAxis }})"],
+            "magnetLength": ["Length ({{ appState.models.simulation.beamAxis }}) [mm]", "Float", 18.0],
+            "pole": ["Pole", "model.geomObject", {
+                "bevels": [],
+                "color": "#ff00ff",
+                "segments": "2, 5, 2",
+                "magnetization": "0.0, 0.0, 0.0",
+                "materialFile": "VaPermendur.csv",
+                "name": "pole",
+                "remanentMag": 0.0,
+                "material": "custom",
+                "type": "cuboid",
+                "size": "45.0, 5.0, 25.0"
+            }],
+            "poleCrossSection": ["Cross Section [mm]", "FloatStringArray", "45.0, 25.0", "", "Width ({{ appState.models.simulation.widthAxis }}), Height ({{ appState.models.simulation.heightAxis }})"],
+            "poleLength": ["Length ({{ appState.models.simulation.beamAxis }}) [mm]", "Float", 5.0],
+            "terminationGroup": ["_", "model.geomGroup", {
+                "name": "terminations"
+            }],
+            "terminations": ["Termination Objects", "TerminationTable",
                 [
                     {
                         "airGap": 0,
-                        "length": 9,
-                        "type": "magnet"
+                        "gapOffset": 1,
+                        "object": {
+                            "color": "#00ffff",
+                            "magnetization": "0.0, 0.0, 1.0",
+                            "name": "Termination Magnet",
+                            "remanentMag": 1.2,
+                            "material": "NdFeB",
+                            "type": "cuboid",
+                            "segments": "1,1,3",
+                            "size": "32.5,45.0,9.0"
+                        }
                     }
                 ]
             ],
-            "transverseAxis": ["Transverse Axis", "BeamAxis", "x", "Perpendicular to beam and gap axes"]
+            "corePoleGroup": ["_", "model.geomGroup", {
+                "name": "core + pole"
+            }],
+            "gapOffset": ["Gap Offset [mm]", "Float", 1.0, "Additional offset of magnets away from the beam along the height axis"],
+            "undulatorType": ["_", "UndulatorType", "undulatorHybrid"]
         }
     },
     "strings": {
@@ -701,6 +980,15 @@
         "typeOfSimulation": "solve"
     },
     "view": {
+        "axisPath": {
+            "title": "Axis",
+            "basic": [
+                "axis",
+                "start",
+                "stop",
+                "numPoints"
+            ]
+        },
         "circlePath": {
             "title": "Circle",
             "basic": [
@@ -727,29 +1015,81 @@
                 "alternateFields"
             ]
         },
-        "dipole": {
-            "title": "Dipole",
+        "dipoleBasic": {
+            "title": "Basic Dipole",
             "advanced": [],
             "basic": [
-                ["Main", [
+                ["Pole", [
+                    "dipoleBasic.pole.shapeButton",
+                    "dipoleBasic.pole.magnetization",
+                    "dipoleBasic.pole.remanentMag",
+                    "dipoleBasic.pole.material",
+                    "dipoleBasic.pole.materialFile",
+                    "dipoleBasic.pole.segments",
+                    "dipoleBasic.pole.size",
                     "gap"
-                ]],
+                ]]
+            ]
+        },
+        "dipoleC": {
+            "title": "C-Bend Dipole",
+            "advanced": [],
+            "basic": [
                 ["Coil", [
-                    "coilRadii",
-                    "coilHeight",
-                    "coilSides",
-                    "coilCurrent",
-                    "coilColor"
+                    "dipoleC.coil.color",
+                    "dipoleC.coil.radii",
+                    "dipoleC.coil.height",
+                    "dipoleC.coil.sides",
+                    "dipoleC.coil.currentDensity"
                 ]],
                 ["Magnet", [
-                    "magnetSize",
-                    "magnetMaterial",
-                    "magnetMaterialFile",
-                    "magnetMagnetization",
-                    "magnetRemanentMag",
-                    "magnetColor"
+                    "dipoleC.magnet.shapeButton",
+                    "dipoleC.magnet.size",
+                    "dipoleC.magnet.material",
+                    "dipoleC.magnet.materialFile",
+                    "dipoleC.magnet.magnetization",
+                    "dipoleC.magnet.remanentMag"
                 ]],
-                ["Poles", [
+                ["Pole", [
+                    "dipoleC.pole.shapeButton",
+                    "dipoleC.pole.magnetization",
+                    "dipoleC.pole.remanentMag",
+                    "dipoleC.pole.material",
+                    "dipoleC.pole.materialFile",
+                    "dipoleC.pole.segments",
+                    "poleWidth",
+                    "gap"
+                ]]
+            ]
+        },
+        "dipoleH": {
+            "title": "H-Bend Dipole",
+            "advanced": [],
+            "basic": [
+                ["Coil", [
+                    "dipoleH.coil.color",
+                    "dipoleH.coil.radii",
+                    "dipoleH.coil.height",
+                    "dipoleH.coil.sides",
+                    "dipoleH.coil.currentDensity"
+                ]],
+                ["Magnet", [
+                    "dipoleH.magnet.shapeButton",
+                    "magnetSize",
+                    "dipoleH.magnet.material",
+                    "dipoleH.magnet.materialFile",
+                    "dipoleH.magnet.magnetization",
+                    "dipoleH.magnet.remanentMag"
+                ]],
+                ["Pole", [
+                    "dipoleH.pole.shapeButton",
+                    "poleWidth",
+                    "dipoleH.pole.magnetization",
+                    "dipoleH.pole.remanentMag",
+                    "dipoleH.pole.material",
+                    "dipoleH.pole.materialFile",
+                    "dipoleH.pole.segments",
+                    "gap"
                 ]]
             ]
         },
@@ -762,12 +1102,10 @@
             "title": "Field on Path",
             "advanced": [
                 "fieldPaths",
-                "fieldType"
+                "fieldType",
+                "plotAxis"
             ],
-             "basic": [
-                 "fieldPaths",
-                 "fieldType"
-            ]
+            "basic": []
         },
         "fieldMapPath": {
             "title": "Field Map",
@@ -839,41 +1177,6 @@
                 ]]
             ]
         },
-        "hybridUndulator": {
-            "title": "Undulator",
-            "advanced": [],
-            "basic": [
-                ["Main", [
-                    "gap",
-                    "numPeriods",
-                    "periodLength"
-                ]],
-                ["Poles", [
-                    "geomObject.shapeButton",
-                    "poleCrossSection",
-                    "poleLength",
-                    "poleSegments",
-                    "poleMaterial",
-                    "poleMaterialFile",
-                    "poleMagnetization",
-                    "poleRemanentMag"
-                ]],
-                ["Permanent Magnets", [
-                    "geomObject.shapeButton",
-                    "magnetCrossSection",
-                    "magnetLength",
-                    "gapOffset",
-                    "magnetSegments",
-                    "magnetMaterial",
-                    "magnetMaterialFile",
-                    "magnetMagnetization",
-                    "magnetRemanentMag"
-                ]],
-                ["Termination", [
-                    "terminations"
-                ]]
-            ]
-        },
         "invert": {},
         "kickMapReport": {
             "title": "Kick Map",
@@ -928,14 +1231,16 @@
         "objectBevel": {
             "title": "Bevel",
             "basic": [
+                "cutAxis",
                 "edge",
-                "amountGap",
-                "amountTrans"
+                "amountVert",
+                "amountHoriz"
             ],
             "advanced": [
+                "cutAxis",
                 "edge",
-                "amountGap",
-                "amountTrans"
+                "amountVert",
+                "amountHoriz"
             ]
         },
         "objectShape": {
@@ -946,6 +1251,9 @@
                 ["Dimensions", [
                     "type",
                     "color",
+                    "stemmed.extrusionAxis",
+                    "extrudedPoly.extrusionAxisSegments",
+                    "extrudedPoly.triangulationLevel",
                     "stemmed.armHeight",
                     "stemmed.armPosition",
                     "stemmed.stemWidth",
@@ -964,9 +1272,9 @@
                 "name",
                 "axis",
                 "center",
-                "size",
-                "rInner",
-                "rOuter",
+                "sides",
+                "height",
+                "radii",
                 "numSegments",
                 "currentDensity",
                 "fieldCalc",
@@ -977,9 +1285,9 @@
                 "name",
                 "axis",
                 "center",
-                "size",
-                "rInner",
-                "rOuter",
+                "sides",
+                "height",
+                "radii",
                 "numSegments",
                 "currentDensity",
                 "fieldCalc",
@@ -1033,8 +1341,11 @@
                 "name",
                 "folder",
                 "magnetType",
+                "dipoleType",
+                "undulatorType",
                 "beamAxis",
-                "heightAxis"
+                "heightAxis",
+                "enableKickMaps"
             ]
         },
         "solverAnimation": {
@@ -1061,15 +1372,18 @@
         },
         "termination": {
             "title": "Termination",
-            "basic": [
-                "type",
-                "length",
-                "airGap"
-            ],
+            "basic": [],
             "advanced": [
-                "type",
-                "length",
-                "airGap"
+                "termination.object.name",
+                "termination.object.shapeButton",
+                "termination.object.size",
+                "termination.object.segments",
+                "airGap",
+                "gapOffset",
+                "termination.object.material",
+                "termination.object.materialFile",
+                "termination.object.magnetization",
+                "termination.object.remanentMag"
             ]
         },
         "transform": {
@@ -1097,28 +1411,54 @@
                 "distance"
             ]
         },
-        "undulator": {
-            "title": "Undulator",
+        "undulatorBasic": {
+            "title": "Basic Undulator",
             "advanced": [],
             "basic": [
-                ["Main", [
+                ["Undulator Parameters", [
+                    "gap",
+                    "numPeriods"
+                ]],
+                ["Permanent Magnets", [
+                    "undulatorBasic.magnet.shapeButton",
+                    "undulatorBasic.magnet.size",
+                    "airGap",
+                    "undulatorBasic.magnet.segments",
+                    "undulatorBasic.magnet.material",
+                    "undulatorBasic.magnet.materialFile",
+                    "undulatorBasic.magnet.magnetization",
+                    "undulatorBasic.magnet.remanentMag"
+                ]]
+            ]
+        },
+        "undulatorHybrid": {
+            "title": "Hybrid Undulator",
+            "advanced": [],
+            "basic": [
+                ["Undulator Parameters", [
                     "gap",
                     "numPeriods",
                     "periodLength"
                 ]],
                 ["Poles", [
-                    "hybridUndulator.poleCrossSection",
-                    "hybridUndulator.poleLength",
-                    "hybridUndulator.poleDivision",
-                    "hybridUndulator.poleMaterial",
-                    "hybridUndulator.poleMaterialFile"
+                    "undulatorHybrid.pole.shapeButton",
+                    "poleCrossSection",
+                    "poleLength",
+                    "undulatorHybrid.pole.segments",
+                    "undulatorHybrid.pole.material",
+                    "undulatorHybrid.pole.materialFile",
+                    "undulatorHybrid.pole.magnetization",
+                    "undulatorHybrid.pole.remanentMag"
                 ]],
                 ["Permanent Magnets", [
-                    "hybridUndulator.magnetCrossSection",
-                    "hybridUndulator.magnetDivision",
-                    "hybridUndulator.magnetMaterial",
-                    "hybridUndulator.magnetMaterialFile",
-                    "hybridUndulator.gapOffset"
+                    "undulatorHybrid.magnet.shapeButton",
+                    "magnetCrossSection",
+                    "gapOffset",
+                    "undulatorHybrid.magnet.segments",
+                    "undulatorHybrid.magnet.material",
+                    "undulatorHybrid.magnet.materialFile",
+                    "undulatorHybrid.magnet.magnetization",
+                    "undulatorHybrid.magnet.remanentMag"
                 ]],
                 ["Termination", [
                     "terminations"

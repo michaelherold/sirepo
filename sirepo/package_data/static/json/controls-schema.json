@@ -6,24 +6,6 @@
     },
     "constants": {
         "maxBPMPoints": 10,
-        "readoutElements": {
-            "HKICKER": {
-                "fields": ["current_kick"],
-                "group": "Kickers [A]"
-            },
-            "KICKER": {
-                "fields": ["current_hkick", "current_vkick"],
-                "group": "Kickers [A]"
-            },
-            "QUADRUPOLE": {
-                "fields": ["current_k1"],
-                "group": "Quads [A]"
-            },
-            "VKICKER": {
-                "fields": ["current_kick"],
-                "group": "Kickers [A]"
-            }
-        },
         "clight": 299792458,
         "particleMassAndCharge": {
             "positron": [0.510998928e-03, 1],
@@ -41,12 +23,17 @@
                 "controls.js",
                 "sirepo-lattice.js"
             ],
-             "css": [
-                 "lattice.css"
+            "css": [
+                "controls.css",
+                "lattice.css"
             ]
         }
     },
     "enum": {
+        "OperationMode": [
+            ["madx", "MAD-X Simulation"],
+            ["DeviceServer", "DeviceServer"]
+        ],
         "OptimizationMethod": [
             ["nmead", "Nelder-Mead"],
             ["polyfit", "Linear Response Matrix"]
@@ -60,6 +47,29 @@
             ["negmuon", "Negative Muon"],
             ["ion", "Ion"],
             ["other", "Other"]
+        ],
+        "PVDimension": [
+            ["none", "None"],
+            ["horizontal", "Horizontal"],
+            ["vertical", "Vertical"]
+        ]
+    },
+    "frameIdFields": {
+        "beamPositionAnimation": [
+        ],
+        "instrumentAnimation": [
+            "x",
+            "y1",
+            "y2",
+            "y3",
+            "histogramBins",
+            "particlePlotSize"
+        ],
+        "instrumentAnimationTwiss": [
+            "x",
+            "y1",
+            "y2",
+            "y3"
         ]
     },
     "localRoutes": {
@@ -80,6 +90,22 @@
         "beamline": {
             "name": ["Name", "ValidatedString"]
         },
+        "beamPositionAnimation": {
+        },
+        "bunch": {
+            "beamDefinition": ["Beam Definition", "BeamDefinition", "gamma"],
+            "matchTwissParameters": ["Match Twiss Parameters", "Boolean", "0", "Use twiss parameters computed from the selected beamline"],
+            "numberOfParticles": ["Number Of Particles", "Integer", 500, "Number of particles to track (min 100)", 100, 10000],
+            "randomSeed": ["Random Number Seed", "Integer", 123456789, "The seed for the random number generator for particles"],
+            "betx": ["Horizontal Beta [m]", "Float", 1.0],
+            "bety": ["Vertical Beta [m]", "Float", 1.0],
+            "alfx": ["Horizontal Alpha", "Float", 0.0],
+            "alfy": ["Vertical Alpha", "Float", 0.0],
+            "px": ["Horizontal Canonical Momentum of $p_x$", "Float", 0.0],
+            "py": ["Vertical Canonical Momentum of $p_y$", "Float", 0.0],
+            "x": ["Horizontal Centroid [m]", "Float", 0.0],
+            "y": ["Vertical Centroid [m]", "Float", 0.0]
+        },
         "command_beam": {
             "particle": ["Particle", "ParticleType", "electron", "The name of particles in the beam."],
             "mass": ["Mass [GeV]", "Float", 0.0005109989461, "The restmass of the particles in the beam."],
@@ -87,34 +113,70 @@
             "gamma": ["Gamma", "Float", 1.0, "Relativistic factor, ie the ratio between total energy and rest energy of the particles.", 1e-99],
             "ex": ["Horizontal Emittance [m]", "Float", 1.0],
             "ey": ["Vertical Emittance [m]", "Float", 1.0],
+            "et": ["ET [m]", "RPNValue", 0.001, "The longitudinal emittance $\\epsilon_t$"],
             "sigt": ["Bunch Length [m]", "Float", 1.0, "The bunch length $c\\space \\sigma_t$ (SIGT)."],
             "sige": ["Relative Energy Spread", "Float", 0.001, "The relative energy spread $\\sigma_E / E$ (SIGE)."]
         },
-        "command_twiss": {
-            "alfx": ["Horizontal Alpha", "Float", 0.0],
-            "alfy": ["Vertical Alpha", "Float", 0.0],
-            "betx": ["Horizontal Beta [m]", "Float", 0.0],
-            "bety": ["Vertical Beta [m]", "Float", 0.0],
-            "dpx": ["Horizontal Dispersion Derivative", "Float", 0.0],
-            "dpy": ["Vertical Dispersion Derivative", "Float", 0.0],
-            "dx": ["Horizontal Dispersion [m]", "Float", 0.0],
-            "dy": ["Vertical Dispersion [m]", "Float", 0.0],
-            "px": ["Horizontal Canonical Momentum of $p_x$", "Float", 0.0],
-            "py": ["Vertical Canonical Momentum of $p_y$", "Float", 0.0],
-            "x": ["Horizontal Centroid [m]", "Float", 0.0],
-            "y": ["Vertical Centroid [m]", "Float", 0.0]
+        "controlSettings": {
+            "operationMode": ["Operation Mode", "OperationMode", "madx"],
+            "deviceServerURL": ["DeviceServer URL", "OptionalString", ""],
+            "processVariables": ["", "ProcessVariables"],
+            "readOnly": ["Read Only", "Boolean", "1"],
+            "particlePlotSize": ["Particle Plot Dimension [m]", "Float", 0.1],
+            "bpmPlotSize": ["Monitor Dimension [m]", "Float", 0.0021],
+            "deviceServerUser": ["DeviceServer user", "OptionalString", "", "the user that will be making future requests to set values"],
+            "deviceServerProcName": ["DeviceServer procName", "OptionalString", "", "the name of the process or application making the set requests"],
+            "deviceServerProcId": ["DeviceServer procId", "OptionalString", "", "the process ID of process making the sets"],
+            "deviceServerMachine": ["DeviceServer machine", "OptionalString", "", "the name or IP address of the machine making the request"]
         },
         "dataFile": {
             "madxSirepo": ["Madx Simulation", "MadxSimList", true]
         },
-        "initialMonitorPositionsReport": {},
+        "deviceServerMonitor": {
+        },
+        "initialMonitorPositionsReport": {
+            "readOnly": ["Read Only", "Boolean", "0"]
+        },
+        "instrumentAnimation":{
+            "aspectRatio": ["Aspect Ratio", "AspectRatio", "1"],
+            "x": ["Horizontal Value to Plot", "ValueList", "x"],
+            "y1": ["Vertical Value to Plot", "ValueList", "y"],
+            "histogramBins": ["Histogram Bins", "Integer", 200],
+            "colorMap": ["Color Map", "ColorMap", "afmhot"]
+        },
+        "instrumentAnimationAll":{
+            "aspectRatio": ["Aspect Ratio", "AspectRatio", "1"],
+            "x": ["Horizontal Value to Plot", "ValueList", "x"],
+            "y1": ["Vertical Value to Plot", "ValueList", "y"],
+            "histogramBins": ["Histogram Bins", "Integer", 200],
+            "colorMap": ["Color Map", "ColorMap", "afmhot"]
+        },
+        "instrumentAnimationTwiss": {
+            "x": ["Horizontal Value to Plot", "ValueList", "s"],
+            "y1": ["Vertical Value to Plot", "ValueList", "x0"],
+            "y2": ["Vertical Value to Plot", "ValueList", "y0"],
+            "y3": ["Vertical Value to Plot", "ValueList", "None"],
+            "includeLattice": ["Include the lattice", "Boolean", 0]
+        },
         "optimizerSettings": {
-            "method": ["Optimization Method", "OptimizationMethod", "nmead"]
+            "inputs": ["", "OptimizerInputIds"],
+            "method": ["Optimization Method", "OptimizationMethod", "nmead"],
+            "tolerance": ["Tolerance", "Float", 1e-3, "Absolute error in xopt between iterations that is acceptable for convergence."]
+        },
+        "optimizerInputsTab": {
+            "title": "Optimization",
+            "advanced": []
         },
         "optimizerTarget": {
             "x": ["X [m]", "Float", 0.0],
             "y": ["Y [m]", "Float", 0.0],
             "weight": ["Weight", "Float", 0.1]
+        },
+        "processVariable": {
+            "elId": ["Element ID", "Integer"],
+            "pvDimension": ["PV Dimension", "PVDimension", "none"],
+            "isWritable": ["Setting", "Boolean", "0"],
+            "pvName": ["PV Name", "OptionalString"]
         },
         "HKICKER": {
             "name": ["Name", "ValidatedString"],
@@ -123,7 +185,8 @@
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
         "HMONITOR": {
-            "name": ["Name", "ValidatedString"]
+            "name": ["Name", "ValidatedString"],
+            "x": ["X", "Float", 0]
         },
         "KICKER": {
             "name": ["Name", "ValidatedString"],
@@ -134,7 +197,9 @@
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
         "MONITOR": {
-            "name": ["Name", "ValidatedString"]
+            "name": ["Name", "ValidatedString"],
+            "x": ["X", "Float", 0],
+            "y": ["Y", "Float", 0]
         },
         "QUADRUPOLE": {
             "name": ["Name", "ValidatedString"],
@@ -149,16 +214,39 @@
             "ampTable": ["Amp Conversion Table (*.csv)", "AmpTable", ""]
         },
         "VMONITOR": {
-            "name": ["Name", "ValidatedString"]
+            "name": ["Name", "ValidatedString"],
+            "y": ["Y", "Float", 0]
         }
     },
     "strings": {
-        "completionState": ""
+        "completionState": "",
+        "typeOfSimulation": "optimization"
     },
     "view": {
+        "beamPositionAnimation": {
+            "title": "Beam Position at Monitors",
+            "advanced": []
+        },
         "beamline": {
             "title": "Beamline",
-            "advanced": []
+            "advanced": [
+                ["Settings", [
+                    "controlSettings.operationMode",
+                    "controlSettings.deviceServerURL",
+                    "controlSettings.readOnly",
+                    "controlSettings.deviceServerUser",
+                    "controlSettings.deviceServerProcName",
+                    "controlSettings.deviceServerProcId",
+                    "controlSettings.deviceServerMachine"
+                ]],
+                ["Process Variables", [
+                    "controlSettings.processVariables"
+                ]],
+                ["Plot Sizes", [
+                    "controlSettings.bpmPlotSize",
+                    "controlSettings.particlePlotSize"
+                ]]
+            ]
         },
         "command_beam": {
             "title": "Beam Settings",
@@ -168,40 +256,45 @@
                     "particle",
                     "mass",
                     "charge",
-                    "gamma"
+                    "gamma",
+                    "bunch.numberOfParticles"
                 ]],
-                ["Twiss", [
+                ["Distribution", [
                     [
                         ["Horizontal", [
                             "ex",
-                            "command_twiss.betx",
-                            "command_twiss.alfx",
-                            "command_twiss.dx",
-                            "command_twiss.dpx"
+                            "bunch.betx",
+                            "bunch.alfx"
                         ]],
                         ["Vertical", [
                             "ey",
-                            "command_twiss.bety",
-                            "command_twiss.alfy",
-                            "command_twiss.dy",
-                            "command_twiss.dpy"
+                            "bunch.bety",
+                            "bunch.alfy"
                         ]]
                     ],
+                    "et",
                     "sigt",
                     "sige"
                 ]],
                 ["Position", [
                     [
                         ["Horizontal", [
-                            "command_twiss.x",
-                            "command_twiss.px"
+                            "bunch.x",
+                            "bunch.px"
                         ]],
                         ["Vertical", [
-                            "command_twiss.y",
-                            "command_twiss.py"
+                            "bunch.y",
+                            "bunch.py"
                         ]]
                     ]
                 ]]
+            ]
+        },
+        "controlSettings": {
+            "title": "Controls Settings",
+            "advanced": [
+                "operationMode",
+                "deviceServerURL"
             ]
         },
         "dataFile": {
@@ -211,16 +304,71 @@
             ],
             "advanced": []
         },
+        "deviceServerMonitor": {
+            "title": "DeviceServer Monitor",
+            "advanced": []
+        },
         "initialMonitorPositionsReport": {
             "title": "",
             "advanced": []
         },
-        "simulationStatus": {
-            "title": "Optimization Targets",
+        "instrumentAnimation": {
+                "title": "Particle Plot",
+                "model": "instrumentAnimation",
+                "advanced": [
+                    [
+                        ["Horizontal", [
+                            "x"
+                        ]],
+                        ["Vertical", [
+                            "y1"
+                        ]]
+                    ],
+                    "histogramBins",
+                    "colorMap"
+                ]
+        },
+        "instrumentAnimationAll": {
+            "title": "Particle Plots",
+            "model": "instrumentAnimationAll",
+            "advanced": [
+                [
+                    ["Horizontal", [
+                        "x"
+                    ]],
+                    ["Vertical", [
+                        "y1"
+                    ]]
+                ],
+                "histogramBins",
+                "colorMap"
+            ]
+        },
+        "instrumentAnimationTwiss": {
+            "title": "Twiss Parameters",
+            "advanced": [
+                [
+                    ["Horizontal", [
+                        "x"
+                    ]],
+                    ["Vertical", [
+                        "y1",
+                        "y2",
+                        "y3"
+                    ]]
+                ]
+            ]
+        },
+        "optimizerInputsTab": {
+            "title": "Optimization",
             "advanced": []
         },
         "monitors": {
             "title": "Monitors",
+            "advanced": []
+        },
+        "simulationStatus": {
+            "title": "Optimization Targets",
             "advanced": []
         },
         "HKICKER": {
@@ -235,7 +383,8 @@
         "HMONITOR": {
             "title": "MONITOR",
             "advanced": [
-                "name"
+                "name",
+                "x"
             ]
         },
         "KICKER": {
@@ -251,7 +400,9 @@
         "MONITOR": {
             "title": "MONITOR",
             "advanced": [
-                "name"
+                "name",
+                "x",
+                "y"
             ]
         },
         "QUADRUPOLE": {
@@ -275,7 +426,8 @@
         "VMONITOR": {
             "title": "MONITOR",
             "advanced": [
-                "name"
+                "name",
+                "y"
             ]
         }
     }

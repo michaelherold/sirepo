@@ -119,6 +119,15 @@ class LatticeIterator(ElementIterator):
         return field in ['name', 'type', '_id'] or re.search('(X|Y|File)$', field)
 
 
+class UpdateIterator(ModelIterator):
+    def __init__(self, update_func):
+        self.update_func = update_func
+
+    def field(self, model, field_schema, field):
+        if field_schema[1] == 'RPNValue':
+            self.update_func(model, field)
+
+
 class LatticeParser(object):
     COMMAND_PREFIX = 'command_'
 
@@ -173,16 +182,16 @@ class LatticeParser(object):
                         ))
 
     def _code_variables_to_float(self, code_var):
+
+        def _float_update(model, field):
+            if not code_var.is_var_value(model[field]) and type(model[field]) != float:
+                model[field] = float(model[field])
+
         for v in self.data.models.rpnVariables:
             if not code_var.is_var_value(v.value):
                 v.value = float(v.value)
-        for container in ('elements', 'commands'):
-            for el in self.data.models[container]:
-                model_name = LatticeUtil.model_name_for_data(el)
-                for f in self.schema.model[model_name]:
-                    if f in el and self.schema.model[model_name][f][1] == 'RPNValue':
-                        if not code_var.is_var_value(el[f]):
-                            el[f] = float(el[f])
+        LatticeUtil(self.data, self.schema).iterate_models(UpdateIterator(_float_update))
+
 
     def _compute_drifts(self, code_var):
         drifts = PKDict()
@@ -194,17 +203,16 @@ class LatticeParser(object):
         return drifts
 
     def _downcase_variables(self, code_var):
+
+        def _downcase_update(model, field):
+            if code_var.is_var_value(model[field]):
+                model[field] = model[field].lower()
+
         for v in self.data.models.rpnVariables:
             v.name = v.name.lower()
             if code_var.is_var_value(v.value):
                 v.value = v.value.lower()
-        for container in ('elements', 'commands'):
-            for el in self.data.models[container]:
-                model_name = LatticeUtil.model_name_for_data(el)
-                for f in self.schema.model[model_name]:
-                    if f in el and self.schema.model[model_name][f][1] == 'RPNValue':
-                        if code_var.is_var_value(el[f]):
-                            el[f] = el[f].lower()
+        LatticeUtil(self.data, self.schema).iterate_models(UpdateIterator(_downcase_update))
 
     def _eval_var(self, code_var, value):
         return code_var.eval_var_with_assert(value)
@@ -598,6 +606,13 @@ class LatticeUtil(object):
             data.models[m] = add_list[m]
 
     @classmethod
+    def get_lattice_id_from_file_id(cls, data, file_id):
+        for c in data.models.commands:
+            if c._id == int(file_id.split(LatticeUtil._FILE_ID_SEP)[0]) and 'use_beamline' in c:
+                return c.use_beamline
+        return None
+
+    @classmethod
     def is_command(cls, model):
         """Is the model a command or a lattice element?
         """
@@ -626,6 +641,7 @@ class LatticeUtil(object):
             if model_type not in data.models:
                 continue
             for m in data.models[model_type]:
+                assert '_id' in m or 'id' in m, 'Missing id: {}'.format(m)
                 i = m._id if '_id' in m else m.id
                 if i > max_id:
                     max_id = i

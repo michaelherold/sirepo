@@ -5,9 +5,13 @@ var srdbg = SIREPO.srdbg;
 
 SIREPO.app.config(function() {
     SIREPO.appDefaultSimulationValues.simulation.beamAxis = 'z';
+    SIREPO.appDefaultSimulationValues.simulation.coordinateSystem = 'standard';
     SIREPO.appDefaultSimulationValues.simulation.enableKickMaps = '0';
     SIREPO.appDefaultSimulationValues.simulation.heightAxis = 'y';
     SIREPO.appDefaultSimulationValues.simulation.magnetType = 'freehand';
+    SIREPO.appDefaultSimulationValues.simulation.dipoleType = 'dipoleBasic';
+    SIREPO.appDefaultSimulationValues.simulation.undulatorType = 'undulatorBasic';
+    SIREPO.appDefaultSimulationValues.simulation.freehandType = 'freehand';
     SIREPO.SINGLE_FRAME_ANIMATION = ['solverAnimation'];
     SIREPO.appFieldEditors += [
         '<div data-ng-switch-when="BevelTable" class="col-sm-12">',
@@ -54,8 +58,10 @@ SIREPO.app.config(function() {
     ].join('');
 });
 
-SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, requestSender, utilities, validationService) {
-    var self = {};
+SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, panelState, requestSender, utilities, validationService) {
+    let self = {};
+
+    const POST_SIM_REPORTS = ['fieldIntegralReport', 'fieldLineoutReport', 'kickMapReport',];
 
     // why is this here? - answer: for getting frames
     self.computeModel = function(analysisModel) {
@@ -125,11 +131,15 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         return d;
     };
 
+    self.calcWidthAxis = (depthAxis, heightAxis) => {
+        return self.axes.filter((a) => {
+            return a !== depthAxis && a !== heightAxis;
+        })[0];
+    };
+
     self.createPathModel = function(type) {
         var t = type || self.pathTypeModel(appState.models.fieldPaths.path);
-        var model = {
-            id: numPathsOfType(appState.models.fieldPaths.path),
-        };
+        var model = {};
         appState.models[t] = appState.setModelDefaults(model, t);
 
         // set to fill bounds if any actors exist
@@ -144,6 +154,21 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         }
     };
 
+    self.deleteObject = o => {
+        const i = appState.models.geometryReport.objects.indexOf(o);
+        if (i < 0) {
+            return;
+        }
+        // if object was a group, ungroup its members
+        for (const mId of (o.members || [])) {
+            self.getObject(mId).groupId = '';
+        }
+        // if object was in a group, remove from that group
+        removeFromGroup(o);
+        appState.models.geometryReport.objects.splice(i, 1);
+        self.saveGeometry(true, false);
+    };
+
     self.getAxisIndices = function() {
         const sim = appState.models.simulation;
         return {
@@ -153,9 +178,17 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         };
     };
 
+    self.getGeomDirections = function (depthAxis, heightAxis) {
+        return {
+            depth: geometry.basisVectors[depthAxis],
+            height: geometry.basisVectors[heightAxis],
+            width: geometry.basisVectors[self.calcWidthAxis(depthAxis, heightAxis)],
+        };
+    };
+
     self.getObject = function(id) {
         let objs = appState.models.geometryReport.objects || [];
-        for (let o of objs) {
+        for (const o of objs) {
             if (o.id == id) {
                 return o;
             }
@@ -179,12 +212,11 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         self.showPathPicker(true, true);
     };
 
-    self.nextId = function() {
-        // a uuid generator found on the interwebs
-        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-            (c ^ window.crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-        );
-    };
+
+    // In order to associate VTK objects in the viewer with Radia objects, we need a mapping between them.
+    // When we create objects on the client side we don't yet know the Radia id so we cannot use it directly.
+    // Instead, generate an id here and map it when the Radia object is created. A random string is good enough
+    self.generateId = () => utilities.randomString(16);
 
     self.pathEditorTitle = function() {
         if (! appState.models.fieldPaths) {
@@ -197,7 +229,14 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         return type + 'Path';
     };
 
+    self.reloadGeometry = (callback=() => {}) => {
+        const r = 'geometryReport';
+        panelState.clear(r);
+        panelState.requestData(r, callback, true);
+    };
+
     self.saveGeometry = function(doGenerate, isQuiet, callback) {
+        appState.models.geometryReport.lastModified = Date.now();
         appState.models.geometryReport.doGenerate = doGenerate ? '1': '0';
         if (isQuiet) {
             appState.saveQuietly('geometryReport');
@@ -205,13 +244,12 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         else {
             appState.saveChanges('geometryReport', callback);
         }
+        self.syncReports();
     };
 
     self.setWidthAxis = function() {
         const sim = appState.models.simulation;
-        sim.widthAxis = self.axes.filter((a) => {
-            return a !== sim.beamAxis && a !== sim.heightAxis;
-        })[0];
+        sim.widthAxis = self.calcWidthAxis(sim.beamAxis, sim.heightAxis);
     };
 
     self.setSelectedObject = function(o) {
@@ -240,8 +278,39 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
             });
     };
 
+
+    self.syncReports = () => {
+        POST_SIM_REPORTS.forEach(r => {
+            appState.models[r].lastModified = appState.models.geometryReport.lastModified;
+        });
+        appState.saveChanges(POST_SIM_REPORTS);
+    };
+
+   // update models so that editors see the correct values
+    // for now assign the entire object
+    self.updateModelAndSuperClasses = (modelName, model) => {
+        const s = [modelName, ...appState.superClasses(modelName)];
+        for (const c of s) {
+            appState.models[c] = model;
+        }
+        return s;
+    };
+
     self.upload = function(inputFile) {
         upload(inputFile);
+    };
+
+    self.validateMagnetization = (magnetization, material) => {
+        const mag = Math.hypot(
+            ...self.stringToFloatArray(magnetization || SIREPO.ZERO_STR)
+        );
+        validationService.validateField(
+            'geomObject',
+            'material',
+            'select',
+            SIREPO.APP_SCHEMA.constants.anisotropicMaterials.indexOf(material) < 0 || mag > 0,
+            'Anisotropic materials require non-zero magnetization'
+        );
     };
 
     function findPath(path) {
@@ -258,6 +327,17 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
         return (appState.models.fieldPaths.paths || []).filter(function (p) {
             return p.type === type;
         }).length;
+    }
+
+    function removeFromGroup(o) {
+        const gId = o.groupId;
+        if (gId !== 0 && (! gId || gId === '')) {
+            return;
+        }
+        let g = self.getObject(gId);
+        g.members.splice(g.members.indexOf(o.id), 1);
+        appState.models.geomGroup = g;
+        appState.saveQuietly('geomGroup');
     }
 
     function upload(inputFile, type=SIREPO.APP_SCHEMA.constants.pathPtsFileType) {
@@ -281,9 +361,10 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, panelState, re
 });
 
 SIREPO.app.controller('RadiaSourceController', function (appState, geometry, panelState, plotting, radiaService, utilities, validationService, vtkPlotting, $scope) {
-    var self = this;
+    //TODO(mvk): a lot of this is specific to freehand magnets and should be moved to a directive
 
-    const anisotropicMaterialMsg = 'Anisotropic materials require non-zero magnetization';
+    let self = this;
+
     const editorFields = [
         'geomObject.magnetization',
         'geomObject.material',
@@ -291,26 +372,11 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         'simulation.beamAxis',
         'simulation.heightAxis',
     ];
-    const groupModels = [
-        'geomGroup',
-        'geomUndulatorGroup',
-    ];
-    const undulatorEditorFields = [
-        'hybridUndulator.magnetMagnetization',
-        'hybridUndulator.magnetMaterial',
-        'hybridUndulator.periodLength',
-        'hybridUndulator.poleLength',
-        'hybridUndulator.poleMagnetization',
-        'hybridUndulator.poleMaterial',
-        'simulation.beamAxis',
-    ];
     const watchedModels = [
         'geomObject',
         'geomGroup',
-        'hybridUndulator',
+        'racetrack',
         'radiaObject',
-        'simulation',
-        'undulator',
     ];
 
     self.axes = ['x', 'y', 'z'];
@@ -326,7 +392,6 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     };
 
     self.dropEnabled = true;
-    self.modelsLoaded = false;
     self.selectedObject = null;
     self.shapes = [];
     self.toolbarSections = SIREPO.APP_SCHEMA.constants.toolbarItems.filter(function (item) {
@@ -350,31 +415,17 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     };
 
     self.deleteObject = function(o) {
-        const oIdx = appState.models.geometryReport.objects.indexOf(o);
-        if (oIdx < 0) {
-            return;
-        }
         deleteShapesForObject(o);
-        // if object was a group, ungroup its members
-        for (let mId of (o.members || [])) {
-            self.getObject(mId).groupId = '';
-        }
-        // if object was in a group, remove from that group
-        removeFromGroup(o);
-        appState.models.geometryReport.objects.splice(oIdx, 1);
-        radiaService.saveGeometry(true, false);
+        radiaService.deleteObject(o);
     };
 
-    function removeFromGroup(o) {
-        const gId = o.groupId;
-        if (gId !== 0 && (! gId || gId === '')) {
-            return;
-        }
-        let g = self.getObject(gId);
-        g.members.splice(g.members.indexOf(o.id), 1);
-        appState.models.geomGroup = g;
-        appState.saveQuietly('geomGroup');
-    }
+    self.dipoleTitle = () => {
+        return ({
+            dipoleBasic: 'Basic',
+            dipoleC: 'C-Bend',
+            dipoleH: 'H-Bend',
+        }[self.getDipoleType()] || '') + ' Dipole';
+    };
 
     self.editItem = function(o) {
         self.editObject(o);
@@ -394,17 +445,18 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     };
 
     self.showDesigner = function() {
-        if (! self.modelsLoaded) {
-            return false;
-        }
-        return self.modelsLoaded && appState.models.simulation.magnetType === 'freehand';
+        return appState.models.simulation.magnetType === 'freehand';
     };
 
     self.showParams = function() {
-        if (! self.modelsLoaded) {
-            return false;
+        return appState.models.simulation.magnetType !== 'freehand';
+    };
+
+    self.getDipoleType = function() {
+        if (self.getMagnetType() !== 'dipole') {
+            return null;
         }
-        return self.modelsLoaded && appState.models.simulation.magnetType !== 'freehand';
+        return appState.models.simulation.dipoleType;
     };
 
     self.getMagnetType = function() {
@@ -427,6 +479,17 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
 
     self.getShapes = function() {
         return self.shapes;
+    };
+
+    self.getUndulatorType = () => {
+        if (self.getMagnetType() !== 'undulator') {
+            return null;
+        }
+        return appState.models.simulation.undulatorType;
+    };
+
+    self.getView = () => {
+        return `${appState.models.simulation[`${self.getMagnetType()}Type`]}`;
     };
 
     self.isDropEnabled = function() {
@@ -527,9 +590,27 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         return shape;
     };
 
+    self.viewTitle = () => {
+        return {
+            dipole: (
+                {
+                    dipoleBasic: 'Basic',
+                    dipoleC: 'C-Bend',
+                    dipoleH: 'H-Bend',
+                }[self.getDipoleType()] || ''
+            ) + ' Dipole',
+            undulator: (
+                {
+                    undulatorBasic: 'Basic',
+                    undulatorHybrid: 'Hybrid',
+                }[self.getUndulatorType()] || ''
+            ) + ' Undulator',
+        }[self.getMagnetType()];
+    };
+
     function addBeamAxis() {
         const axis = appState.models.simulation.beamAxis;
-        for (let p in vtkPlotting.COORDINATE_PLANES) {
+        for (const p in vtkPlotting.COORDINATE_PLANES) {
             if (p.indexOf(axis) < 0) {
                 continue;
             }
@@ -551,18 +632,12 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     }
 
     function addObject(o) {
-        o.id  = radiaService.nextId();
         appState.models.geometryReport.objects.push(o);
         // for groups, set the group id of all members
-        //var n = 0;
-        (o.members || []).forEach(function (oId) {
+        (o.members || []).forEach(oId => {
             self.getObject(oId).groupId = o.id;
-        //    ++n;
         });
-        //if (n > 0) {
-        //    let z = groupBounds(o.members);
-        //    o.size = '0,0,0';
-        //}
+        addShapesForObject(o);
     }
 
     function addShapesForObject(o) {
@@ -622,7 +697,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
 
         // apply non-copying transforms to the object and its members (if any)
         composeFn(txArr)(baseShape, baseShape);
-        for (let m of getMembers(o)) {
+        for (const m of getMembers(o)) {
             let s = self.getShape(m.id);
             composeFn(txArr)(s, s);
         }
@@ -642,7 +717,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
 
     function addSymmetryPlane(baseShape, xform) {
         let plIds = [];
-        for (let p in vtkPlotting.COORDINATE_PLANES) {
+        for (const p in vtkPlotting.COORDINATE_PLANES) {
             const cpl = geometry.plane(vtkPlotting.COORDINATE_PLANES[p], geometry.point());
             const spl = geometry.plane(
                 radiaService.stringToFloatArray(xform.symmetryPlane),
@@ -687,11 +762,11 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     }
 
     function deleteShapesForObject(o) {
-        for (let s of getTransformedShapes(o)) {
+        for (const s of getTransformedShapes(o)) {
             self.shapes.splice(indexOfShape(s), 1);
         }
         let shape = self.shapeForObject(o);
-        for (let s of getVirtualShapes(shape)) {
+        for (const s of getVirtualShapes(shape)) {
             self.shapes.splice(indexOfShape(s), 1);
         }
         self.shapes.splice(indexOfShape(shape), 1);
@@ -712,7 +787,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
             return ! ! s;
         });
         const newBounds = shapesBounds(mShapes);
-        for (let dim in newBounds) {
+        for (const dim in newBounds) {
             groupShape.size[dim] = Math.abs(newBounds[dim][1] - newBounds[dim][0]);
             groupShape.center[dim] = newBounds[dim][0] + groupShape.size[dim] / 2;
         }
@@ -727,7 +802,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         let members = (o.members || []).map(function (id) {
             return self.getObject(id);
         });
-        for (let m of members) {
+        for (const m of members) {
             members.push(...getMembers(m));
         }
         return members;
@@ -751,7 +826,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
             return excludedIds.indexOf(s.id) < 0 && hasBaseShape(s, baseShape);
         });
         let v2 = [];
-        for (let s of v) {
+        for (const s of v) {
             v2.push(...getVirtualShapes(s, excludedIds));
         }
         v.push(...v2);
@@ -787,9 +862,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
 
     function loadShapes() {
         self.shapes = [];
-        appState.models.geometryReport.objects.forEach(function (o) {
-            addShapesForObject(o);
-        });
+        appState.models.geometryReport.objects.forEach(addShapesForObject);
         addBeamAxis();
     }
 
@@ -850,7 +923,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         shapes.forEach(function (s) {
             let vs = getVirtualShapes(s);
             let sr = shapesBounds(vs);
-            for (let dim in b) {
+            for (const dim in b) {
                 b[dim] = [
                     Math.min(b[dim][0], s.center[dim] - s.size[dim] / 2, sr[dim][0]),
                     Math.max(b[dim][1], s.center[dim] + s.size[dim] / 2, sr[dim][1])
@@ -865,7 +938,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
             return;
         }
         let txm = [];
-        for (let m of getMembers(o)) {
+        for (const m of getMembers(o)) {
             let shape = self.getShape(m.id);
             if (! shape) {
                 // may be later in array if created externally
@@ -874,7 +947,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
             }
             let v = getVirtualShapes(shape, excludedIds);
             txm.push(addTxShape(shape, xform, txFunction).id);
-            for (let s of v) {
+            for (const s of v) {
                 txm.push(addTxShape(s, xform, txFunction).id);
             }
         }
@@ -889,7 +962,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
     }
 
     function transformShapesForObjects() {
-        for (let o of self.getObjects()) {
+        for (const o of self.getObjects()) {
             transformShapesForObject(o);
         }
     }
@@ -908,51 +981,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         return sh;
     }
 
-    function updateUndulatorEditor() {
-        let modelName = 'hybridUndulator';
-        let u = appState.models[modelName];
-
-        panelState.enableField('hybridUndulator', 'magnetLength', false);
-
-        for (let m of ['pole', 'magnet']) {
-            const matField = `${m}Material`;
-            panelState.showField(
-                modelName,
-                `${m}MaterialFile`,
-                u[matField] === 'custom'
-            );
-            const mag = Math.hypot(
-                ...radiaService.stringToFloatArray(u[`${m}Magnetization`] || SIREPO.ZERO_STR)
-            );
-            validationService.validateField(
-                modelName,
-                matField,
-                'select',
-                SIREPO.APP_SCHEMA.constants.anisotropicMaterials.indexOf(u[matField]) < 0 || mag > 0,
-                anisotropicMaterialMsg
-            );
-        }
-        const lengthsValid = u.periodLength > u.poleLength / 2;
-        if (lengthsValid) {
-            u.magnetLength = u.periodLength / 2 - u.poleLength;
-            appState.saveQuietly(modelName);
-        }
-        validationService.validateField(
-            modelName,
-            'periodLength',
-            'input',
-            lengthsValid,
-            `Period length must be > pole length/2 (${u.poleLength / 2}mm)`
-        );
-        validationService.validateField(
-            modelName,
-            'poleLength',
-            'input',
-            lengthsValid,
-            `Pole length must be < 2*period length (${u.periodLength * 2}mm)`
-        );
-    }
-
+    //TODO(mvk): move to view logic
     function updateObjectEditor() {
         var o = self.selectedObject;
         if (! o) {
@@ -964,19 +993,7 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
             o.material === 'custom'
         );
 
-        const mag = Math.hypot(
-            ...radiaService.stringToFloatArray(o.magnetization || SIREPO.ZERO_STR)
-        );
-        validationService.validateField(
-            'geomObject',
-            'material',
-            'select',
-            SIREPO.APP_SCHEMA.constants.anisotropicMaterials.indexOf(o.material) < 0 || mag > 0,
-            anisotropicMaterialMsg
-        );
-    }
-
-    function updateToolEditor(toolItem) {
+        radiaService.validateMagnetization(o.magnetization, o.material);
     }
 
     function virtualShapeId(shape) {
@@ -991,93 +1008,74 @@ SIREPO.app.controller('RadiaSourceController', function (appState, geometry, pan
         return baseShapeId(shape.id) === `${baseShape.id}`;
     }
 
-    appState.whenModelsLoaded($scope, function() {
-        self.modelsLoaded = true;
-        // initial setup
-        appState.watchModelFields($scope, editorFields, function(d) {
-            updateObjectEditor();
-        });
-        appState.watchModelFields($scope, undulatorEditorFields, function(d) {
-            updateUndulatorEditor();
-        });
-        if (! appState.models.geometryReport.objects) {
-            appState.models.geometryReport.objects = [];
+    // initial setup
+    appState.watchModelFields($scope, editorFields, function(d) {
+        updateObjectEditor();
+    });
+    if (! appState.models.geometryReport.objects) {
+        appState.models.geometryReport.objects = [];
+    }
+    loadShapes();
+
+    $scope.$on('modelChanged', function(e, modelName) {
+        if (! watchedModels.includes(modelName)) {
+            return;
         }
-        loadShapes();
-
-        $scope.$on('modelChanged', function(e, modelName) {
-            if (watchedModels.indexOf(modelName) < 0) {
-                return;
-            }
-            if (
-                modelName === 'simulation' ||
-                Object.keys(SIREPO.APP_SCHEMA.constants.parameterizedMagnets).indexOf(modelName) >= 0
-            ) {
-                appState.models.geometryReport.lastModified = Date.now();
-                radiaService.setWidthAxis();
-                appState.saveQuietly('simulation');
-                appState.models.kickMapReport.periodLength = appState.models.hybridUndulator.periodLength;
-                appState.saveQuietly('kickMapReport');
-            }
-            let o = self.selectedObject;
-            if (o) {
-                if (o.id !== 0 && (angular.isUndefined(o.id) || o.id === '')) {
-                    // catch unrelated saved objects
-                    if (o.model === modelName || panelState.getBaseModelKey(o.model) === modelName) {
-                        addObject(o);
-                    }
-                    else {
-                        self.selectedObject = null;
-                    }
+        let o = self.selectedObject;
+        if (o) {
+            if (! radiaService.getObject(o.id)) {
+                // catch unrelated saved objects
+                if (o.model === modelName || panelState.getBaseModelKey(o.model) === modelName) {
+                    addObject(o);
                 }
-                if (o.materialFile) {
-                    o.hmFileName = o.materialFile.name;
-                    radiaService.upload(o.materialFile, SIREPO.APP_SCHEMA.constants.hmFileType);
+                else {
+                    self.selectedObject = null;
                 }
             }
-            radiaService.saveGeometry(true, false, () => {
-                panelState.clear('geometryReport');
-                // need to rebuild the geometry after changes were made
-                panelState.requestData('geometryReport', function(data) {
-                    if (self.selectedObject) {
-                        loadShapes();
-                    }
-                });
-            });
-
+            if (o.type === 'racetrack') {
+                // calculate the size
+                let s = [0, 0, 0];
+                const sides = utilities.splitCommaDelimitedString(o.sides, parseFloat);
+                const radii = utilities.splitCommaDelimitedString(o.radii, parseFloat);
+                const i = geometry.basis.indexOf(o.axis);
+                s[i] = o.height;
+                for (const j of [0, 1]) {
+                    s[(i + j + 1) % 3] = sides[j] + 2.0 * radii[1];
+                }
+                o.size = s.join(', ');
+                appState.saveQuietly('racetrack');
+            }
+            if (o.materialFile) {
+                o.hmFileName = o.materialFile.name;
+                radiaService.upload(o.materialFile, SIREPO.APP_SCHEMA.constants.hmFileType);
+            }
+        }
+        radiaService.saveGeometry(true, false, () => {
+            if (self.selectedObject) {
+                loadShapes();
+            }
         });
+    });
 
-        $scope.$on('geomObject.editor.show', function(e, o) {
-            updateObjectEditor();
-        });
+    $scope.$on('geomObject.editor.show', updateObjectEditor);
 
-        $scope.$on('tool.editor.show', function(e, o) {
-            updateToolEditor();
-        });
+    $scope.$on('layout.object.dropped', function (e, lo) {
+        var m = appState.setModelDefaults({}, lo.model);
+        m.center = lo.center;
+        m.name = lo.type;
+        m.name = newObjectName(m);
+        m.model = lo.model;
+        self.editObject(m);
+    });
 
-        $scope.$on('layout.object.dropped', function (e, lo) {
-            var m = appState.setModelDefaults({}, lo.model);
-            m.center = lo.center;
-            m.name = lo.type;
-            m.name = newObjectName(m);
-            m.model = lo.model;
-            self.editObject(m);
-        });
-
-        $scope.$on('drop.target.enabled', function (e, val) {
-            self.dropEnabled = val;
-        });
-
-        $scope.$parent.$on('sr-tabSelected', function(event, modelName) {
-            updateUndulatorEditor();
-        });
+    $scope.$on('drop.target.enabled', function (e, val) {
+        self.dropEnabled = val;
     });
 });
 
 SIREPO.app.controller('RadiaVisualizationController', function (appState, errorService, frameCache, panelState, persistentSimulation, radiaService, utilities, $scope) {
 
     let SINGLE_PLOTS = ['magnetViewer',];
-    let POST_SIM_REPORTS = ['fieldIntegralReport', 'fieldLineoutReport', 'kickMapReport',];
 
     let solving = false;
 
@@ -1088,13 +1086,6 @@ SIREPO.app.controller('RadiaVisualizationController', function (appState, errorS
     $scope.svc = radiaService;
 
     self.solution = null;
-
-    function updateReports() {
-        POST_SIM_REPORTS.forEach((name) => {
-            appState.models[name].lastModified = Date.now();
-            appState.saveChanges(name);
-        });
-    }
 
     self.enableKickMaps = function() {
         return appState.isLoaded() && appState.models.simulation.enableKickMaps === '1';
@@ -1111,7 +1102,7 @@ SIREPO.app.controller('RadiaVisualizationController', function (appState, errorS
         panelState.requestData('reset', () => {
             frameCache.setFrameCount(0);
             }, true);
-        updateReports();
+        radiaService.syncReports();
     };
 
     self.simHandleStatus = function(data) {
@@ -1128,7 +1119,7 @@ SIREPO.app.controller('RadiaVisualizationController', function (appState, errorS
                     frameCache.setFrameCount(1, name);
                 });
                 if (solving) {
-                    updateReports();
+                    radiaService.syncReports();
                 }
                 solving = false;
                 radiaService.saveGeometry(false, true);
@@ -1145,27 +1136,6 @@ SIREPO.app.controller('RadiaVisualizationController', function (appState, errorS
 
     self.simState = persistentSimulation.initSimulationState(self);
 
-    appState.watchModelFields($scope, ['simulation.beamAxis', 'simulation.heightAxis'], () => {
-        radiaService.setWidthAxis();
-    });
-    appState.whenModelsLoaded($scope, () => {
-        $scope.$on('modelChanged', (e, modelName) => {
-            let m = appState.models[modelName];
-            if (modelName === 'fieldPaths') {
-                const rpt = 'fieldLineoutReport';
-                for (let r of appState.models.fieldPaths.paths) {
-                    const currentPath = appState.models[rpt].fieldPath;
-                    if ((currentPath && ! $.isEmptyObject(currentPath)) && r.name !== currentPath.name) {
-                        continue;
-                    }
-                    appState.models[rpt].fieldPath = r;
-                    appState.saveQuietly(rpt);
-                    break;
-                }
-            }
-        });
-    });
-
 });
 
 
@@ -1175,10 +1145,10 @@ SIREPO.app.directive('appFooter', function() {
         scope: {
             nav: '=appFooter',
         },
-        template: [
-            '<div data-common-footer="nav"></div>',
-            `<div data-dmp-import-dialog="" data-title="Import File" data-description="Select Radia dump (.dat) or ${SIREPO.APP_SCHEMA.productInfo.shortName} Export (.zip)"></div>`,
-        ].join(''),
+        template: `
+            <div data-common-footer="nav"></div>
+            <div data-dmp-import-dialog="" data-title="Import File" data-description="Select Radia dump (.dat) or ${SIREPO.APP_SCHEMA.productInfo.shortName} Export (.zip)"></div>
+        `,
     };
 });
 
@@ -1188,26 +1158,26 @@ SIREPO.app.directive('appHeader', function(activeSection, appState, panelState, 
         scope: {
             nav: '=appHeader',
         },
-        template: [
-            '<div data-app-header-brand="nav"></div>',
-            '<div data-app-header-left="nav"></div>',
-            '<div data-app-header-right="nav">',
-              '<app-header-right-sim-loaded>',
-                '<div data-sim-sections="">',
-                  '<li data-ng-if="! isImported()" class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a href data-ng-click="nav.openSection(\'source\')"><span class="glyphicon glyphicon-magnet"></span> Design</a></li>',
-                  '<li class="sim-section" data-ng-class="{active: nav.isActive(\'visualization\')}"><a href data-ng-click="nav.openSection(\'visualization\')"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>',
-                '</div>',
-              '</app-header-right-sim-loaded>',
-              '<app-settings>',
-                    '<li><a href data-ng-click="exportDmp()"><span class="glyphicon glyphicon-cloud-download"></span> Export Radia Dump</a></li>',
-              '</app-settings>',
-              '<app-header-right-sim-list>',
-                '<ul class="nav navbar-nav sr-navbar-right">',
-                  '<li><a href data-ng-click="showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>',
-                '</ul>',
-              '</app-header-right-sim-list>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div data-app-header-brand="nav"></div>
+            <div data-app-header-left="nav"></div>
+            <div data-app-header-right="nav">
+              <app-header-right-sim-loaded>
+                <div data-sim-sections="">
+                  <li data-ng-if="! isImported()" class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a href data-ng-click="nav.openSection(\'source\')"><span class="glyphicon glyphicon-magnet"></span> Design</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'visualization\')}"><a href data-ng-click="nav.openSection(\'visualization\')"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>
+                </div>
+              </app-header-right-sim-loaded>
+              <app-settings>
+                    <li><a href data-ng-click="exportDmp()"><span class="glyphicon glyphicon-cloud-download"></span> Export Radia Dump</a></li>
+              </app-settings>
+              <app-header-right-sim-list>
+                <ul class="nav navbar-nav sr-navbar-right">
+                  <li><a href data-ng-click="showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>
+                </ul>
+              </app-header-right-sim-list>
+            </div>
+        `,
         controller: function($scope) {
             $scope.exportDmp = function() {
                 requestSender.newWindow('exportArchive', {
@@ -1245,41 +1215,43 @@ SIREPO.app.directive('bevelTable', function(appState, panelState, radiaService) 
             object: '=',
         },
 
-        template: [
-            '<table class="table table-hover">',
-              '<colgroup>',
-                '<col style="width: 20ex">',
-                '<col style="width: 20ex">',
-                '<col style="width: 20ex">',
-              '</colgroup>',
-              '<thead>',
-                '<tr>',
-                  '<th>Edge Index</th>',
-                  '<th>Gap Dist</th>',
-                  '<th>Transverse Dist</th>',
-                  '<th></th>',
-                '</tr>',
-              '</thead>',
-             '<tbody>',
-            '<tr>',
-            '</tr>',
-                '<tr data-ng-repeat="item in loadItems()">',
-                    '<td>{{ item.edge }}</td>',
-                    '<td>{{ item.amountGap }}mm</td>',
-                    '<td>{{ item.amountTrans }}mm</td>',
-                  '<td style="text-align: right">',
-                    '<div class="sr-button-bar-parent">',
-                        '<div class="sr-button-bar" data-ng-class="sr-button-bar-active" >',
-                            ' <button data-ng-click="editItem(item)" class="btn btn-info btn-xs sr-hover-button">Edit</button>',
-                            ' <button data-ng-click="deleteItem(item, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>',
-                        '</div>',
-                    '<div>',
-                  '</td>',
-                '</tr>',
-            '</tbody>',
-            '</table>',
-            '<button data-ng-click="addItem()" id="sr-new-bevel" class="btn btn-info btn-xs pull-right">New Bevel <span class="glyphicon glyphicon-plus"></span></button>',
-        ].join(''),
+        template: `
+            <table class="table table-hover">
+              <colgroup>
+                <col style="width: 20ex">
+                <col style="width: 20ex">
+                <col style="width: 20ex">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Cut Axis</th>
+                  <th>Cut Edge</th>
+                  <th>Vertical Distance From Corner</th>
+                  <th>Horizontal Distance From Corner</th>
+                  <th></th>
+                </tr>
+              </thead>
+             <tbody>
+            <tr>
+            </tr>
+                <tr data-ng-repeat="item in loadItems()">
+                    <td>{{ item.cutAxis }}</td>
+                    <td>{{ bevelEdge(item.edge) }}</td>
+                    <td>{{ item.amountVert }}mm</td>
+                    <td>{{ item.amountHoriz }}mm</td>
+                  <td style="text-align: right">
+                    <div class="sr-button-bar-parent">
+                        <div class="sr-button-bar" data-ng-class="sr-button-bar-active" >
+                             <button data-ng-click="editItem(item)" class="btn btn-info btn-xs sr-hover-button">Edit</button>
+                             <button data-ng-click="deleteItem(item, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>
+                        </div>
+                    <div>
+                  </td>
+                </tr>
+            </tbody>
+            </table>
+            <button data-ng-click="addItem()" id="sr-new-bevel" class="btn btn-info btn-xs pull-right">New Bevel <span class="glyphicon glyphicon-plus"></span></button>
+        `,
         controller: function($scope, $element) {
             let isEditing = false;
             let itemModel = 'objectBevel';
@@ -1296,6 +1268,15 @@ SIREPO.app.directive('bevelTable', function(appState, panelState, radiaService) 
             $scope.addItem = function() {
                 let b = appState.setModelDefaults({}, itemModel);
                 $scope.editItem(b, true);
+            };
+
+            $scope.bevelEdge = (index) => {
+                for (const e of SIREPO.APP_SCHEMA.enum.BevelEdge) {
+                    if (e[SIREPO.ENUM_INDEX_VALUE] === index) {
+                        return e[SIREPO.ENUM_INDEX_LABEL];
+                    }
+                }
+                return '';
             };
 
             $scope.deleteItem = function(item) {
@@ -1330,8 +1311,17 @@ SIREPO.app.directive('bevelTable', function(appState, panelState, radiaService) 
                         return;
                     }
                     $scope.selectedItem = null;
+                    let m = appState.models[modelName];
+                    const d = m.cutAxis;
+                    const h = SIREPO.APP_SCHEMA.constants.heightAxisMap[d];
+                    const w = radiaService.calcWidthAxis(d, h);
+                    const dirs = radiaService.getGeomDirections(d, h, w);
+                    m.cutDir = dirs.depth;
+                    m.heightDir = dirs.height;
+                    m.widthDir = dirs.width;
+                    appState.saveQuietly(modelName);
                     if (! isEditing) {
-                        $scope.field.push(appState.models[modelName]);
+                        $scope.field.push(m);
                         isEditing = true;
                     }
                     radiaService.saveGeometry(true, false,() => {
@@ -1365,30 +1355,30 @@ SIREPO.app.directive('dmpImportDialog', function(appState, fileManager, fileUplo
             description: '@',
             title: '@',
         },
-        template: [
-            '<div class="modal fade" id="simulation-import" tabindex="-1" role="dialog">',
-              '<div class="modal-dialog modal-lg">',
-                '<div class="modal-content">',
-                  '<div class="modal-header bg-info">',
-                    '<button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>',
-                    '<div data-help-button="{{ title }}"></div>',
-                    '<span class="lead modal-title text-info">{{ title }}</span>',
-                  '</div>',
-                  '<div class="modal-body">',
-                    '<div class="container-fluid">',
-                        '<form>',
-                        `<div data-file-chooser="" data-input-file="inputFile" data-url="fileURL" data-title="title" data-description="description" data-require="true" data-file-formats="${IMPORT_FORMATS.join(',')}"></div>`,
-                          '<div class="col-sm-6 pull-right">',
-                            '<button data-ng-click="importDmpFile(inputFile)" class="btn btn-primary" data-ng-class="{\'disabled\': isMissingImportFile() }">Import File</button>',
-                            ' <button data-dismiss="modal" class="btn btn-default">Cancel</button>',
-                          '</div>',
-                        '</form>',
-                    '</div>',
-                  '</div>',
-                '</div>',
-              '</div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="modal fade" id="simulation-import" tabindex="-1" role="dialog">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header bg-info">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <div data-help-button="{{ title }}"></div>
+                    <span class="lead modal-title text-info">{{ title }}</span>
+                  </div>
+                  <div class="modal-body">
+                    <div class="container-fluid">
+                        <form>
+                        <div data-file-chooser="" data-input-file="inputFile" data-url="fileURL" data-title="title" data-description="description" data-require="true" data-file-formats="${IMPORT_FORMATS.join(',')}"></div>
+                          <div class="col-sm-6 pull-right">
+                            <button data-ng-click="importDmpFile(inputFile)" class="btn btn-primary" data-ng-class="{'disabled': isMissingImportFile() }">Import File</button>
+                             <button data-dismiss="modal" class="btn btn-default">Cancel</button>
+                          </div>
+                        </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `,
         controller: function($scope) {
             $scope.inputFile = null;
             $scope.fileURL = null;
@@ -1460,7 +1450,7 @@ SIREPO.app.directive('dmpImportDialog', function(appState, fileManager, fileUplo
             function importFileArguments(o) {
                 let d = SIREPO.APP_SCHEMA.constants.inputFileArgDelims;
                 let s = '';
-                for (let k in o) {
+                for (const k in o) {
                     s += `${k}${d.item}${o[k]}${d.list}`;
                 }
                 return s;
@@ -1507,55 +1497,55 @@ SIREPO.app.directive('fieldDownload', function(appState, geometry, panelState, r
         restrict: 'A',
         scope: {
         },
-        template: [
-            '<div class="modal fade" tabindex="-1" role="dialog" id="sr-field-download" data-small-element-class="col-sm-2">',
-                '<div class="modal-dialog modal-lg">',
-                    '<div class="modal-content">',
-                        '<div class="modal-header bg-info">',
-                            '<button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>',
-                            '<span class="lead modal-title text-info">{{ svc.selectedPath.name }}</span>',
-                        '</div>',
-                        '<div class="modal-body">',
-                            '<div class="form-horizontal">',
-                                '<div class="form-group form-group-sm" data-ng-show="! isFieldMap()">',
-                                    '<div class="control-label col-sm-5">',
-                                        '<label><span>Field</span></label>',
-                                    '</div>',
-                                    '<div class="col-sm-5">',
-                                        '<select data-ng-model="tModel.type" class="form-control">',
-                                            '<option ng-repeat="t in svc.pointFieldTypes">{{ t }}</option>',
-                                        '</select>',
-                                    '</div>',
-                                '</div>',
-                                '<div class="control-label col-sm-5">',
-                                    '<label><span>Export to</span></label>',
-                                '</div>',
-                                '<div class="form-group form-group-sm">',
-                                    '<div class="col-sm-5">',
-                                        '<select data-ng-model="tModel.exportType" class="form-control">',
-                                            '<option ng-repeat="t in svc.pointFieldExportTypes">{{ t }}</option>',
-                                        '</select>',
-                                    '</div>',
-                                '</div>',
-                                '<div data-ng-show="tModel.exportType == \'SRW\'">',
-                                    '<div class="control-label col-sm-5">',
-                                        '<label><span>Magnetic Gap [mm]</span></label>',
-                                    '</div>',
-                                    '<div class="form-group form-group-sm">',
-                                        '<div class="col-sm-5">',
-                                            '<input data-string-to-number="" data-ng-model="tModel.gap" data-min="0" required />',
-                                        '</div>',
-                                    '</div>',
-                                '</div>',
-                                '<div class="row">',
-                                    '<button data-ng-click="download()" class="btn btn-default col-sm-offset-6">Download</button>',
-                                '</div>',
-                            '</div>',
-                        '</div>',
-                    '</div>',
-                '</div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="modal fade" tabindex="-1" role="dialog" id="sr-field-download" data-small-element-class="col-sm-2">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info">
+                            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                            <span class="lead modal-title text-info">{{ svc.selectedPath.name }}</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-horizontal">
+                                <div class="form-group form-group-sm" data-ng-show="! isFieldMap()">
+                                    <div class="control-label col-sm-5">
+                                        <label><span>Field</span></label>
+                                    </div>
+                                    <div class="col-sm-5">
+                                        <select data-ng-model="tModel.type" class="form-control">
+                                            <option ng-repeat="t in svc.pointFieldTypes">{{ t }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="control-label col-sm-5">
+                                    <label><span>Export to</span></label>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <div class="col-sm-5">
+                                        <select data-ng-model="tModel.exportType" class="form-control">
+                                            <option ng-repeat="t in svc.pointFieldExportTypes">{{ t }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div data-ng-show="tModel.exportType == \'SRW\'">
+                                    <div class="control-label col-sm-5">
+                                        <label><span>Magnetic Gap [mm]</span></label>
+                                    </div>
+                                    <div class="form-group form-group-sm">
+                                        <div class="col-sm-5">
+                                            <input data-string-to-number="" data-ng-model="tModel.gap" data-min="0" required />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <button data-ng-click="download()" class="btn btn-default col-sm-offset-6">Download</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
         controller: function($scope, $element) {
             $scope.svc = radiaService;
 
@@ -1570,7 +1560,7 @@ SIREPO.app.directive('fieldDownload', function(appState, geometry, panelState, r
 
                 });
             };
-            
+
             $scope.download = function() {
                 requestSender.newWindow('downloadDataFile', {
                     '<simulation_id>': appState.models.simulation.simulationId,
@@ -1607,29 +1597,42 @@ SIREPO.app.directive('fieldLineoutReport', function(appState) {
         scope: {
             modelName: '@'
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div data-ng-if="! dataCleared && hasPaths()" data-report-panel="parameter" data-request-priority="0" data-model-name="fieldLineoutReport"></div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div data-ng-if="! dataCleared && hasPaths()" data-report-panel="parameter" data-request-priority="0" data-model-name="fieldLineoutReport"></div>
+            </div>
+        `,
         controller: function($scope) {
             $scope.dataCleared = true;
+            $scope.model = appState.models[$scope.modelName];
+
+            function isFieldPathValid(p) {
+                return ! $.isEmptyObject(p) && p.type;
+            }
+
+            function setPathIfMissing() {
+                if (! isFieldPathValid($scope.model.fieldPath) && $scope.hasPaths() ) {
+                    $scope.model.fieldPath = appState.models.fieldPaths.paths[0];
+                    appState.saveQuietly($scope.modelName);
+                }
+            }
 
             $scope.hasPaths = () => {
                 return appState.models.fieldPaths.paths && appState.models.fieldPaths.paths.length;
             };
 
-            appState.whenModelsLoaded($scope, () => {
-                $scope.model = appState.models[$scope.modelName];
-                if ($.isEmptyObject($scope.model.fieldPath) && $scope.hasPaths() ) {
-                    $scope.model.fieldPath = appState.models.fieldPaths.paths[0];
-                    appState.saveQuietly($scope.modelName);
-                }
-               // wait until we have some data
-               $scope.$on('radiaViewer.loaded', () => {
-                   $scope.dataCleared = false;
-               });
+            $scope.$on('radiaViewer.loaded', () => {
+                $scope.dataCleared = false;
             });
+
+            $scope.$on('fieldPaths.changed', setPathIfMissing);
+
+            appState.watchModelFields($scope, [`${$scope.modelName}.fieldPath`],  () => {
+                if ($scope.model.fieldPath.axis) {
+                    $scope.model.plotAxis = $scope.model.fieldPath.axis;
+                }
+            });
+            setPathIfMissing();
         },
     };
 });
@@ -1645,29 +1648,29 @@ SIREPO.app.directive('fieldPathPicker', function(appState, panelState, radiaServ
             id: '@',
             smallElementClass: '@',
         },
-        template: [
-            '<div class="modal fade" data-ng-attr-id="{{ id }}" tabindex="-1" role="dialog">',
-              '<div class="modal-dialog modal-lg">',
-                '<div class="modal-content">',
-                  '<div class="modal-header bg-info">',
-                    '<button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>',
-                    '<span class="lead modal-title text-info">{{ title }}</span>',
-                  '</div>',
-                  '<div class="modal-body">',
-                    '<div class="container-fluid">',
-                      '<div class="row">',
-                        '<div data-field-editor="\'path\'" data-label-size="" data-field-size="3" style="text-align: right" data-model-name="modelName" data-model="model"></div>',
-                      '</div>',
-                      '<br />',
-                      '<div class="row">',
-                        '<div data-ng-repeat="type in pathTypes" data-ng-show="getPathType() == type" data-advanced-editor-pane="" data-view-name="radiaService.pathTypeModel(type)" data-field-def="basic" data-want-buttons="false">',
-                      '</div>',
-                    '</div>',
-                  '</div>',
-                '</div>',
-              '</div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="modal fade" data-ng-attr-id="{{ id }}" tabindex="-1" role="dialog">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header bg-info">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <span class="lead modal-title text-info">{{ title }}</span>
+                  </div>
+                  <div class="modal-body">
+                    <div class="container-fluid">
+                      <div class="row">
+                        <div data-field-editor="\'path\'" data-label-size="" data-field-size="3" style="text-align: right" data-model-name="modelName" data-model="model"></div>
+                      </div>
+                      <br />
+                      <div class="row">
+                        <div data-ng-repeat="type in pathTypes" data-ng-show="getPathType() == type" data-advanced-editor-pane="" data-view-name="radiaService.pathTypeModel(type)" data-field-def="basic" data-want-buttons="false">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        `,
         controller: function($scope, $element) {
             $scope.modelsLoaded = false;
             $scope.pathType = null;
@@ -1720,47 +1723,48 @@ SIREPO.app.directive('fieldIntegralTable', function(appState, panelState, plotti
         scope: {
             modelName: '@',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div class="panel panel-info">',
-                    '<div class="panel-heading">',
-                        '<span class="sr-panel-heading">Field Integrals (T &#x00B7; mm)</span>',
-                        '<div class="sr-panel-options pull-right">',
-                        '<a data-ng-show="hasPaths()" data-ng-click="download()" target="_blank" title="Download"> <span class="sr-panel-heading glyphicon glyphicon-cloud-download" style="margin-bottom: 0"></span></a> ',
-                        '</div>',
-                    '</div>',
-                    '<div class="panel-body">',
-                        '<table data-ng-if="hasPaths()" style="width: 100%; table-layout: fixed; margin-bottom: 10px" class="table table-hover">',
-                          '<colgroup>',
-                            '<col style="width: 20ex">',
-                            '<col>',
-                            '<col>',
-                          '</colgroup>',
-                          '<thead>',
-                            '<tr>',
-                              '<th data-ng-repeat="h in HEADING">{{ h }}</th>',
-                            '</tr>',
-                          '</thead>',
-                          '<tbody>',
-                            '<tr data-ng-repeat="path in linePaths()">',
-                              '<td>{{ path.name }}</td>',
-                              '<td>[{{ path.begin }}] &#x2192; [{{ path.end }}]</td>',
-                              '<td>',
-                                '<div data-ng-repeat="t in INTEGRABLE_FIELD_TYPES"><span style="font-weight: bold">{{ t }}:</span> </span><span>{{ format(integrals[path.name][t]) }}</span></div>',
-                              '</td>',
-                            '</tr>',
-                          '</tbody>',
-                        '</table>',
-                    '</div>',
-                '</div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div class="panel panel-info">
+                    <div class="panel-heading">
+                        <span class="sr-panel-heading">Field Integrals (T &#x00B7; mm)</span>
+                        <div class="sr-panel-options pull-right">
+                        <a data-ng-show="hasPaths()" data-ng-click="download()" target="_blank" title="Download"> <span class="sr-panel-heading glyphicon glyphicon-cloud-download" style="margin-bottom: 0"></span></a>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <table data-ng-if="hasPaths()" style="width: 100%; table-layout: fixed; margin-bottom: 10px" class="table table-hover">
+                          <colgroup>
+                            <col style="width: 20ex">
+                            <col>
+                            <col>
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th data-ng-repeat="h in HEADING">{{ h }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr data-ng-repeat="path in linePaths()">
+                              <td>{{ path.name }}</td>
+                              <td>[{{ path.begin }}] &#x2192; [{{ path.end }}]</td>
+                              <td>
+                                <div data-ng-repeat="t in INTEGRABLE_FIELD_TYPES"><span style="font-weight: bold">{{ t }}:</span> </span><span>{{ format(integrals[path.name][t]) }}</span></div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `,
         controller: function($scope) {
 
             $scope.CSV_HEADING = ['Line', 'x0', 'y0', 'z0', 'x1', 'y1', 'z1', 'Bx', 'By', 'Bz', 'Hx', 'Hy', 'Hz'];
             $scope.HEADING = ['Line', 'Endpoints', 'Fields'];
             $scope.INTEGRABLE_FIELD_TYPES = ['B', 'H'];
             $scope.integrals = {};
+            $scope.model = appState.models[$scope.modelName];
 
             $scope.download = function() {
                 var fileName = panelState.fileNameFromText('Field Integrals', 'csv');
@@ -1798,7 +1802,7 @@ SIREPO.app.directive('fieldIntegralTable', function(appState, panelState, plotti
             };
 
             $scope.isLine = function(p) {
-                return p.type === 'line';
+                return p.type === 'line' || p.type === 'axis';
             };
 
             $scope.linePaths = function () {
@@ -1814,71 +1818,62 @@ SIREPO.app.directive('fieldIntegralTable', function(appState, panelState, plotti
                 }, true);
             }
 
-            $scope.$on('fieldPaths.changed', function () {
-                updateTable();
-            });
-
-           appState.whenModelsLoaded($scope, function() {
-               $scope.model = appState.models[$scope.modelName];
-               // wait until we have some data to update
-               $scope.$on('radiaViewer.loaded', function () {
-                    updateTable();
-               });
-            });
-
+            $scope.$on('radiaViewer.loaded', updateTable);
+            $scope.$on('fieldPaths.changed', updateTable);
         },
     };
 });
 
-SIREPO.app.directive('fieldPathTable', function(appState, panelState, radiaService, utilities) {
+SIREPO.app.directive('fieldPathTable', function(appState, geometry, panelState, radiaService, utilities) {
     return {
         restrict: 'A',
         scope: {
             paths: '='
         },
-        template: [
-            '<table data-ng-if="hasPaths()" style="width: 100%; table-layout: fixed; margin-bottom: 10px" class="table table-hover">',
-              '<colgroup>',
-                '<col style="width: 20ex">',
-                '<col style="width: 10ex">',
-                '<col style="width: 10ex">',
-                '<col style="width: 100%">',
-                '<col style="width: 10ex">',
-              '</colgroup>',
-              '<thead>',
-                '<tr>',
-                  '<th>Name</th>',
-                  '<th>Type</th>',
-                  '<th>Num. points</th>',
-                  '<th>Details</th>',
-                  '<th></th>',
-                '</tr>',
-              '</thead>',
-              '<tbody>',
-                '<tr data-ng-repeat="path in paths track by $index">',
-                  '<td><div class="badge sr-badge-icon sr-lattice-icon"><span>{{ path.name }}</span></div></td>',
-                  '<td><span>{{ path.type }}</span></td>',
-                  '<td><span>{{ path.numPoints }}</span></td>',
-                  '<td><span>{{ pathDetails(path) }}</span></td>',
-                  '<td style="text-align: right">',
-                    '<div class="sr-button-bar-parent">',
-                        '<div class="sr-button-bar" data-ng-class="sr-button-bar-active" >',
-                            '<button class="btn btn-info btn-xs sr-hover-button" data-ng-click="copyPath(path)">Copy</button>',
-                            ' <button data-ng-click="editPath(path)" class="btn btn-info btn-xs sr-hover-button">Edit</button>',
-                            ' <button data-ng-click="svc.showFieldDownload(true, path)" class="btn btn-info btn-xs"><span class="glyphicon glyphicon-cloud-download"></span></button>',
-                            ' <button data-ng-click="deletePath(path, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>',
-                        '</div>',
-                    '<div>',
-                  '</td>',
-                '</tr>',
-              '</tbody>',
-            '</table>',
-        ].join(''),
+        template: `
+            <table data-ng-if="hasPaths()" style="width: 100%; table-layout: fixed; margin-bottom: 10px" class="table table-hover">
+              <colgroup>
+                <col style="width: 20ex">
+                <col style="width: 10ex">
+                <col style="width: 10ex">
+                <col style="width: 100%">
+                <col style="width: 10ex">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Num. points</th>
+                  <th>Details</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-ng-repeat="path in paths track by $index">
+                  <td><div class="badge sr-badge-icon sr-lattice-icon"><span>{{ path.name }}</span></div></td>
+                  <td><span>{{ path.type }}</span></td>
+                  <td><span>{{ path.numPoints }}</span></td>
+                  <td><span>{{ pathDetails(path) }}</span></td>
+                  <td style="text-align: right">
+                    <div class="sr-button-bar-parent">
+                        <div class="sr-button-bar" data-ng-class="sr-button-bar-active" >
+                            <button class="btn btn-info btn-xs sr-hover-button" data-ng-click="copyPath(path)">Copy</button>
+                             <button data-ng-click="editPath(path)" class="btn btn-info btn-xs sr-hover-button">Edit</button>
+                             <button data-ng-click="svc.showFieldDownload(true, path)" class="btn btn-info btn-xs"><span class="glyphicon glyphicon-cloud-download"></span></button>
+                             <button data-ng-click="deletePath(path, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>
+                        </div>
+                    <div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+        `,
         controller: function($scope) {
             const watchedModels = SIREPO.APP_SCHEMA.enum.PathType.map(function (e) {
                 return e[SIREPO.ENUM_INDEX_VALUE];
             });
 
+            $scope.paths = appState.models.fieldPaths.paths;
             $scope.svc = radiaService;
 
             $scope.hasPaths = function() {
@@ -1888,7 +1883,7 @@ SIREPO.app.directive('fieldPathTable', function(appState, panelState, radiaServi
             $scope.copyPath = function(path) {
                 let copy = appState.clone(path);
                 copy.name = newPathName(copy);
-                copy.id = radiaService.nextId();
+                copy.id = radiaService.generateId();
                 $scope.paths.push(copy);
                 appState.saveChanges(['fieldPaths', radiaService.pathTypeModel(copy.type)], function () {
                     $scope.editPath(copy);
@@ -1922,8 +1917,12 @@ SIREPO.app.directive('fieldPathTable', function(appState, panelState, radiaServi
                return appState.uniqueName(appState.models.fieldPaths, 'name', path.name + ' {}');
            }
 
-           appState.whenModelsLoaded($scope, function() {
-               $scope.paths = appState.models.fieldPaths.paths;
+           $scope.$on('axisPath.changed', (e, d) => {
+               let m = appState.models.axisPath;
+               m.name = `${m.axis.toUpperCase()}-Axis`;
+               m.begin = geometry.basisVectors[m.axis].map(x => m.start * x).join(',');
+               m.end = geometry.basisVectors[m.axis].map(x => m.stop * x).join(',');
+               appState.saveQuietly('axisPath');
            });
         },
     };
@@ -1936,28 +1935,28 @@ SIREPO.app.directive('groupEditor', function(appState, radiaService) {
             field: '=',
             model: '=',
         },
-        template: [
-            '<div style="height: 100px; overflow-y: scroll; overflow-x: hidden;">',
-            '<table style="table-layout: fixed;" class="table table-hover">',
-                '<tr style="background-color: lightgray;" data-ng-show="field.length > 0">',
-                  '<th>Members</th>',
-                  '<th></th>',
-                '</tr>',
-                '<tr data-ng-repeat="mId in field">',
-                    '<td style="padding-left: 1em"><div class="badge sr-badge-icon"><span data-ng-drag="true" data-ng-drag-data="element">{{ getObject(mId).name }}</span></div></td>',
-                    '<td style="text-align: right">&nbsp;<div class="sr-button-bar-parent"><div class="sr-button-bar">  <button data-ng-click="ungroupObject(mId)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button></div><div></td>',
-                '</tr>',
-                '<tr style="background-color: lightgray;">',
-                  '<th>Ungrouped</th>',
-                  '<th></th>',
-                '</tr>',
-                '<tr data-ng-repeat="oId in getIds() | filter:hasNoGroup">',
-                  '<td style="padding-left: 1em"><div class="badge sr-badge-icon"><span data-ng-drag="true" data-ng-drag-data="element">{{ getObject(oId).name }}</span></div></td>',
-                  '<td style="text-align: right">&nbsp;<div class="sr-button-bar-parent"><div class="sr-button-bar"><button class="btn btn-info btn-xs sr-hover-button" data-ng-click="addObject(oId)"><span class="glyphicon glyphicon-plus"></span></button> </div><div></td>',
-                '</tr>',
-            '</table>',
-             '</div>',
-        ].join(''),
+        template: `
+            <div style="height: 100px; overflow-y: scroll; overflow-x: hidden;">
+            <table style="table-layout: fixed;" class="table table-hover">
+                <tr style="background-color: lightgray;" data-ng-show="field.length > 0">
+                  <th>Members</th>
+                  <th></th>
+                </tr>
+                <tr data-ng-repeat="mId in field">
+                    <td style="padding-left: 1em"><div class="badge sr-badge-icon"><span data-ng-drag="true" data-ng-drag-data="element">{{ getObject(mId).name }}</span></div></td>
+                    <td style="text-align: right">&nbsp;<div class="sr-button-bar-parent"><div class="sr-button-bar">  <button data-ng-click="ungroupObject(mId)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button></div><div></td>
+                </tr>
+                <tr style="background-color: lightgray;">
+                  <th>Ungrouped</th>
+                  <th></th>
+                </tr>
+                <tr data-ng-repeat="oId in getIds() | filter:hasNoGroup">
+                  <td style="padding-left: 1em"><div class="badge sr-badge-icon"><span data-ng-drag="true" data-ng-drag-data="element">{{ getObject(oId).name }}</span></div></td>
+                  <td style="text-align: right">&nbsp;<div class="sr-button-bar-parent"><div class="sr-button-bar"><button class="btn btn-info btn-xs sr-hover-button" data-ng-click="addObject(oId)"><span class="glyphicon glyphicon-plus"></span></button> </div><div></td>
+                </tr>
+            </table>
+             </div>
+        `,
         controller: function($scope) {
 
             $scope.objects = appState.models.geometryReport.objects;
@@ -2007,7 +2006,7 @@ SIREPO.app.directive('groupEditor', function(appState, radiaService) {
                     return [];
                 }
                 let objs = [];
-                for (let mId of (o.members || [])) {
+                for (const mId of (o.members || [])) {
                     objs.push(...[mId, ...groupedObjects(mId)]);
                 }
                 return objs;
@@ -2023,27 +2022,25 @@ SIREPO.app.directive('kickMapReport', function(appState, panelState, plotting, r
             direction: '@',
             viewName: '@',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div data-ng-if="! dataCleared" data-report-panel="3d" data-panel-title="Kick Map" data-model-name="kickMapReport"></div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div data-ng-if="! dataCleared" data-report-panel="3d" data-panel-title="Kick Map" data-model-name="kickMapReport"></div>
+            </div>
+        `,
         controller: function($scope) {
 
             $scope.dataCleared = true;
-            appState.whenModelsLoaded($scope, function() {
-               $scope.model = appState.models.kickMapReport;
-               // wait until we have some data to update
-               $scope.$on('radiaViewer.loaded', function () {
-                   $scope.dataCleared = false;
-               });
+
+            $scope.model = appState.models.kickMapReport;
+            $scope.$on('radiaViewer.loaded', () => {
+                $scope.dataCleared = false;
             });
 
         },
     };
 });
 
-SIREPO.app.directive('terminationTable', function(appState, panelState, radiaService) {
+SIREPO.app.directive('terminationTable', function(appState, panelState, radiaService, validationService) {
     return {
         restrict: 'A',
         scope: {
@@ -2056,108 +2053,118 @@ SIREPO.app.directive('terminationTable', function(appState, panelState, radiaSer
             object: '=',
         },
 
-        template: [
-            '<table class="table table-hover">',
-              '<colgroup>',
-                '<col style="width: 20ex">',
-                '<col style="width: 20ex">',
-                '<col style="width: 20ex">',
-              '</colgroup>',
-              '<thead>',
-                '<tr>',
-                  '<th>Object Type</th>',
-                  '<th>Length</th>',
-                  '<th>Air Gap</th>',
-                  '<th></th>',
-                '</tr>',
-              '</thead>',
-             '<tbody>',
-            '<tr>',
-            '</tr>',
-                '<tr data-ng-repeat="item in loadItems()">',
-                    '<td>{{ item.type }}</td>',
-                    '<td>{{ item.length }}mm</td>',
-                    '<td>{{ item.airGap }}mm</td>',
-                  '<td style="text-align: right">',
-                    '<div class="sr-button-bar-parent">',
-                        '<div class="sr-button-bar" data-ng-class="sr-button-bar-active" >',
-                            ' <button data-ng-click="editItem(item)" class="btn btn-info btn-xs sr-hover-button">Edit</button>',
-                            ' <button data-ng-click="deleteItem(item, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>',
-                        '</div>',
-                    '<div>',
-                  '</td>',
-                '</tr>',
-            '</tbody>',
-            '</table>',
-            '<button data-ng-click="addItem()" id="sr-new-termination" class="btn btn-info btn-xs pull-right">New Termination Object <span class="glyphicon glyphicon-plus"></span></button>',
-        ].join(''),
+        template: `
+            <table class="table table-hover">
+              <colgroup>
+                <col style="width: 20ex">
+                <col style="width: 20ex">
+                <col style="width: 20ex">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Object</th>
+                  <th>Air Gap [mm]</th>
+                  <th>Gap Offset [mm]</th>
+                  <th></th>
+                </tr>
+              </thead>
+             <tbody>
+            <tr>
+            </tr>
+                <tr data-ng-repeat="item in field track by $index">
+                    <td>{{ item.object.name }}</td>
+                    <td>{{ item.airGap }}</td>
+                    <td>{{ item.gapOffset }}</td>
+                  <td style="text-align: right">
+                    <div class="sr-button-bar-parent">
+                        <div class="sr-button-bar" data-ng-class="sr-button-bar-active" >
+                             <button data-ng-click="editItem(item)" class="btn btn-info btn-xs sr-hover-button">Edit</button>
+                             <button data-ng-click="deleteItem(item, $index)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button>
+                        </div>
+                    <div>
+                  </td>
+                </tr>
+            </tbody>
+            </table>
+            <button data-ng-click="addItem()" id="sr-new-termination" class="btn btn-info btn-xs pull-right">New Termination Object <span class="glyphicon glyphicon-plus"></span></button>
+        `,
         controller: function($scope, $element) {
             let isEditing = false;
-            let itemModel = 'termination';
+
+            const editorFields = [
+                'geomObject.magnetization',
+                'geomObject.material',
+            ];
+
+            const itemModel = 'termination';
+            const groupModel = 'terminationGroup';
+            let selectedItem =  null;
             let watchedModels = [itemModel];
 
-            $scope.items = [];
-            $scope.radiaService = radiaService;
-            $scope.selectedItem = null;
 
             function itemIndex(data) {
-                return $scope.items.indexOf(data);
+                return $scope.field.indexOf(data);
             }
 
             $scope.addItem = function() {
-                let b = appState.setModelDefaults({}, itemModel);
-                $scope.editItem(b, true);
+                const item = appState.setModelDefaults({}, itemModel);
+                item.object.id = radiaService.generateId();
+                item.object.groupId = $scope.model[groupModel].id;
+                $scope.editItem(item, true);
             };
 
             $scope.deleteItem = function(item) {
-                var index = itemIndex(item);
-                if (index < 0) {
-                    return;
-                }
-                $scope.field.splice(index, 1);
-                appState.saveChanges('geometry');
+                radiaService.deleteObject(radiaService.getObject(item.object.id));
+                const i = itemIndex(item);
+                $scope.field.splice(i, 1);
+                $scope.model[groupModel].members.splice(i, 1);
+                appState.saveChanges([$scope.modelName, 'geometryReport']);
             };
 
             $scope.editItem = function(item, isNew) {
                 isEditing = ! isNew;
-                $scope.selectedItem = item;
+                selectedItem = item;
                 appState.models[itemModel] = item;
+                appState.models.geomObject = item.object;
                 panelState.showModalEditor(itemModel);
             };
 
-            $scope.getSelected = function() {
-                return $scope.selectedItem;
-            };
+            $scope.$on('modelChanged', function(e, modelName) {
+                if (! watchedModels.includes(modelName)) {
+                    return;
+                }
+                if (! isEditing) {
+                    const item = appState.models[modelName];
+                    $scope.field.push(item);
+                    $scope.model[groupModel].members.push(item.object.id);
+                    radiaService.getObject(item.object.groupId).members.push(item.object.id);
+                    appState.models.geometryReport.objects.push(item.object);
+                    isEditing = true;
+                }
+                for (const item of $scope.field) {
+                    appState.models.geometryReport.objects[
+                        appState.models.geometryReport.objects.indexOf(
+                            radiaService.getObject(item.object.id)
+                        )
+                    ] = item.object;
+                }
+                selectedItem = null;
+                appState.saveChanges('geometryReport');
+            });
 
-            $scope.loadItems = function() {
-                $scope.items = $scope.field;
-                return $scope.items;
-            };
+            $scope.$on('cancelChanges', function(e, name) {
+                if (! watchedModels.includes(name)) {
+                    return;
+                }
+                appState.removeModel(name);
+            });
 
-            appState.whenModelsLoaded($scope, function() {
-
-                $scope.$on('modelChanged', function(e, modelName) {
-                    if (watchedModels.indexOf(modelName) < 0) {
-                        return;
-                    }
-                    $scope.selectedItem = null;
-                    if (! isEditing) {
-                        $scope.field.push(appState.models[modelName]);
-                        isEditing = true;
-                    }
-                    appState.saveChanges('geometry', function () {
-                        $scope.loadItems();
-                    });
-                });
-
-                $scope.$on('cancelChanges', function(e, name) {
-                    if (watchedModels.indexOf(name) < 0) {
-                        return;
-                    }
-                    appState.removeModel(name);
-                });
-
-                $scope.loadItems();
+            appState.watchModelFields($scope, editorFields, function(d) {
+                if (! selectedItem) {
+                    return;
+                }
+                const o = selectedItem.object;
+                radiaService.validateMagnetization(o.magnetization, o.material);
             });
 
         },
@@ -2177,29 +2184,27 @@ SIREPO.app.directive('transformTable', function(appState, panelState, radiaServi
             modelName: '=',
             parentController: '='
         },
-        template: [
-            '<div data-toolbar="toolbarSections" data-item-filter="itemFilter" data-parent-controller="parentController"></div>',
-            '<div class="sr-object-table">',
-              '<p class="lead text-center"><small><em>drag and drop {{ itemClass.toLowerCase() }}s or use arrows to reorder the list</em></small></p>',
-              '<div style="overflow-y: scroll; overflow-x: hidden; height: 100px;">',
-              '<table class="table table-hover" style="width: 100%; height: 15%; table-layout: fixed;">',
-                '<tr data-ng-repeat="item in loadItems()">',
-                  '<td data-ng-drop="true" data-ng-drop-success="dropItem($index, $data)" data-ng-drag-start="selectItem($data)">',
-                    '<div class="sr-button-bar-parent pull-right"><div class="sr-button-bar"><button class="btn btn-info btn-xs"  data-ng-disabled="$index == 0" data-ng-click="moveItem(-1, item)"><span class="glyphicon glyphicon-arrow-up"></span></button> <button class="btn btn-info btn-xs" data-ng-disabled="$index == items.length - 1" data-ng-click="moveItem(1, item)"><span class="glyphicon glyphicon-arrow-down"></span></button> <button class="btn btn-info btn-xs sr-hover-button" data-ng-click="editItem(item)">Edit</button> <button data-ng-click="toggleExpand(item)" class="btn btn-info btn-xs"><span class="glyphicon" data-ng-class="{\'glyphicon-chevron-up\': isExpanded(item), \'glyphicon-chevron-down\': ! isExpanded(item)}"></span></button> <button data-ng-click="deleteItem(item)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button></div></div>',
-                    '<div class="sr-command-icon-holder" data-ng-drag="true" data-ng-drag-data="item">',
-                      '<a style="cursor: move; -moz-user-select: none; font-size: 14px" class="badge sr-badge-icon" data-ng-class="{\'sr-item-selected\': isSelected(item) }" href data-ng-click="selectItem(item)" data-ng-dblclick="editItem(item)">{{ itemName(item) }}</a>',
-                    '</div>',
-                    '<div data-ng-show="! isExpanded(item) && itemDetails(item)" style="margin-left: 3em; margin-right: 1em; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ itemDetails(item) }}</div>',
-                    '<div data-ng-show="isExpanded(item) && itemDetails(item)" style="color: #777; margin-left: 3em; white-space: pre-wrap">{{ itemDetails(item) }}</div>',
-                  '</td>',
-                '</tr>',
-                '<tr><td style="height: 3em; text-align: center; color: #aaaaaa;" data-ng-drop="true" data-ng-drop-success="dropLast($data)"><em>*drop here*</em></td></tr>',
-              '</table>',
-            '</div>',
-            '</div>',
-            //'<div data-advanced-editor-pane="" data-view-name="tbItem.model" data-parent-controller="parentController" data-ng-repeat="tbItem in toolbarItems" data-ng-show="selectedItem.model === tbItem.model"></div>',
-            //'<div data-confirmation-modal="" data-id="sr-delete-item-confirmation" data-title="Delete {{ itemClass }}?" data-ok-text="Delete" data-ok-clicked="deleteSelected()">Delete command &quot;{{ selectedItemName() }}&quot;?</div>',
-        ].join(''),
+        template: `
+            <div data-toolbar="toolbarSections" data-item-filter="itemFilter" data-parent-controller="parentController"></div>
+            <div class="sr-object-table">
+              <p class="lead text-center"><small><em>drag and drop {{ itemClass.toLowerCase() }}s or use arrows to reorder the list</em></small></p>
+              <div style="overflow-y: scroll; overflow-x: hidden; height: 100px;">
+              <table class="table table-hover" style="width: 100%; height: 15%; table-layout: fixed;">
+                <tr data-ng-repeat="item in loadItems()">
+                  <td data-ng-drop="true" data-ng-drop-success="dropItem($index, $data)" data-ng-drag-start="selectItem($data)">
+                    <div class="sr-button-bar-parent pull-right"><div class="sr-button-bar"><button class="btn btn-info btn-xs"  data-ng-disabled="$index == 0" data-ng-click="moveItem(-1, item)"><span class="glyphicon glyphicon-arrow-up"></span></button> <button class="btn btn-info btn-xs" data-ng-disabled="$index == items.length - 1" data-ng-click="moveItem(1, item)"><span class="glyphicon glyphicon-arrow-down"></span></button> <button class="btn btn-info btn-xs sr-hover-button" data-ng-click="editItem(item)">Edit</button> <button data-ng-click="toggleExpand(item)" class="btn btn-info btn-xs"><span class="glyphicon" data-ng-class="{\'glyphicon-chevron-up\': isExpanded(item), \'glyphicon-chevron-down\': ! isExpanded(item)}"></span></button> <button data-ng-click="deleteItem(item)" class="btn btn-danger btn-xs"><span class="glyphicon glyphicon-remove"></span></button></div></div>
+                    <div class="sr-command-icon-holder" data-ng-drag="true" data-ng-drag-data="item">
+                      <a style="cursor: move; -moz-user-select: none; font-size: 14px" class="badge sr-badge-icon" data-ng-class="{\'sr-item-selected\': isSelected(item) }" href data-ng-click="selectItem(item)" data-ng-dblclick="editItem(item)">{{ itemName(item) }}</a>
+                    </div>
+                    <div data-ng-show="! isExpanded(item) && itemDetails(item)" style="margin-left: 3em; margin-right: 1em; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ itemDetails(item) }}</div>
+                    <div data-ng-show="isExpanded(item) && itemDetails(item)" style="color: #777; margin-left: 3em; white-space: pre-wrap">{{ itemDetails(item) }}</div>
+                  </td>
+                </tr>
+                <tr><td style="height: 3em; text-align: center; color: #aaaaaa;" data-ng-drop="true" data-ng-drop-success="dropLast($data)"><em>*drop here*</em></td></tr>
+              </table>
+            </div>
+            </div>
+        `,
         controller: function($scope, $element) {
             var expanded = {};
             var isEditing = false;
@@ -2354,7 +2359,7 @@ SIREPO.app.directive('transformTable', function(appState, panelState, radiaServi
                     }
                     $scope.selectedItem = null;
                     if (! isEditing) {
-                        appState.models[modelName].id = radiaService.nextId();
+                        appState.models[modelName].id = radiaService.generateId();
                         $scope.field.push(appState.models[modelName]);
                         isEditing = true;
                     }
@@ -2398,21 +2403,19 @@ SIREPO.app.directive('radiaFieldPaths', function(appState, panelState, radiaServ
         scope: {
             modelName: '@',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div class="panel panel-info">',
-                    '<div class="panel-heading"><span class="sr-panel-heading">Field Paths</span></div>',
-                    '<div class="panel-body">',
-                        '<button class="btn btn-info btn-xs pull-right" accesskey="p" data-ng-click="radiaService.newPath()"><span class="glyphicon glyphicon-plus"></span> New <u>P</u>ath</button>',
-                        '<div data-field-path-table="" data-paths="model.paths"></div>',
-                        '<button class="btn btn-default col-sm-2 col-sm-offset-5" data-ng-show="hasPaths()" data-ng-click="confirmClear()">Clear</button>',
-                    '</div>',
-                '</div>',
-            '</div>',
-            //'<div data-confirmation-modal="" data-id="sr-delete-path-confirmation" data-title="Delete Path?" data-ok-text="Delete" data-ok-clicked="deleteSelected()">Delete command &quot;{{ selectedItemName() }}&quot;?</div>',
-            '<div data-confirmation-modal="" data-id="sr-clear-paths-confirmation" data-title="Clear All Paths?" data-ok-text="OK" data-ok-clicked="clearPaths()">Clear All Paths?</div>',
-
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div class="panel panel-info">
+                    <div class="panel-heading"><span class="sr-panel-heading">Field Paths</span></div>
+                    <div class="panel-body">
+                        <button class="btn btn-info btn-xs pull-right" accesskey="p" data-ng-click="radiaService.newPath()"><span class="glyphicon glyphicon-plus"></span> New <u>P</u>ath</button>
+                        <div data-field-path-table="" data-paths="model.paths"></div>
+                        <button class="btn btn-default col-sm-2 col-sm-offset-5" data-ng-show="hasPaths()" data-ng-click="confirmClear()">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div data-confirmation-modal="" data-id="sr-clear-paths-confirmation" data-title="Clear All Paths?" data-ok-text="OK" data-ok-clicked="clearPaths()">Clear All Paths?</div>
+        `,
         controller: function($scope, $element) {
             $scope.modelsLoaded = false;
             $scope.pathTypes = appState.enumVals('PathType');
@@ -2453,12 +2456,12 @@ SIREPO.app.directive('radiaGeomObjInfo', function(appState, panelState, radiaSer
         scope: {
             model: '=',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div data-label-with-tooltip="" class="control-label" data-ng-class="labelClass" data-label="{{ model.name }}" data-tooltip=""></div>',
-                '<div data-field-editor="\'color\'" data-model-name="geomObject" data-model="model"></div>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div data-label-with-tooltip="" class="control-label" data-ng-class="labelClass" data-label="{{ model.name }}" data-tooltip=""></div>
+                <div data-field-editor="\'color\'" data-model-name="geomObject" data-model="model"></div>
+            </div>
+        `,
         controller: function($scope, $element) {
             $scope.radiaService = radiaService;
             appState.whenModelsLoaded($scope, function () {
@@ -2476,25 +2479,24 @@ SIREPO.app.directive('radiaSolver', function(appState, errorService, frameCache,
             viz: '<',
             modelName: '@',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div data-basic-editor-panel="" data-view-name="solverAnimation">',
-                        '<div data-sim-status-panel="viz.simState" data-start-function="viz.startSimulation(modelName)"></div>',
-                        '<div data-ng-show="viz.solution">',
-                                '<div><strong>Time:</strong> {{ solution().time }}ms</div>',
-                                '<div><strong>Step Count:</strong> {{ solution().steps }}</div>',
-                                '<div><strong>Max |M|: </strong> {{ solution().maxM }} A/m</div>',
-                                '<div><strong>Max |H|: </strong> {{ solution().maxH }} A/m</div>',
-                        '</div>',
-                        '<div data-ng-hide="viz.solution">No solution found</div>',
-                        '<div class="col-sm-6 pull-right" style="padding-top: 8px;">',
-                            '<button class="btn btn-default" data-ng-click="viz.resetSimulation()">Reset</button>',
-                        '</div>',
-                    '</div>',
-                '</div>',
-            '</div>',
-
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div data-basic-editor-panel="" data-view-name="solverAnimation">
+                        <div data-sim-status-panel="viz.simState" data-start-function="viz.startSimulation(modelName)"></div>
+                        <div data-ng-show="viz.solution">
+                                <div><strong>Time:</strong> {{ solution().time }}ms</div>
+                                <div><strong>Step Count:</strong> {{ solution().steps }}</div>
+                                <div><strong>Max |M|: </strong> {{ solution().maxM }} A/m</div>
+                                <div><strong>Max |H|: </strong> {{ solution().maxH }} A/m</div>
+                        </div>
+                        <div data-ng-hide="viz.solution">No solution found</div>
+                        <div class="col-sm-6 pull-right" style="padding-top: 8px;">
+                            <button class="btn btn-default" data-ng-click="viz.resetSimulation()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
         controller: function($scope, $element) {
 
             $scope.model = appState.models[$scope.modelName];
@@ -2537,18 +2539,16 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             modelName: '@',
             viz: '<',
         },
-        template: [
-            '<div class="col-md-6">',
-                '<div class="row" data-basic-editor-panel="" data-view-name="{{ modelName }}">',
-                    '<div data-vtk-display="" class="vtk-display" data-ng-class="{\'col-sm-11\': isViewTypeFields()}" style="padding-right: 0" data-show-border="true" data-model-name="{{ modelName }}" data-event-handlers="eventHandlers" data-enable-axes="true" data-axis-cfg="axisCfg" data-axis-obj="axisObj" data-enable-selection="true"></div>',
-                    //'<div data-vtk-axes="" data-width="canvasGeometry().size.width" data-height="canvasGeometry().size.height" data-bound-obj="beamAxisObj" data-axis-cfg="beamAxisCfg"></div>',
-                    '<div class="col-sm-1" style="padding-left: 0" data-ng-if="isViewTypeFields()">',
-                        '<div class="colorbar"></div>',
-                    '</div>',
-                '</div>',
-            '</div>',
-
-        ].join(''),
+        template: `
+            <div class="col-md-6">
+                <div class="row" data-basic-editor-panel="" data-view-name="{{ modelName }}">
+                    <div data-vtk-display="" class="vtk-display" data-ng-class="{\'col-sm-11\': isViewTypeFields()}" style="padding-right: 0" data-show-border="true" data-model-name="{{ modelName }}" data-event-handlers="eventHandlers" data-enable-axes="true" data-axis-cfg="axisCfg" data-axis-obj="axisObj" data-enable-selection="true"></div>
+                    <div class="col-sm-1" style="padding-left: 0" data-ng-if="isViewTypeFields()">
+                        <div class="colorbar"></div>
+                    </div>
+                </div>
+            </div>
+        `,
         controller: function($scope, $element) {
 
             $scope.axisObj = null;
@@ -2695,7 +2695,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     //srdbg(`radia id ${radiaId} maps to obj id ${objId}`);
 
                     // trying a separation into an actor for each data type, to better facilitate selection
-                    for (let t of radiaVtkUtils.GEOM_TYPES) {
+                    for (const t of radiaVtkUtils.GEOM_TYPES) {
                         var d = sceneDatum[t];
                         if (! d || ! d.vertices || ! d.vertices.length) {
                             continue;
@@ -3208,16 +3208,14 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 return j;
             }
 
-            // some weird disconnect between the model and the slider when cancelling...???
             function setAlpha() {
                 if (! renderer) {
                     return;
                 }
-                const alpha = $scope.model.alpha;
-                for (var id in actorInfo) {
-                    var info = actorInfo[id];
-                    var s = info.scalars;
-                    if (! s) {
+                const alpha = appState.models[$scope.modelName].alpha;
+                for (const id in actorInfo) {
+                    let info = actorInfo[id];
+                    if (! info.scalars) {
                         info.actor.getProperty().setOpacity(alpha);
                         continue;
                     }
@@ -3362,7 +3360,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 sceneData = {};
                 actorInfo = {};
                 radiaService.objBounds = null;
-                if (c) {
+                if (c || ! initDone) {
                     $rootScope.$broadcast('vtk.showLoader');
                 }
                 panelState.clear('geometryReport');
@@ -3406,7 +3404,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 //srdbg('modelChanged', name);
             });
 
-            $scope.$on('geomObject.changed', function(e) {
+            $scope.$on('radiaObject.changed', function(e) {
                 radiaService.saveGeometry(true, false);
             });
 
@@ -3414,18 +3412,14 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 if (! $scope.model.fieldPoints) {
                     $scope.model.fieldPoints = [];
                 }
-                if (! appState.models.fieldPaths.paths || ! appState.models.fieldPaths.paths.length) {
-                    return;
-                }
                 updateViewer();
             });
 
-            $scope.$on('geomObject.color', function (e, h) {
-                var c = vtk.Common.Core.vtkMath.hex2float(h);
+            $scope.$on('radiaObject.color', function (e, h) {
                 setColor(
                     selectedInfo,
                     SIREPO.APP_SCHEMA.constants.geomTypePolys,
-                    vtkUtils.floatToRGB(c)
+                    vtkUtils.floatToRGB(vtk.Common.Core.vtkMath.hex2float(h))
                 );
                 setAlpha();
             });
@@ -3596,14 +3590,14 @@ SIREPO.app.factory('radiaVtkUtils', function(utilities) {
     return self;
 });
 
-SIREPO.app.directive('shapeButton', function(appState, geometry, panelState, plotting, radiaService) {
+SIREPO.app.directive('shapeButton', function(appState, geometry, panelState, plotting, radiaService, utilities) {
 
     const inset = 1;
 
     let shapes = {};
     let w = 0;
     let h = 0;
-    for (let name in SIREPO.APP_SCHEMA.constants.geomObjShapes) {
+    for (const name in SIREPO.APP_SCHEMA.constants.geomObjShapes) {
         const s = SIREPO.APP_SCHEMA.constants.geomObjShapes[name];
         let b = geometry.coordBounds(s.points);
         w = Math.max(w, Math.abs(b[0].max - b[0].min));
@@ -3619,11 +3613,11 @@ SIREPO.app.directive('shapeButton', function(appState, geometry, panelState, plo
             modelName: '=',
             fieldClass: '=',
         },
-        template: [
-          '<div data-ng-class="fieldClass">',
-            btn.toTemplate(),
-          '</div>',
-        ].join(''),
+        template: `
+          <div data-ng-class="fieldClass">
+            ${btn.toTemplate()}
+          </div>
+        `,
         controller: function($scope, $element) {
             plotting.setupSelector($scope, $element);
 
@@ -3637,10 +3631,8 @@ SIREPO.app.directive('shapeButton', function(appState, geometry, panelState, plo
 
             function updateShape() {
                 const o = appState.models[$scope.modelName];
-                const size = o.size.split(/\s*,\s*/).map((x) => {
-                    return parseFloat(x);
-                });
-                const s = shapes[o.type];
+                const size = utilities.splitCommaDelimitedString(o.size, parseFloat);
+                const s = shapes[o.type] || shapes.cuboid;
                 s.setFill(o.color);
                 const inds = radiaService.getAxisIndices();
                 const ar = size[inds.width] / size[inds.height];
@@ -3653,7 +3645,7 @@ SIREPO.app.directive('shapeButton', function(appState, geometry, panelState, plo
             }
 
             $scope.$on(`${$scope.modelName}.changed`, () => {
-               loadImage();
+                loadImage();
             });
 
             loadImage();
@@ -3688,34 +3680,25 @@ SIREPO.app.directive('shapeSelector', function(appState, panelState, plotting, r
             viewName: '=',
             object: '=',
         },
-        template: [
-          '<div data-ng-class="fieldClass">',
-            sel.toTemplate(),
-          '</div>',
-        ].join(''),
+        template: `
+          <div data-ng-class="fieldClass">
+            ${sel.toTemplate()}
+          </div>
+        `,
         controller: function($scope, $element) {
             plotting.setupSelector($scope, $element);
         },
     };
 });
 
-SIREPO.viewLogic('objectShapeView', function(appState, panelState, radiaService, $scope) {
-    let ctr = [];
+SIREPO.viewLogic('objectShapeView', function(appState, panelState, radiaService, utilities, $scope) {
     let modelType = null;
     const parent = $scope.$parent;
-    let size = [];
-
-    $scope.modelData = appState.models[$scope.modelName];
-    size = $scope.modelData.size.split(/\s*,\s*/).map((x) => {
-        return parseFloat(x);
-    });
-    ctr = $scope.modelData.center.split(/\s*,\s*/).map((x) => {
-        return parseFloat(x);
-    });
 
     $scope.watchFields = [
         [
             'geomObject.type',
+            "extrudedPoly.extrusionAxisSegments", "extrudedPoly.triangulationLevel",
             'stemmed.armHeight', 'stemmed.armPosition', 'stemmed.stemWidth', 'stemmed.stemPosition',
             'jay.hookHeight', 'jay.hookWidth',
         ], updateObjectEditor
@@ -3723,72 +3706,27 @@ SIREPO.viewLogic('objectShapeView', function(appState, panelState, radiaService,
 
     $scope.whenSelected = function() {
         modelType = appState.models.geomObject.type;
+        $scope.modelData = appState.models[$scope.modelName];
+        radiaService.updateModelAndSuperClasses(modelType, $scope.modelData);
         updateObjectEditor();
     };
 
-    //TODO(mvk): move to server
-    function calcExtrusionPoints() {
-        $scope.modelData.points = [];
-        //const mn = 'extrudedPoly';
-        const mn = 'stemmed';
-        if (! panelState.isSubclass(modelType, mn)) {
-            return;
-        }
-        let m = appState.models[mn];
-        const ai = radiaService.getAxisIndices();
-        const c = [ctr[ai.width], ctr[ai.height]];
-        const s = [size[ai.width], size[ai.height]];
-        // Radia wants the points in the plane in a specific order
-        const doReverse = ai.width !== (ai.depth + 1) % 3;
-
-        // start with arm top, stem left - then reflect across centroid axes as needed
-        const ax1 = c[0] - s[0] / 2;
-        const ax2 = ax1 + s[0];
-        const ay1 = c[1] + s[1] / 2;
-        const ay2 = ay1 - m.armHeight;
-
-        const sx1 = c[0] - s[0] / 2;
-        const sx2 = sx1 + m.stemWidth;
-        const sy1 = c[1] - s[1] / 2;
-        const sy2 = sy1 + m.armHeight;
-
-        const k = [parseInt(m.stemPosition), parseInt(m.armPosition)];
-        let pts = [];
-        if (modelType === 'cee') {
-            pts = [
-                [ax1, ay1], [ax2, ay1], [ax2, ay2],
-                [sx2, ay2], [sx2, sy2], [ax2, sy2], [ax2, sy1], [sx1, sy1],
-                [ax1, ay1]
-            ];
-        }
-        if (modelType === 'ell') {
-            pts = [
-                [ax1, ay1], [ax2, ay1], [ax2, ay2],
-                [sx2, ay2], [sx2, sy1], [sx1, sy1],
-                [ax1, ay1]
-            ];
-        }
-        if (modelType === 'jay') {
-            const j = appState.models.jay;
-            const jx1 = c[0] + s[0] / 2 - j.hookWidth;
-            const jy1 = ay2 - j.hookHeight;
-            pts = [
-                [ax1, ay1], [ax2, ay1], [ax2, jy1], [jx1, jy1], [jx1, ay2],
-                [sx2, ay2], [sx2, sy1], [sx1, sy1],
-                [ax1, ay1]
-            ];
-        }
-        $scope.modelData.points = pts.map((p) => {
-            return p.map((v, i) => {
-                return 2 * c[i] * k[i] + Math.pow(-1, k[i]) *  v;
-            });
-        })
-        .map((p) => {
-            if (doReverse) {
-                return p.reverse();
-            }
-            return p;
-        });
+    function buildTriangulationLevelDelegate() {
+        const m = 'extrudedPoly';
+        const f = 'triangulationLevel';
+        let d = panelState.getFieldDelegate(m, f);
+        d.range = () => {
+            return {
+                min: appState.fieldProperties(m, f).min,
+                max: appState.fieldProperties(m, f).max,
+                step: 0.01
+            };
+        };
+        d.readout = () => {
+            return appState.modelInfo(m)[f][SIREPO.INFO_INDEX_LABEL];
+        };
+        d.update = () => {};
+        $scope.fieldDelegate = d;
     }
 
     function modelField(f) {
@@ -3796,25 +3734,26 @@ SIREPO.viewLogic('objectShapeView', function(appState, panelState, radiaService,
         return m ? m : [parent.modelName, f];
     }
 
-
     function updateObjectEditor() {
         modelType = appState.models.geomObject.type;
-        calcExtrusionPoints();
         parent.activePage.items.forEach((f) => {
             const m = modelField(f);
+            let hasField = SIREPO.APP_SCHEMA.model[modelType][m[1]] !== undefined;
             panelState.showField(
                 m[0],
                 m[1],
-                SIREPO.APP_SCHEMA.model[modelType][m[1]] || panelState.isSubclass(modelType, m[0])
+                hasField || appState.isSubclass(modelType, m[0])
             );
         });
     }
+
+    buildTriangulationLevelDelegate();
 });
 
 SIREPO.viewLogic('geomObjectView', function(appState, panelState, radiaService, $scope) {
 
     $scope.modelData = appState.models[$scope.modelName];
-    
+
     return {
         getBaseObject: function() {
             return $scope.modelData;
@@ -3822,96 +3761,150 @@ SIREPO.viewLogic('geomObjectView', function(appState, panelState, radiaService, 
     };
 });
 
+for(const m of ['Dipole', 'Undulator']) {
+    for (const d of SIREPO.APP_SCHEMA.enum[`${m}Type`]) {
+        SIREPO.viewLogic(`${d[0]}View`, function(appState, panelState, radiaService, validationService, $scope) {
 
-SIREPO.viewLogic('hybridUndulatorView', function(appState, panelState, radiaService, $scope) {
+            $scope.model = appState.models[$scope.modelName];
+            $scope.watchFields = [];
 
-    $scope.watchFields = [
-        ['hybridUndulator.magnetObjectType', 'hybridUndulator.poleObjectType'], update
-    ];
+            let editedModels = [];
+            let models = {};
+            for (const p of $scope.$parent.advancedFields) {
+                const page = p[0];
+                models[page] = {};
+                // supports at most one sub-model per page
+                for (const f of p[1]) {
+                    let m = appState.parseModelField(f);
+                    if (! m) {
+                        continue;
+                    }
+                    m = appState.parseModelField(m[1]);
+                    if (! m) {
+                        continue;
+                    }
+                    models[page] = {
+                        objModelName: m[0],
+                        obj: appState.models[$scope.modelName][m[0]],
+                    };
+                    break;
+                }
+            }
 
-    const baseObjectNames = {
-        'Poles': 'pole',
-        'Permanent Magnets': 'magnet'
-    };
+            $scope.$on('cancelChanges', (e, d) => {
+                // geometryReport is not part of the superclass chain and needs to be handled
+                // separately
+                if (d !== 'geometryReport') {
+                    appState.cancelChanges('geometryReport');
+                }
+            });
 
-    $scope.modelData = appState.models[$scope.modelName];
+            $scope.$on(`${$scope.modelName}.changed`, () => {
+                radiaService.saveGeometry(true, false);
+            });
 
-    $scope.getBaseObject = function() {
-        return radiaService.getObject($scope.getBaseObjectId());
-    };
+            $scope.$on('geomObject.changed', () => {
+                if (! activeModelId()) {
+                    return;
+                }
+                if (appState.models.geomObject.id === activeModelId()) {
+                    appState.models[$scope.modelName][activeObjModelName()] = appState.models.geomObject;
+                    appState.saveChanges($scope.modelName);
+                }
+            });
 
-    $scope.getBaseObjectId = function() {
-        let n = baseObjectName();
-        return n ?  $scope.modelData[`${n}BaseObjectId`] : null;
-    };
+            $scope.whenSelected = function() {
+                const o = getObjFromGeomRpt();
+                if (! o ) {
+                    return;
+                }
+                // set the object in the model to the equivalent object in the report
+                // also set the base model and its superclasses
+                appState.models[$scope.modelName][activeObjModelName()] = o;
+                editedModels = radiaService.updateModelAndSuperClasses(o.type, o);
+                appState.saveChanges([$scope.modelName, ...editedModels]);
+            };
 
-    $scope.whenSelected = function() {
-        const o = $scope.getBaseObject();
-        if (! o) {
-            return;
-        }
-        appState.models.geomObject = o;
-        appState.saveChanges('geomObject');
-    };
+            function activeModelId() {
+                return (models[$scope.$parent.activePage.name].obj || {}).id;
+            }
 
-    $scope.$on('geomObject.changed', () => {
-        const o = $scope.getBaseObject();
-        if (! o || appState.models.geomObject.id != o.id) {
-            return;
-        }
-        $scope.modelData[`${baseObjectName()}Color`] = o.color;
-        $scope.modelData[`${baseObjectName()}ObjType`] = o.type;
-        appState.saveChanges($scope.modelName);
-    });
+            function activeObjModelName() {
+                return models[$scope.$parent.activePage.name].objModelName;
+            }
 
-    //TODO(mvk): this is all pretty cheesy.  Need a better relationship between the "magnet" like
-    // hybridUndulator and the objects in geometryReport
-    function baseObjectName() {
-        return baseObjectNames[$scope.$parent.activePage.name];
+            function getObjFromGeomRpt() {
+                return radiaService.getObject(activeModelId());
+            }
+
+            //TODO(mvk): implement validation for parameterized magnets - this is a placeholder
+            const e = `watch${m}Editor`;
+            if (e in SIREPO) {
+                SIREPO[e]($scope, appState, panelState, radiaService, validationService);
+            }
+        });
     }
-
-    function update(a) {
-    }
-
-    return {
-        getObjectId: $scope.getBaseObjectId,
-        getBaseObject: $scope.getBaseObject,
-    };
-});
+}
 
 SIREPO.viewLogic('simulationView', function(activeSection, appState, panelState, radiaService, $scope) {
 
     let model = null;
 
-    function updateSimEditor() {
-        if (! model) {
-            return;
-        }
-        panelState.enableField(
-            $scope.modelName,
-            'magnetType',
-            activeSection.getActiveSection() === 'simulations'
-        );
-        for (let e of SIREPO.APP_SCHEMA.enum.BeamAxis) {
+    function isNew() {
+        return activeSection.getActiveSection() === 'simulations';
+    }
+
+    function updateHeightAxis(isEnabled) {
+        for (const e of SIREPO.APP_SCHEMA.enum.BeamAxis) {
             const axis = e[SIREPO.ENUM_INDEX_VALUE];
             const isShown = axis !== model.beamAxis;
-            panelState.showEnum(
-                'simulation',
-                'heightAxis',
-                axis,
-                isShown
-            );
+            panelState.showEnum('simulation', 'heightAxis', axis, isShown);
             if (model.heightAxis === axis && ! isShown) {
                 model.heightAxis = SIREPO.APP_SCHEMA.constants.heightAxisMap[model.beamAxis];
             }
         }
-        radiaService.setWidthAxis();
+        panelState.enableField($scope.modelName, 'heightAxis', isEnabled);
+    }
+
+    function updateSimEditor() {
+        if (! model) {
+            return;
+        }
+        const isDipole = model.magnetType === 'dipole';
+        const isImported =  ! ! appState.models.simulation.dmpImportFile;
+        const enableAxes = isImported || (isNew() && ! isDipole);
+        panelState.enableField(
+            $scope.modelName,
+            'magnetType',
+            isNew()
+        );
+        panelState.showField($scope.modelName, 'enableKickMaps', enableAxes);
+
+        for(const m of ['dipole', 'undulator']) {
+            const t = `${m}Type`;
+            panelState.showField($scope.modelName, t, model.magnetType === m);
+            panelState.enableField($scope.modelName, t, isNew() && model.magnetType === m);
+        }
+
+        //TODO(mvk): setting the beamAxis/heightAxis to anything other than x/z for dipoles causes
+        // the magnet to be built incorrectly. For now set those values and disable the fields
+        if (isDipole) {
+            model.beamAxis = 'x';
+            model.heightAxis = 'z';
+        }
+        panelState.enableField(
+            $scope.modelName,
+            'beamAxis',
+            enableAxes
+        );
+        updateHeightAxis(enableAxes);
     }
 
     $scope.watchFields = [
-        ['simulation.beamAxis'], updateSimEditor,
+        ['simulation.beamAxis', 'simulation.magnetType'], updateSimEditor,
         ['simulation.heightAxis'], radiaService.setWidthAxis,
     ];
+
 
     $scope.$on(`${$scope.modelName}.editor.show`, () => {
         model = appState.models[$scope.modelName];

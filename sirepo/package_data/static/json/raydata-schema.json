@@ -14,10 +14,14 @@
             ]
         }
     },
+    "enum": {
+        "CatalogName": [
+            ["chx", "chx"],
+            ["csx", "csx"]
+        ]
+    },
     "frameIdFields": {
-	"animation": [
-	    "filename"
-	]
+        "animation": []
     },
     "localRoutes": {
         "analysis": {
@@ -25,13 +29,6 @@
             "config": {
                 "controller": "AnalysisController as analysis",
                 "templateUrl": "/static/html/raydata-analysis.html"
-          }
-        },
-        "metadata": {
-            "route": "/metadata/:simulationId",
-            "config": {
-                "controller": "MetadataController as metadata",
-                "templateUrl": "/static/html/raydata-metadata.html"
           }
         },
         "dataSource": {
@@ -43,39 +40,39 @@
         }
     },
     "model": {
-        "analysisMetadata": {
+        "analysisStatus": {
             "notes": ["Notes", "Text", ""]
-	},
-        "generalMetadata": {
-            "notes": ["Notes", "Text", ""]
-	},
+        },
         "inputFiles": {
             "mask": ["Mask ZIP", "InputFile"]
         },
-        "planMetadata": {
+        "pollBlueskyForScansAnimation": {
+            "minutes": ["Poll duration [min]", "Integer", 1, "Number of minutes to poll for new scans", 1, 1440]
+        },
+        "scans": {
+            "searchStartTime": ["Start", "DateTimePicker", null],
+	    "searchStopTime": ["Stop", "DateTimePicker", null],
+            "catalogName": ["Catalog Name", "CatalogName", ""]
+        },
+        "selectedScans": {
+	    "uids": ["", "SelectedScansTable", null]
+        },
+        "simulationStatus": {
             "notes": ["Notes", "Text", ""]
-	},
-	"scans": {},
-        "simulationStatus": {}
+        }
     },
     "strings": {
         "completionState": "",
         "simulationDataType": "notebook",
         "simulationDataTypePlural": "notebooks",
-        "typeOfSimulation": "analysis"
+        "typeOfSimulation": "poll"
     },
     "view": {
-        "analysisMetadata": {
-            "title": "Analysis",
+        "analysisStatus": {
+            "title": "Analysis Status",
             "advanced": [
-		"notes"
-	    ]
-        },
-        "generalMetadata": {
-            "title": "General",
-            "advanced": [
-		"notes"
-	    ]
+                "notes"
+            ]
         },
         "inputFiles": {
             "title": "Input Files",
@@ -84,20 +81,24 @@
             ],
             "advanced": []
         },
-        "planMetadata": {
-            "title": "Plan",
-            "advanced": [
-		"notes"
-	    ]
-        },
         "scans": {
             "title": "Scans",
-            "basic": [],
+            "basic": [
+                "catalogName",
+                "searchStartTime",
+                "searchStopTime",
+                "selectedScans.uids"
+            ],
             "advanced": []
         },
         "simulationStatus": {
-            "title": "Analysis Status",
-            "advanced": []
+            "title": "Poll For New Scans",
+            "advanced": [
+                "notes"
+            ],
+            "basic": [
+                "pollBlueskyForScansAnimation.minutes"
+            ]
         }
     }
 }

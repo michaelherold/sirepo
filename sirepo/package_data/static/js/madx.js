@@ -48,7 +48,7 @@ SIREPO.app.config(function() {
 SIREPO.app.factory('madxService', function(appState, commandService, requestSender, rpnService) {
     var self = {};
     rpnService.isCaseInsensitive = true;
-    self.twissFields = ['betx', 'bety', 'alfx', 'alfy'];
+    self.twissFields = ['betx', 'bety', 'alfx', 'alfy', 'x', 'px', 'y', 'py'];
 
     self.computeModel = function(analysisModel) {
         return 'animation';
@@ -159,8 +159,8 @@ SIREPO.app.controller('CommandController', function(appState, commandService, la
         'makethin', 'match', 'migrad', 'option',
         'ptc_create_layout', 'ptc_create_universe', 'ptc_end',
         'ptc_normal', 'ptc_observe', 'ptc_select', 'ptc_setswitch', 'ptc_start',
-        'ptc_track', 'ptc_track_end', 'ptc_trackline', 'resbeam', 'savebeta', 'select', 'set', 'show',
-        'sodd', 'touschek', 'twiss', 'use', 'vary',
+        'ptc_track', 'ptc_track_end', 'ptc_trackline', 'ptc_twiss', 'resbeam', 'savebeta', 'select',
+        'set', 'show', 'sodd', 'touschek', 'twiss', 'use', 'vary',
     ];
     self.advancedNames = [];
 
@@ -308,10 +308,10 @@ SIREPO.app.directive('appFooter', function() {
         scope: {
             nav: '=appFooter',
         },
-        template: [
-            '<div data-common-footer="nav"></div>',
-            '<div data-import-dialog="" data-title="Import MAD-X File" data-description="Select a MAD-X file." data-file-formats=".madx,.zip"></div>',
-        ].join(''),
+        template: `
+            <div data-common-footer="nav"></div>
+            <div data-import-dialog="" data-title="Import MAD-X File" data-description="Select a MAD-X file." data-file-formats=".madx,.zip,.seq"></div>
+        `,
     };
 });
 
@@ -322,28 +322,27 @@ SIREPO.app.directive('appHeader', function(appState, madxService, latticeService
         scope: {
             nav: '=appHeader',
         },
-        template: [
-            '<div data-app-header-brand="nav"></div>',
-            '<div data-app-header-left="nav"></div>',
-            '<div data-app-header-right="nav">',
-              '<app-header-right-sim-loaded>',
-                '<div data-ng-if="nav.isLoaded()" data-sim-sections="">',
-                  '<li class="sim-section" data-ng-class="{active: nav.isActive(\'lattice\')}"><a data-ng-href="{{ nav.sectionURL(\'lattice\') }}"><span class="glyphicon glyphicon-option-horizontal"></span> Lattice</a></li>',
-                  '<li class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a data-ng-href="{{ nav.sectionURL(\'source\') }}"><span class="glyphicon glyphicon-flash"></span> Source</a></li>',
-                  '<li class="sim-section" data-ng-if="latticeService.hasBeamlines()" data-ng-class="{active: nav.isActive(\'control\')}"><a data-ng-href="{{ nav.sectionURL(\'control\') }}"><span class="glyphicon glyphicon-list-alt"></span> Control</a></li>',
-                  '<li class="sim-section" data-ng-if="hasBeamlinesAndCommands()" data-ng-class="{active: nav.isActive(\'visualization\')}"><a data-ng-href="{{ nav.sectionURL(\'visualization\') }}"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>',
-                '</div>',
-              '</app-header-right-sim-loaded>',
-              '<app-settings>',
-                //  '<div>App-specific setting item</div>',
-              '</app-settings>',
-              '<app-header-right-sim-list>',
-                '<ul class="nav navbar-nav sr-navbar-right">',
-                  '<li><a href data-ng-click="showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>',
-                '</ul>',
-              '</app-header-right-sim-list>',
-            '</div>',
-        ].join(''),
+        template: `
+            <div data-app-header-brand="nav"></div>
+            <div data-app-header-left="nav"></div>
+            <div data-app-header-right="nav">
+              <app-header-right-sim-loaded>
+                <div data-ng-if="nav.isLoaded()" data-sim-sections="">
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'lattice\')}"><a data-ng-href="{{ nav.sectionURL(\'lattice\') }}"><span class="glyphicon glyphicon-option-horizontal"></span> Lattice</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a data-ng-href="{{ nav.sectionURL(\'source\') }}"><span class="glyphicon glyphicon-flash"></span> Source</a></li>
+                  <li class="sim-section" data-ng-if="latticeService.hasBeamlines()" data-ng-class="{active: nav.isActive(\'control\')}"><a data-ng-href="{{ nav.sectionURL(\'control\') }}"><span class="glyphicon glyphicon-list-alt"></span> Control</a></li>
+                  <li class="sim-section" data-ng-if="hasBeamlinesAndCommands()" data-ng-class="{active: nav.isActive(\'visualization\')}"><a data-ng-href="{{ nav.sectionURL(\'visualization\') }}"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>
+                </div>
+              </app-header-right-sim-loaded>
+              <app-settings>
+              </app-settings>
+              <app-header-right-sim-list>
+                <ul class="nav navbar-nav sr-navbar-right">
+                  <li><a href data-ng-click="showImportModal()"><span class="glyphicon glyphicon-cloud-upload"></span> Import</a></li>
+                </ul>
+              </app-header-right-sim-list>
+            </div>
+        `,
         controller: function($scope) {
             $scope.latticeService = latticeService;
 
@@ -378,9 +377,9 @@ SIREPO.app.directive('elementAnimationModalEditor', function(appState, panelStat
         scope: {
             reportInfo: '=',
         },
-        template: [
-            '<div data-modal-editor="" data-view-name="{{ viewName }}" data-model-data="modelAccess"></div>',
-        ].join(''),
+        template: `
+            <div data-modal-editor="" data-view-name="{{ viewName }}" data-model-data="modelAccess"></div>
+        `,
         controller: function($scope) {
             $scope.modelKey = $scope.reportInfo.modelAccess.modelKey;
             $scope.viewName = $scope.reportInfo.viewName;
@@ -402,9 +401,9 @@ SIREPO.app.directive('madXLatticeList', function(appState) {
             model: '=',
             field: '=',
         },
-        template: [
-            '<select class="form-control" data-ng-model="model[field]" data-ng-options="name as name for name in elegantLatticeList()"></select>',
-        ].join(''),
+        template: `
+            <select class="form-control" data-ng-model="model[field]" data-ng-options="name as name for name in elegantLatticeList()"></select>
+        `,
         controller: function($scope) {
             $scope.elegantLatticeList = function() {
                 if (! appState.isLoaded() || ! $scope.model) {
@@ -438,9 +437,9 @@ SIREPO.app.directive('matchSummaryPanel', function(appState, plotting) {
     return {
         restrict: 'A',
         scope: {},
-        template: [
-            '<pre>{{ summaryText }}</pre>',
-        ].join(''),
+        template: `
+            <pre>{{ summaryText }}</pre>
+        `,
         controller: function($scope) {
             plotting.setTextOnlyReport($scope);
             $scope.load = function(json) {
@@ -498,7 +497,7 @@ SIREPO.app.directive('commandConfirmation', function(appState, commandService, l
                     addCommands([
                         { _type: 'ptc_create_universe', sector_nmul: 10, sector_nmul_max: 10 },
                         { _type: 'ptc_create_layout' },
-                        { _type: 'ptc_track', element_by_element: '1', file: '1' },
+                        { _type: 'ptc_track', element_by_element: '1', file: '1', icase: '6' },
                         { _type: 'ptc_track_end' },
                         { _type: 'ptc_end' },
                     ]);
@@ -548,15 +547,7 @@ SIREPO.viewLogic('bunchView', function(appState, commandService, madxService, pa
                 command_beam: appState.clone(appState.models.command_beam),
                 variables: appState.clone(appState.models.rpnVariables),
             }
-	);
-    }
-
-    function updateLongitudinalMethod() {
-        var method = appState.models.bunch.longitudinalMethod;
-        panelState.showFields('command_beam', [
-            'et', method == '1',
-            ['sigt','sige'], method == '2',
-        ]);
+        );
     }
 
     function updateParticle() {
@@ -600,13 +591,11 @@ SIREPO.viewLogic('bunchView', function(appState, commandService, madxService, pa
     $scope.whenSelected = function() {
         updateParticle();
         updateTwissFields();
-        updateLongitudinalMethod();
     };
 
     $scope.watchFields = [
         ['command_beam.particle'], updateParticle,
         ['bunch.matchTwissParameters'], updateTwissFields,
-        ['bunch.longitudinalMethod'], updateLongitudinalMethod,
         $.merge(['bunch.beamDefinition'], energyFields.map(function(f) { return 'command_beam.' + f; })),
             calculateBunchParameters,
     ];

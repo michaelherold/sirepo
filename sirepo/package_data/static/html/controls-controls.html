@@ -1,29 +1,30 @@
-<div class="container-fluid" data-ng-if="! controls.hasMadxLattice()">
+<div class="container-fluid" data-ng-if="! controls.controlsService.hasMadxLattice()">
   <div class="col-md-6 col-xl-4">
     <div data-basic-editor-panel="" data-view-name="dataFile"></div>
   </div>
 </div>
-<div class="container-fluid" data-ng-if="controls.hasMadxLattice()">
+<div class="container-fluid" data-ng-if="controls.controlsService.hasMadxLattice()">
   <div class="row">
-    <div class="col-sm-12">
+    <div class="col-sm-12 col-xxl-6">
       <div data-simple-panel="beamline">
         <div id="sr-lattice" data-lattice="" class="sr-plot" data-margin="40" data-model-name="beamlines" data-path-to-models="externalLattice"></div>
       </div>
     </div>
-  </div>
-  <div class="row">
-    <div class="col-md-6 col-xl-4" data-ng-if="controls.simState">
-      <div data-simple-panel="simulationStatus">
-        <div class="clearfix" data-optimizer-table=""></div>
+    <div class="col-md-6 col-xl-4 col-xxl-3" data-ng-if="controls.simState && ! controls.controlsService.isDeviceServerReadOnly()">
+      <div data-simple-panel="optimizerInputsTab" >
+        <div data-optimization-picker=""></div>
         <div data-sim-status-panel="controls.simState" data-start-function="controls.startSimulation()" data-cancel-callback="controls.cancelCallback()"></div>
       </div>
     </div>
-    <div class="col-md-6 col-xl-4">
+    <div class="col-md-6 col-xl-4 col-xxl-3" data-ng-if="controls.simState && controls.controlsService.isDeviceServerReadOnly()">
+      <div data-simple-panel="deviceServerMonitor">
+        <div data-device-server-monitor="controls.simState"></div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4 col-xxl-3" data-ng-if="! controls.controlsService.isDeviceServer()">
       <div data-basic-editor-panel="" data-view-name="command_beam"></div>
     </div>
-  </div>
-  <div class="row">
-    <div class="col-sm-12">
+    <div class="col-sm-12 col-xxl-6">
       <div data-simple-panel="monitors">
         <div data-ng-repeat="item in controls.watches track by $index">
           <div class="col-sm-6 col-md-3 col-xl-2">
@@ -32,6 +33,15 @@
           </div>
           <div data-ng-if="$index % 4 == 3" class="clearfix hidden-xl"></div>
           <div data-ng-if="$index % 6 == 5" class="clearfix visible-xl"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div data-ng-if="! controls.controlsService.isDeviceServer()">
+    <div data-simple-panel="instrumentAnimationAll" data-ng-show="controls.simState.hasFrames() && controls.hasInstrumentAnimations() ">
+      <div data-ng-if="! controls.panelState.isHidden('instrumentAnimationAll')" class="row sr-row-heatmaps">
+        <div class="col-md-4 col-xl-3 col-xxl-2" data-ng-repeat="m in controls.instrumentAnimations track by $index"  >
+          <div data-report-content="heatmap" data-model-key="{{ m.modelKey }}"></div>
         </div>
       </div>
     </div>

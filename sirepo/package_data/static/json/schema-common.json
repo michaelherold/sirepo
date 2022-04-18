@@ -20,10 +20,6 @@
             "longName": "Genesis",
             "shortName": "Genesis"
         },
-        "hellweg": {
-            "longName": "Hellweg",
-            "shortName": "Hellweg"
-        },
         "irad": {
             "longName": "IRAD",
             "shortName": "IRAD"
@@ -113,6 +109,7 @@
     "route": {
         "adjustTime": "/adjust-time/?<days>",
         "admJobs": "/adm-jobs",
+        "analysisJob": "/analysis-job",
         "authBlueskyLogin": "/auth-bluesky-login",
         "authCompleteRegistration": "/auth-complete-registration",
         "authEmailAuthorized": "/auth-email-authorized/<simulation_type>/<token>",
@@ -156,6 +153,7 @@
         "robotsTxt": "/robots.txt",
         "root": "/*<path_info>",
         "runCancel": "/run-cancel",
+        "runMulti": "/run-multi",
         "runSimulation": "/run-simulation",
         "runStatus": "/run-status",
         "saveSimulationData": "/save-simulation",
@@ -379,12 +377,6 @@
                 "config": {
                   "controller": "NotFoundCopyController as notFoundCopy",
                   "templateUrl": "/static/html/copy-session.html"
-                }
-            },
-            "ownJobs": {
-                "route": "/own-jobs",
-                "config": {
-                  "templateUrl": "/static/html/own-jobs.html"
                 }
             },
             "sbatchLogin": {

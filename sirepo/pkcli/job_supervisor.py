@@ -4,21 +4,26 @@
 :copyright: Copyright (c) 2019 RadiaSoft LLC.  All Rights Reserved.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
-from __future__ import absolute_import, division, print_function
 from pykern import pkconfig
 from pykern import pkio
 from pykern import pkjson
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp, pkdlog, pkdexc, pkdc
+import asyncio
+import copy
 import functools
+import importlib
 import signal
 import sirepo.events
+import sirepo.feature_config
 import sirepo.job
 import sirepo.job_driver
 import sirepo.job_supervisor
 import sirepo.sim_db_file
 import sirepo.srdb
 import sirepo.srtime
+import sirepo.util
+import tornado.autoreload
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
@@ -43,6 +48,7 @@ def default_command():
         [
             (sirepo.job.AGENT_URI, _AgentMsg),
             (sirepo.job.SERVER_URI, _ServerReq),
+            (sirepo.job.SERVER_RUN_MULTI_URI, _ServerReqRunMulti),
             (sirepo.job.SERVER_PING_URI, _ServerPing),
             (sirepo.job.SERVER_SRTIME_URI, _ServerSrtime),
             (sirepo.job.DATA_FILE_URI + '/(.*)', _DataFileReq),
@@ -56,6 +62,10 @@ def default_command():
         websocket_ping_interval=sirepo.job.cfg.ping_interval_secs,
         websocket_ping_timeout=sirepo.job.cfg.ping_timeout_secs,
     )
+    if cfg.debug:
+        for f in sirepo.util.files_to_watch_for_reload('json', 'py'):
+            tornado.autoreload.watch(f)
+
     server = tornado.httpserver.HTTPServer(
         app,
         xheaders=True,
@@ -138,12 +148,53 @@ class _ServerReq(_JsonPostRequestHandler):
         pass
 
     async def post(self):
-        await _incoming(self.request.body, self)
+        self.write(await _incoming(self.request.body, self))
 
     def sr_on_exception(self):
         self.send_error()
         self.on_connection_close()
 
+class _ServerSrtime(_JsonPostRequestHandler):
+
+    def post(self):
+        assert pkconfig.channel_in_internal_test(), \
+            'You can only adjust time in internal test'
+        sirepo.srtime.adjust_time(pkjson.load_any(self.request.body).days)
+        self.write(PKDict())
+
+
+class _ServerReqRunMulti(_ServerReq):
+
+    async def post(self):
+        async def _await_reply(content, handler):
+            r = copy.deepcopy(content.data)
+            del r['models']
+            return PKDict(
+                # OPTIMIZATION: return just a few details of the
+                # reuqest (ex computeModel) so we know which request
+                # the response is for. But, not the whole thing which
+                # may be a lot (all of models) and is not used
+                request=r,
+                response=await _incoming(content, handler),
+            )
+        b = pkjson.load_any(self.request.body)
+        futures = []
+        for m in b.data:
+            i = functools.partial(
+                _await_reply,
+                m.pkupdate(serverSecret=b.serverSecret, api=m.data.api),
+                self,
+            )
+            if m.data.get('awaitReply'):
+                futures.append(i())
+                continue
+            tornado.ioloop.IOLoop.current().add_callback(i)
+        r = PKDict()
+        if futures:
+            r.pkupdate(
+                data=await asyncio.gather(*futures, return_exceptions=True),
+            )
+        self.write(r)
 
 
 async def _incoming(content, handler):
@@ -157,7 +208,7 @@ async def _incoming(content, handler):
                 handler.sr_class,
                 c,
             )
-        await handler.sr_class(handler=handler, content=c).receive()
+        return await handler.sr_class(handler=handler, content=c).receive()
     except Exception as e:
         pkdlog(
             'exception={} handler={} content={}',
@@ -170,15 +221,6 @@ async def _incoming(content, handler):
             handler.sr_on_exception()
         except Exception as e:
             pkdlog('sr_on_exception: exception={}', e)
-
-
-class _ServerSrtime(_JsonPostRequestHandler):
-
-    def post(self):
-        assert pkconfig.channel_in_internal_test(), \
-            'You can only adjust time in internal test'
-        sirepo.srtime.adjust_time(pkjson.load_any(self.request.body).days)
-        self.write(PKDict())
 
 
 def _sigterm(signum, frame):
