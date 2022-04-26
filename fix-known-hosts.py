@@ -1,3 +1,9 @@
+"""Duplicate all fnl* hosts with a bkf*
+
+Usage:
+  cat ~/.ssh/known_hosts | fix-known-hosts.py
+  # Outputs known_hosts.out which you can diff and cp to correct location if it looks good.
+"""
 from pykern.pkdebug import pkdp
 import fileinput
 import re
