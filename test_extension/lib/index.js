@@ -3,6 +3,9 @@ import { LabIcon } from '@jupyterlab/ui-components';
 import { Widget } from '@lumino/widgets';
 import slackIconStr from '../../sirepo/package_data/static/svg/slack.svg';
 
+
+console.log(slackIconStr);
+
 const icon = new LabIcon({
   name: 'launcher:slack-icon',
   svgstr: slackIconStr,
@@ -36,8 +39,7 @@ export default [
         caption: 'Execute jlab-examples:slack-launcher Command',
         icon,
         execute: (args) => {
-          console.log('app.shell', app.shell);
-          // window.location.assign("http://www.slack.com");
+          window.location.assign("http://www.slack.com");
         },
       });
 
@@ -54,11 +56,19 @@ export default [
 
 
       const widget = new ExampleWidget();
-      var n = document.createElement('div');
-      n.innerHTML = '<div id="slack-widget" onclick="console.log(2)"> hello </div> ';
-      widget.node = n;
-      widget.id = 'simple-widget-example';
-      console.log('widget.node: ', widget.node);
+      // var newNode = Object.assign(document.createElement('a'), {onclick: () => {
+      //   window.location.assign("http://www.slack.com");
+      // }});
+
+
+      // // widget.node = `<div id="${widget.id}"> xxx ${widget.node} xxx</div>`
+      // // widget.id = 'poop';
+      // newNode.id = 'poop';
+      // widget.node = newNode;
+      // console.log('widget.node:', widget.node);
+      // console.log('global icon:', icon);
+      // console.log('widget.title.icon:', widget.title.icon);
+      // console.log('parent:', widget.node.parentElement);
       shell.add(widget, 'left');
 
 
