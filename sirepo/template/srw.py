@@ -330,6 +330,8 @@ def _extract_coherent_modes(model, out_info):
 
 
 def extract_report_data(sim_in):
+    import h5py
+
     r = sim_in.report
     out = copy.deepcopy(_OUTPUT_FOR_MODEL[re.sub(r'\d+$', '', r)])
     dm = sim_in.models
@@ -362,13 +364,18 @@ def extract_report_data(sim_in):
         out.units[1] = '({})'.format(out.units[1])
     # TODO (gurhar1133): if r.contains watchpointanimation, then use h5py
     # to get data, range else below method
+
+
+    if r == 'beamlineAnimation' or 'initialIntensityReport':
+        pkdp('out.filename: {}', out.filename)
+        # assert False
+        file = h5py.File(out.filename, 'r')
+        pkdp('\n\n\n file: {} \n\n\n ', file)
     # NOTE: See rsfbpic/rsdata/read_field_hdf.py for example of how to
     # open and parse h5.
     # NOTE: Switching default back to ascii and inspecting printed result
     # of data and allrange will help with getting the formatting
     data, _, allrange, _, _ = uti_plot_com.file_load(out.filename)
-    pkdp(data)
-    pkdp(allrange)
     res = PKDict(
         title=out.title,
         subtitle=out.get('subtitle', ''),
