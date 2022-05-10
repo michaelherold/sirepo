@@ -17,6 +17,7 @@ _DEPENDENT_CODES = [
 PROD_FOSS_CODES = frozenset((
     'controls',
     'elegant',
+    'genesis',
     'jspec',
     'madx',
     'ml',
@@ -33,9 +34,9 @@ PROD_FOSS_CODES = frozenset((
 
 #: Codes on dev, alpha, and beta
 _NON_PROD_FOSS_CODES = frozenset((
-    'genesis',
     'irad',
     'myapp',
+    'cloudmc',
     'rcscon',
     'rs4pi',
     'silas',
@@ -128,6 +129,7 @@ def _init():
         srw=dict(
             app_url=('/en/xray-beamlines.html', str, 'URL for SRW link'),
             mask_in_toolbar=b('Show the mask element in toolbar'),
+            show_video_links=(False, bool, 'Display instruction video links'),
             show_open_shadow=(pkconfig.channel_in_internal_test(), bool, 'Show "Open as a New Shadow Simulation" menu item'),
             show_rsopt_ml=(pkconfig.channel_in_internal_test(), bool, 'Show "Export ML Script" menu item'),
         ),
