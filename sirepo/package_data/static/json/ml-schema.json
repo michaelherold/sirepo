@@ -34,7 +34,8 @@
             ["none", "None"]
         ],
         "MLModule": [
-            ["neuralnet", "Neural Network"]
+            ["neuralnet", "Neural Network"],
+            ["convolution", "Convolution"]
         ],
         "NeuralNetActivation": [
             ["exponential", "Exponential (base e)"],
