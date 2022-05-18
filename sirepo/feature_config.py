@@ -20,7 +20,7 @@ PROD_FOSS_CODES = frozenset((
     'genesis',
     'jspec',
     'madx',
-    'ml',
+    'activait',
     'opal',
     'radia',
     'shadow',

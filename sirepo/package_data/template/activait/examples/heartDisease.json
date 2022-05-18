@@ -46,20 +46,42 @@
             "colsWithNonUniqueValues": {},
             "hasHeaderRow": true,
             "header": [
-                "Score",
-                "Country or region",
-                "Overall rank",
-                "GDP per capita",
-                "Social support",
-                "Healthy life expectancy",
-                "Freedom to make life choices",
-                "Generosity",
-                "Perceptions of corruption"
+                "has_heart_disease",
+                "age",
+                "resting_blood_pressure",
+                "cholesterol",
+                "max_heart_rate_achieved",
+                "st_depression",
+                "num_major_vessels",
+                "sex_male",
+                "chest_pain_type_atypical angina",
+                "chest_pain_type_non-anginal pain",
+                "chest_pain_type_typical angina",
+                "fasting_blood_sugar_lower than 120mg/ml",
+                "rest_ecg_left ventricular hypertrophy",
+                "rest_ecg_normal",
+                "exercise_induced_angina_yes",
+                "st_slope_flat",
+                "st_slope_upsloping",
+                "thalassemia_fixed defect",
+                "thalassemia_normal",
+                "thalassemia_reversable defect"
             ],
             "inputOutput": [
                 "output",
-                "none",
-                "none",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
+                "input",
                 "input",
                 "input",
                 "input",
@@ -67,8 +89,19 @@
                 "input",
                 "input"
             ],
-            "rowCount": 157,
+            "rowCount": 304,
             "selected": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
                 true,
                 true,
                 true,
@@ -81,7 +114,6 @@
             ]
         },
         "columnReports": [
-            0,
             1,
             2,
             3,
@@ -89,13 +121,24 @@
             5,
             6,
             7,
-            8
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
         ],
         "dataFile": {
-            "appMode": "regression",
-            "file": "2019Happiness.data.csv",
+            "appMode": "classification",
+            "file": "heartDisease.data.csv",
             "inputsScaler": "RobustScaler",
-            "oldFile": "2019Happiness.data.csv",
+            "oldFile": "heartDisease.data.csv",
             "outputsScaler": "RobustScaler"
         },
         "dtClassifierClassificationMetricsAnimation": {},
@@ -117,6 +160,46 @@
         },
         "fileColumnReport1": {
             "columnNumber": 1,
+            "x": -1
+        },
+        "fileColumnReport10": {
+            "columnNumber": 10,
+            "x": -1
+        },
+        "fileColumnReport11": {
+            "columnNumber": 11,
+            "x": -1
+        },
+        "fileColumnReport12": {
+            "columnNumber": 12,
+            "x": -1
+        },
+        "fileColumnReport13": {
+            "columnNumber": 13,
+            "x": -1
+        },
+        "fileColumnReport14": {
+            "columnNumber": 14,
+            "x": -1
+        },
+        "fileColumnReport15": {
+            "columnNumber": 15,
+            "x": -1
+        },
+        "fileColumnReport16": {
+            "columnNumber": 16,
+            "x": -1
+        },
+        "fileColumnReport17": {
+            "columnNumber": 17,
+            "x": -1
+        },
+        "fileColumnReport18": {
+            "columnNumber": 18,
+            "x": -1
+        },
+        "fileColumnReport19": {
+            "columnNumber": 19,
             "x": -1
         },
         "fileColumnReport2": {
@@ -147,13 +230,14 @@
             "columnNumber": 8,
             "x": -1
         },
+        "fileColumnReport9": {
+            "columnNumber": 9,
+            "x": -1
+        },
         "fitAnimation": {
             "colorMap": "viridis",
             "columnNumber": 0,
             "histogramBins": 30
-        },
-        "fitAnimation0": {
-            "columnNumber": 0
         },
         "fitReport": {},
         "hiddenReport": {
@@ -193,38 +277,7 @@
         "neuralNet": {
             "batch_size": 50,
             "epochs": 500,
-            "layers": [
-                {
-                    "activationActivation": "linear",
-                    "alphaDropoutRate": 0.5,
-                    "denseActivation": "relu",
-                    "denseDimensionality": 10,
-                    "dropoutRate": 0.5,
-                    "gaussianDropoutRate": 0.5,
-                    "gaussianNoiseStddev": 0.01,
-                    "layer": "Dense"
-                },
-                {
-                    "activationActivation": "relu",
-                    "alphaDropoutRate": 0.5,
-                    "denseActivation": "relu",
-                    "denseDimensionality": 10,
-                    "dropoutRate": 0.5,
-                    "gaussianDropoutRate": 0.5,
-                    "gaussianNoiseStddev": 0.01,
-                    "layer": "Dense"
-                },
-                {
-                    "activationActivation": "relu",
-                    "alphaDropoutRate": 0.5,
-                    "denseActivation": "sigmoid",
-                    "denseDimensionality": 10,
-                    "dropoutRate": 0.5,
-                    "gaussianDropoutRate": 0.5,
-                    "gaussianNoiseStddev": 0.01,
-                    "layer": "Dense"
-                }
-            ],
+            "layers": [],
             "losses": "mean_squared_error",
             "optimizer": "adam",
             "shuffle": "1"
@@ -240,14 +293,14 @@
             "layer": "Dense"
         },
         "partition": {
-            "cutoff0": 19,
-            "cutoff1": 137,
+            "cutoff0": 38,
+            "cutoff1": 266,
             "method": "random",
             "random_state": 42,
             "section0": "validate",
             "section1": "train_and_test",
             "section2": "validate",
-            "testing": 12.5,
+            "testing": 25,
             "trainTestPercent": 75,
             "training": 75,
             "validation": 12.5
@@ -259,9 +312,9 @@
             "documentationUrl": "",
             "folder": "/Examples",
             "isExample": true,
-            "name": "2019 World Happiness",
+            "name": "Heart Disease",
             "notes": ""
         }
     },
-    "simulationType": "ml"
+    "simulationType": "activait"
 }
