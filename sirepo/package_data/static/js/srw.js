@@ -2623,6 +2623,7 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
             };
 
             $scope.startButtonLabel = function() {
+                // srdbg(appState.models);
                 return stringsService.startButtonLabel();
             };
 
@@ -2644,6 +2645,8 @@ SIREPO.app.directive('simulationStatusPanel', function(appState, beamlineService
                     appState.saveChanges($scope.simState.model);
                     appState.models.simulation.multiElectronAnimationTitle = beamlineService.getReportTitle($scope.model);
                 }
+                // TODO (gurhar1133): examine saveAndRunSimulation()
+                // srdbg('appState.models: ', appState.models);
                 $scope.simState.saveAndRunSimulation('simulation');
             };
 

@@ -942,11 +942,13 @@ def write_parameters(data, run_dir, is_parallel):
         run_dir (py.path): where to write
         is_parallel (bool): run in background?
     """
+    pkdp('\n\n\n Write Params called \n\n\n ')
     pkio.write_text(
         run_dir.join(template_common.PARAMETERS_PYTHON_FILE),
         _trim(_generate_parameters_file(data, run_dir=run_dir))
     )
     if is_parallel:
+        pkdp('\n\n\n is parallel \n\n\n ')
         return template_common.get_exec_parameters_cmd(_SIM_DATA.is_run_mpi(data))
     return None
 
@@ -1619,6 +1621,7 @@ def _generate_beamline_optics(report, data):
 
 
 def _generate_parameters_file(data, plot_reports=False, run_dir=None):
+    pkdp('\n\n\n Generate Parameters Called \n\n\n')
     report = data.report
     is_for_rsopt = _is_for_rsopt(report)
     dm = data.models
