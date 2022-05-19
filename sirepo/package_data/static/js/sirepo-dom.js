@@ -96,7 +96,7 @@ class UIStyle {
     toString() {
         let s = '';
         for (let x in this.settings) {
-            s += `${x}: ${this.settings[x]}; `
+            s += `${x}: ${this.settings[x]}; `;
         }
         return s;
     }
@@ -302,7 +302,6 @@ class UIElement {  //extends UIOutput {
      */
     getStyle() {
         const s = this.getAttr('style');
-        srdbg('STYLE', s);
         return s ? UIStyle.fromString(s.value) :  null;
     }
 
@@ -425,7 +424,6 @@ class UIElement {  //extends UIOutput {
     setStyleSetting(name, value) {
         let s = this.getStyle() || new UIStyle();
         s.setSetting(name, value);
-        srdbg('S', s);
         this.setStyle(s);
     }
 
@@ -513,7 +511,7 @@ class UIAnchor extends UIElement {
      * @param {title} [string] - title to display on hover
      */
     constructor(id=null, href=null, title='') {
-        super('a', id,);
+        super('a', id);
         this.setHref(href);
         this.setTitle(title);
     }

@@ -1,52 +1,5 @@
 'use strict';
 
-/**
- * A base class for various javascript frameworks. This will allow modification of generated templates
- * and logic to accommodate and leverage the framework.
- */
-class JSFramework {
-
-    static get(name) {
-        return new ({
-            angularJS: JSFrameworkAngular,
-        }[name] || JSFramework)();
-    }
-
-    constructor() {
-    }
-
-    /**
-     * Add attributes and other items to the field. In the base class just return the field
-     * @param {SRField} field - the field to dress
-     * @return {SRField} - the dressed field
-     */
-    dressField(field) {
-        return field;
-    }
-
-
-}
-
-/**
- * angular.js stuff
- */
-class JSFrameworkAngular extends JSFramework {
-
-    constructor() {
-        super();
-    }
-
-    buildDirective(name, scope, template, controller, link) {
-        const res = {
-            restrict: 'A',
-            scope: scope,
-            template: template,
-            controller: controller,
-            link: link
-        };
-    }
-}
-
 // The following classes are here possibly temporarily to avoid race conditions in js file loading
 
 /**
@@ -236,11 +189,6 @@ class SRReportHeatmap extends SRPlotReport {
     }
 
 }
-
-SIREPO.JS_FRAMEWORK = {
-    JSFramework: JSFramework,
-    JSFrameworkAngular: JSFrameworkAngular,
-};
 
 SIREPO.COMPONENTS = {
     SREditor: SREditor,

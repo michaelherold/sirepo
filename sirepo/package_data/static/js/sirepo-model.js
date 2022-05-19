@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * A class defining an app based on its schema.
  */
@@ -7,7 +9,6 @@ class SRApp {
         this.name = name;
         this.controllers = {};
         this.enums = {};
-        this.framework = SIREPO.JS_FRAMEWORK.JSFramework.get(schema.feature_config.js_framework);
         this.models = {};
         this.panelState = new PanelState();
         this.sections = {};
@@ -237,10 +238,10 @@ class SRView {
 class SRFieldDefinition {
 
     static builtIn(baseType, isRequired=true) {
-        let baseInput = new UIInput(null, 'text', `${this.default}`, [
-            new UIAttribute('data-min', `${this.min}`),
-            new UIAttribute('data-max', `${this.max}`),
-            new UIAttribute('data-lpignore', 'true')
+        let baseInput = new SIREPO.DOM.UIInput(null, 'text', `${this.default}`, [
+            new SIREPO.DOM.UIAttribute('data-min', `${this.min}`),
+            new SIREPO.DOM.UIAttribute('data-max', `${this.max}`),
+            new SIREPO.DOM.UIAttribute('data-lpignore', 'true')
         ]);
 
         if (isRequired) {
@@ -288,8 +289,8 @@ class SRFieldDefinition {
             Integer: SRFieldDefinition.builtIn('number', isRequired),
             Float: SRFieldDefinition.builtIn('number', isRequired),
         }[this.type];
-        editor.addChild(f);
-        return editor;
+        ui.addChild(f);
+        return ui;
     }
 }
 
@@ -386,7 +387,7 @@ class PanelState {
 
     isLoading(name) {
         return this.getPanelValue(name, 'loading') ? true : false;
-    };
+    }
 
     isRunning(name) {
         return false;

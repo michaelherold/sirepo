@@ -3,7 +3,7 @@
 var srlog = SIREPO.srlog;
 var srdbg = SIREPO.srdbg;
 
-let appModel = new SRApp(SIREPO.APP_NAME, SIREPO.APP_SCHEMA);
+let appModel = new SIREPO.APP.SRApp(SIREPO.APP_NAME, SIREPO.APP_SCHEMA);
 
 SIREPO.app.config(() => {
     SIREPO.appFieldEditors += `
@@ -59,13 +59,13 @@ SIREPO.app.controller('BeamlineController', function(appState, nulineService, fr
         ]);
         table.setColumnStyles(['width: 20ex']);
         for (let s of appState.models.beamlineSettings.settings) {
-            const i = new UIInput(null, 'text', s.value);
-            const c = new UIInput(null, 'checkbox', '', [
-                new UIAttribute('checked'),
+            const i = new SIREPO.DOM.UIInput(null, 'text', s.value);
+            const c = new SIREPO.DOM.UIInput(null, 'checkbox', '', [
+                new SIREPO.DOM.UIAttribute('checked'),
             ]);
-            table.addRow([s.name, i, c,])
+            table.addRow([s.name, i, c,]);
         }
-    }
+    };
 
     self.init = () => {
         if (! self.simState) {
@@ -258,19 +258,17 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             //'<button data-ng-click="addItem()" id="sr-new-setting" class="btn btn-info btn-xs pull-right">Add Setting <span class="glyphicon glyphicon-plus"></span></button>',
         ].join(''),
         controller: function($scope, $element) {
+            srdbg($scope.modelName, appState.models);
             $scope.model = appState.models[$scope.modelName];
             $scope.nulineService = nulineService;
 
             // this is where we need a link between model and view, so this gets done automatically
             function changeEl(e) {
-                srdbg(e.target.id, e.target.value);
                 const c = table.getChild(e.target.id, true);
-                srdbg('c', c);
-                
             }
 
             function loadSettings() {
-                srdbg('LOAD SETTINGS');
+                srdbg('LOAD SETTINGS', $scope.model);
                 $scope.model.activeSettings = [];
                 $scope.model.settings = [];
                 if (! appState.models.beamlineDataFile.dataFile) {
@@ -294,7 +292,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                         appState.models.beamlineImageReport.imageType = data.imageType;
                         appState.saveChanges([$scope.modelName, 'beamlineImageReport'], () => {
                             updateSettings();
-                        })
+                        });
                     });
             }
 
@@ -305,9 +303,9 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                 table.clearRows();
                 let numRows = 0;
                 for (let s of settings) {
-                    let i = new UIInput(null, 'text', s.value);
-                    const c = new UIInput(null, 'checkbox', '', [
-                        new UIAttribute('checked'),
+                    let i = new SIREPO.DOM.UIInput(null, 'text', s.value);
+                    const c = new SIREPO.DOM.UIInput(null, 'checkbox', '', [
+                        new SIREPO.DOM.UIAttribute('checked'),
                     ]);
                     table.addRow([s.name, i, c,]);
                     ++numRows;
@@ -317,7 +315,7 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                 for (let i = 0; i < numRows; ++i) {
                     for (let j = 0; j < table.numCols; ++j) {
                         let c = table.getCell(i, j).children[0];
-                        if (! c || ! c.getChild() instanceof UIInput) {
+                        if (! c || ! (c.getChild() instanceof SIREPO.DOM.UIInput)) {
                             continue;
                         }
                         c.setOnInput(changeEl);
@@ -332,22 +330,15 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             });
             $scope.$on('beamlineSettingsFile.changed', loadSettings);
             $scope.$on(`${$scope.modelName}.editor.show`, () => {
-                srdbg('EDIT');
-
             });
 
+            loadSettings();
             updateSettings();
         },
     };
 });
 
 SIREPO.viewLogic('beamlineSettingsView', function(appState, nulineService, panelState, $scope) {
-    //$scope.watchFields = [
-    //    'settings'
-    //]
-    // ;
-    srdbg('beamlineSettingsView', $scope);
-
 });
 
 SIREPO.app.directive('beamlineSettingsFileSelector', function(appState, nulineService, panelState, $compile) {

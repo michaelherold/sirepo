@@ -2963,7 +2963,7 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                         return document.createElementNS(ns, 'path');
                     })
                     .append(d => {
-                        return document.createElementNS(ns, 'title')
+                        return document.createElementNS(ns, 'title');
                     });
                 ds.call(updateOverlay);
             }
@@ -3093,7 +3093,7 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                         ).pathString();
                     })
                     .select('title').text(d => {
-                        return d.name
+                        return d.name;
                     });
             }
 

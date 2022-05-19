@@ -110,7 +110,6 @@ def _init():
         default_proprietary_sim_types=(set(), set, 'codes where all users are authorized by default but that authorization can be revoked'),
         schema_common=dict(
             hide_guest_warning=b('Hide the guest warning in the UI', dev=True),
-            js_framework=('angularJS', str, 'Javascript framework'),
         ),
         jspec=dict(
             derbenevskrinsky_force_formula=b('Include Derbenev-Skrinsky force formula'),
