@@ -16,8 +16,8 @@ class SRPanelHeading extends SIREPO.DOM.UIDiv {
      * @param {string} title - title to display
      * @param {[SRAnchorButton]} [controls] - control buttons for this heading
      */
-    constructor(id, title, controls=null) {
-        super(id);
+    constructor(title, controls=null, {id, attrs}={id: null, attrs: []}) {
+        super({id: id, attrs: attrs});
         this.title = new SIREPO.DOM.UIElement('span');
         this.title.addClasses('sr-panel-heading');
         this.setTitle(title);
@@ -58,8 +58,8 @@ class SRPanelHeading extends SIREPO.DOM.UIDiv {
  * An anchor (<a>) element with a child element instead of text
  */
 class SRAnchorButton extends SIREPO.DOM.UIAnchor {
-    constructor(id, href, title, icon=null) {
-        super(id, href, title);
+    constructor(href, title, icon=null, {id, attrs}={id: null, attrs: []}) {
+        super(href, title, {id: id, attrs: attrs});
         this.icon = icon ? icon : new SIREPO.DOM.UIElement('span');
         this.addChild(this.icon);
     }
@@ -78,8 +78,8 @@ class SRPanel extends SIREPO.DOM.UIDiv {
      * @param {string} [id] - id for this panel
      * @param {string} title - title for this panel
      */
-    constructor(id, title='') {
-        super(id);
+    constructor(title='', {id: id, attrs}={id: null, attrs: []}) {
+        super({id: id, attrs: attrs});
         this.heading = new SRPanelHeading(null, title);
         this.heading.addClasses('clearfix');
         this.body = new SIREPO.DOM.UIDiv();
@@ -102,8 +102,8 @@ class SREditor extends SRPanel {
      * @param {string} [id] - id for this div
      * @param {string} formType - basic|advanced
      */
-    constructor(id, formType, isModal=false) {
-        super(id);
+    constructor(formType, isModal=false, {id, attrs}={id: null, attrs: []}) {
+        super({id: id, attrs: attrs});
     }
 
 }
@@ -117,8 +117,8 @@ class SRReport extends SRPanel {
      * @param {string} [id] - id for this div
      * @param {string} modelName - name of the model for this report
      */
-    constructor(id, modelName) {
-        super(id);
+    constructor(modelName, {id, attrs}={id: null, attrs:[]}) {
+        super(modelName, {id: id, attrs: attrs});
     }
 
 }
@@ -145,12 +145,12 @@ class SRPlotReport extends SRReport {
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
      */
-    constructor(id , modelName) {
-        super(id, modelName);
-        this.plot = new SIREPO.DOM.UIDiv(null, [
+    constructor(modelName, {id, attrs}={id: null, attrs: []}) {
+        super(modelName, {id: id, attrs: attrs});
+        this.plot = new SIREPO.DOM.UIDiv({id: null, attrs: [
                 new SIREPO.DOM.UIAttribute('data-model-name', modelName),
                 new SIREPO.DOM.UIAttribute('data-report-id', 'reportId'),
-            ]);
+            ]});
         this.plot.addClasses(SRPlotReport.css().srPlot);
         this.addChild(this.plot);
     }
@@ -170,7 +170,7 @@ class SRReport3D extends SRPlotReport {
      * @param {string} modelName - name of the model for this report
      */
     constructor(id , modelName) {
-        super(id, modelName);
+        super(modelName, {id: id, attrs: attrs});
         this.plot.addAttribute( 'data-plot3d', '');
     }
 }
@@ -183,8 +183,8 @@ class SRReportHeatmap extends SRPlotReport {
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
      */
-    constructor(id , modelName) {
-        super(id, modelName);
+    constructor(modelName, {id, attrs}={id: null, attrs: []}) {
+        super(modelName, {id: id, attrs: attrs});
         this.plot.addAttribute( 'data-heatmap', '');
     }
 

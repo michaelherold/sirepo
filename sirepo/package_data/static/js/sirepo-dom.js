@@ -122,11 +122,19 @@ class UIElement {  //extends UIOutput {
     }
 
     /**
+     * @returns {{id: null, attrs: *[]}}
+     */
+    static defaultKwargs() {
+        return {id: null, attrs: []};
+    }
+
+    /**
      * @param {string} tag - tag name for this element
      * @param {string} [id] - id for this element. The class will generate an id if one is not provided
      * @param {[UIAttribute]} [attrs] - array of UIAttributes. If "id" is among them, it will be overwitten by the id param
      */
-    constructor(tag, id=null, attrs=[]) {
+    constructor(tag, {id, attrs}=UIElement.defaultKwargs()) {
+        srdbg(tag, id, attrs);
         this.tag = tag;
 
         /** @member {Object<string:UIAttribute>} - dictionary of attributes keyed by name */
@@ -510,8 +518,8 @@ class UIAnchor extends UIElement {
      * @param {string} [href] - href
      * @param {title} [string] - title to display on hover
      */
-    constructor(id=null, href=null, title='') {
-        super('a', id);
+    constructor(href=null, title='', {id, attrs}=UIElement.defaultKwargs()) {
+        super('a', {id: id, attrs:attrs});
         this.setHref(href);
         this.setTitle(title);
     }
@@ -541,8 +549,8 @@ class UIDiv extends UIElement {
      * @param {string} [id] - id for this div
      * @param {[UIAttribute]} [attrs] - attributes for this div
      */
-    constructor(id, attrs) {
-        super('div', id, attrs);
+    constructor({id, attrs}=UIElement.defaultKwargs()) {
+        super('div', {id: id, attrs:attrs});
     }
 }
 
@@ -554,10 +562,9 @@ class UIWarning extends UIDiv {
      * @param {string} [id] - id for this warning
      * @param {string} msg - the warning message
      */
-    constructor(id, msg) {
-        super(id, [
-            new UIAttribute('class', 'sr-input-warning')
-        ]);
+    constructor(msg, {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(new UIAttribute('class', 'sr-input-warning'));
+        super({id: id, attrs:attrs});
         this.setMsg(msg);
     }
 
@@ -599,10 +606,9 @@ class UIImage extends UIElement {
      * @param {number} [width] - width in pixels. Omit to use the native width of the source
      * @param {number} [height] - height in pixels. Omit to use the native height of the source
      */
-    constructor(id, src, width=0, height=0) {
-        super('img', id, [
-            new UIAttribute('src', src),
-        ]);
+    constructor(src, width=0, height=0, {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(new UIAttribute('src', src));
+        super('img', {id: id, attrs: attrs});
         if (width) {
             this.setWidth(width);
         }
@@ -715,8 +721,9 @@ class UIInput extends UIElement {
      * @param {string} initVal - initial value for the input
      * @param {[UIAttribute]} attrs - element attributes
      */
-    constructor(id, type, initVal, attrs) {
-        super('input', id, attrs);
+    constructor(type, initVal, {id, attrs}=UIElement.defaultKwargs()) {
+        super('input', {id: id, attrs: attrs});
+        this.type = type;
         this.addAttribute('type', type);
         this.addAttribute('value', initVal);
         //TODO(mvk): figure out how to add siblings (element must exist in DOM so addSibling() here fails
@@ -786,8 +793,8 @@ class UIInput extends UIElement {
  * <button> element
  */
 class UIButton extends UIElement {
-    constructor(id, attrs) {
-        super('button', id, attrs);
+    constructor({id, attrs}=UIElement.defaultKwargs()) {
+        super('button', {id: id, attrs:attrs});
     }
 
     /**
@@ -832,12 +839,44 @@ class UIButton extends UIElement {
     }
 }
 
+class UICheckbox extends UIInput {
+    constructor(isChecked, {id, attrs}=UIElement.defaultKwargs()) {
+        super('checkbox', isChecked, {id: id, attrs: attrs});
+        this.setValue(isChecked);
+    }
+
+    // I don't know why but only jquery seems to get this value right
+    getValue() {
+        return $(this.getIdSelector())[0].checked;
+    }
+
+    setValue(isChecked) {
+        if (isChecked) {
+            this.addAttribute('checked', '');
+        }
+        else {
+            this.removeAttribute('checked');
+        }
+        this.setAttribute('value', isChecked);
+        this.update();
+    }
+
+    setOnChange(fn) {
+        super.setOnChange(e => {
+            // weird
+            this.setValue(this.getValue());
+            fn(e);
+        });
+    }
+
+}
+
 /**
  * <button> element that supports on and off states
  */
 class UIToggleButton extends UIButton {
-    constructor(props) {
-        super(props.id, props.attrs);
+    constructor(props, {id, attrs}=UIElement.defaultKwargs()) {
+        super({id: id, attrs: attrs});
         this.labels = props.labels;
         this.outlets = props.outlets;
         this.isOn = props.isOn;
@@ -918,7 +957,7 @@ class UIEnum extends UIElement {
      * @param {SREnum} srEnum - enum model
      * @param {string} layout - layout type ('button'|'dropdown')
      */
-    constructor(srEnum, layout) {
+    constructor(srEnum, layout, {id, attrs}=UIElement.defaultKwargs()) {
         let props = layout ? UIEnum.ENUM_LAYOUT_PROPS(layout) : UIEnum.autoLayout(srEnum);
         super(props.parentElement, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
         this.srEnum = srEnum;
@@ -1000,17 +1039,18 @@ class UIEnumButton extends UIElement {
     /**
      * @param {SREnumEntry} enumItem -
      */
-    constructor(enumItem) {
+    constructor(enumItem, {id, attrs}=UIElement.defaultKwargs()) {
         //TODO(mvk): excise angularJS stuff
         let v = `${enumItem.value}`;
-        super('button', null, [
+        attrs.push(
             new UIAttribute('class', 'btn sr-enum-button'),
             new UIAttribute('data-ng-click', `model[field] = '${v}'`),
             new UIAttribute(
                 'data-ng-class',
                 `{'active btn-primary': isSelectedValue('${v}'), 'btn-default': ! isSelectedValue('${v}')}`
             ),
-        ]);
+        )
+        super('button', {id: id, attrs: attrs});
         this.setText(`${enumItem.label}`);
     }
 }
@@ -1024,8 +1064,8 @@ class UISelect extends UIElement {
      * @param {[UIAttribute]} attrs - attributes for this select
      * @param {[UISelectOption]} options - option elements for this select
      */
-    constructor(id, attrs, options=[]) {
-        super('select', id, attrs);
+    constructor(options=[], {id, attrs}=UIElement.defaultKwargs()) {
+        super('select', {id: id, attrs: attrs});
         this.addOptions(options);
     }
 
@@ -1056,12 +1096,12 @@ class UISelectOption extends UIElement {
      * @param {string} label - label for this option
      * @param {*} value - value of this option
      */
-    constructor(id, label, value) {
-        super('option', id, [
+    constructor(label, value, {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(
             new UIAttribute('label', label),
             new UIAttribute('value', value),
-        ]);
-
+        )
+        super('option', {id: id, attrs: attrs});
     }
 }
 
@@ -1073,8 +1113,8 @@ class UIEnumOption extends UISelectOption {
      * @param id
      * @param enumItem
      */
-    constructor(id, enumItem) {
-        super(id, enumItem.label, enumItem.value);
+    constructor(enumItem, {id, attrs}=UIElement.defaultKwargs()) {
+        super(enumItem.label, enumItem.value, {id: id, attrs: attrs});
     }
 }
 
@@ -1087,8 +1127,8 @@ class UITable extends UIElement {
      * @param {[UIAttribute]} [attrs] - attributes for this div
      * @param {number} numCols - number of columns
      */
-    constructor(id, attrs, numCols=1) {
-        super('table', id, attrs);
+    constructor(numCols=1, {id, attrs}=UIElement.defaultKwargs()) {
+        super('table', {id: id, attrs: attrs});
         this.numCols = numCols;
         this.colGroup = new UIElement('colgroup');
         this.addChild(this.colGroup);
@@ -1226,11 +1266,12 @@ class SVGContainer extends UIElement {
      * @param {number} width - container width
      * @param {number} height - container height
      */
-    constructor(id, width, height) {
-        super('svg', id, [
+    constructor(width, height, {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(
             new UIAttribute('width', `${width}`),
             new UIAttribute('height', `${height}`),
-        ]);
+        )
+        super('svg', {id: id, attrs: attrs});
     }
 
     d3Self() {
@@ -1246,8 +1287,8 @@ class SVGGroup extends UIElement {
     /**
      * @param {string} [id] - id for this group
      */
-    constructor(id) {
-        super('g', id);
+    constructor({id, attrs}=UIElement.defaultKwargs()) {
+        super('g', {id: id, attrs: attrs});
     }
 }
 
@@ -1263,12 +1304,13 @@ class SVGPath extends UIElement {
      * @param {string} strokeColor - hex value (#rrggbb) of the stroke color or 'none'
      * @param {string} fillColor - hex value (#rrggbb) of the fill color or 'none'
      */
-    constructor(id, points, offsets=[0, 0], doClose=false, strokeColor='black', fillColor='none') {
-        super('path', id, [
+    constructor(points, offsets=[0, 0], doClose=false, strokeColor='black', fillColor='none', {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(
             new UIAttribute('d', ''),
             new UIAttribute('fill', fillColor),
             new UIAttribute('stroke', strokeColor),
-        ]);
+        );
+        super('path', {id: id, attrs: attrs});
         this.doClose = doClose;
         this.fillColor = fillColor;
         this.offsets = offsets;
@@ -1438,8 +1480,8 @@ class SVGRect extends UIElement {
      * @param {string} style - css style string
      * @param {boolean} doRound - whether to round the corners of this rect
      */
-    constructor(id, x, y, width, height, style, doRound) {
-        super('rect', id);
+    constructor(x, y, width, height, style, doRound, {id, attrs}=UIElement.defaultKwargs()) {
+        super('rect', {id: id, attrs: attrs});
         if (doRound) {
             this.addAttributes([
                 new UIAttribute('rx', 4),
@@ -1481,11 +1523,12 @@ class SVGShapeButton extends UIElement {
      * @param {number} size - size of this button
      * @param {string} onclick - name of method to call on button click
      */
-    constructor(id, size, onclick) {
+    constructor(size, onclick, {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(
+            new UIAttribute('data-ng-click', `${onclick}()`)
+        );
         //TODO(mvk) - remove angular, use listener
-        super('button', id, [
-            new UIAttribute('data-ng-click', `${onclick}()`),
-        ]);
+        super('button', {id: id, attrs: attrs});
         this.svg = new SVGContainer(`${id}-svg`, size, size);
         this.addChild(this.svg);
 
@@ -1509,11 +1552,12 @@ class SVGText extends UIElement {
      * @param {number} y - origin y
      * @param {string} text - text to set
      */
-    constructor(id, x, y, text = '') {
-        super('text', id, [
+    constructor(x, y, text = '', {id, attrs}=UIElement.defaultKwargs()) {
+        attrs.push(
             new UIAttribute('x', `${x}`),
             new UIAttribute('y', `${y}`),
-        ]);
+        )
+        super('text', {id: id, attrs: attrs});
         this.setText(text);
     }
 }
@@ -1535,11 +1579,11 @@ class SVGTable extends SVGGroup {
      * @param {boolean} doRoundBorder - whether to round the corners of this table
      * @param header
      */
-    constructor(id, x, y, cellWidth, cellHeight, cellPadding, numRows, numCols, borderStyle, doRoundBorder, header = []) {
+    constructor(x, y, cellWidth, cellHeight, cellPadding, numRows, numCols, borderStyle, doRoundBorder, header, {id, attrs}=UIElement.defaultKwargs()) {
         if (! numCols || ! numRows) {
             throw new Error(`Table must have at least 1 row and 1 column (${numRows} x ${numCols} given)`);
         }
-        super(id);
+        super({id: id, attrs: attrs});
         this.border = new SVGRect(this.borderId(), x, y, 0, 0, borderStyle, doRoundBorder);
         this.borderStyle = borderStyle;
         this.cellWidth = cellWidth;
@@ -1696,6 +1740,7 @@ SIREPO.DOM = {
     UIAnchor: UIAnchor,
     UIAttribute: UIAttribute,
     UIButton: UIButton,
+    UICheckbox: UICheckbox,
     UIToggleButton: UIToggleButton,
     UIDiv: UIDiv,
     UIElement: UIElement,

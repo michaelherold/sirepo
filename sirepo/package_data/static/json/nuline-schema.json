@@ -32,7 +32,11 @@
         "BeamlineAutomationModel": [
             ["activaitCentered26", "Activiait Centered Plan 26"]
         ],
-        "BeamlineSetting": []
+        "BeamlineSetting": [],
+        "SettingsFilter": [
+            ["all", "All"],
+            ["active", "Active"]
+        ]
     },
     "localRoutes": {
         "beamline": {
@@ -58,6 +62,7 @@
             "value": ["Value", "Float", 0.0]
         },
         "beamlineSettings": {
+            "filter": ["View Settings", "SettingsFilter", "active"],
             "settings": ["", "BeamlineSettingsList", []]
         },
         "beamlineDataFile": {
@@ -138,10 +143,9 @@
         },
         "beamlineSettings": {
             "advanced": [
-                "settings"
             ],
             "basic": [
-                "activeSettings"
+                "settings"
             ]
         },
         "beamlineDataFile": {

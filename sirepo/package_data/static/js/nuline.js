@@ -16,7 +16,6 @@ SIREPO.app.config(() => {
         `;
     SIREPO.appReportTypes = `
         <div data-ng-switch-when="beamlineImageReport" data-beamline-image-report="" data-model-name="{{ modelKey }}"></div>
-        <div data-ng-switch-when="beamlineSettings" data-beamline-settings-table="" data-model-name="{{ modelKey }}"></div>
         `;
     SIREPO.FILE_UPLOAD_TYPE = {
         'beamlineDataFile-dataFile': '.h5,.hdf5,.zip',
@@ -50,7 +49,7 @@ SIREPO.app.controller('BeamlineController', function(appState, nulineService, fr
     }
 
     self.getSettingsTable = (showAll) => {
-        let table = new SIREPO.DOM.UITable(null, [], 3);
+        let table = new SIREPO.DOM.UITable(3);
         table.addClasses('table table-hover');
         table.setHeader([
             'Setting Name',
@@ -59,10 +58,10 @@ SIREPO.app.controller('BeamlineController', function(appState, nulineService, fr
         ]);
         table.setColumnStyles(['width: 20ex']);
         for (let s of appState.models.beamlineSettings.settings) {
-            const i = new SIREPO.DOM.UIInput(null, 'text', s.value);
-            const c = new SIREPO.DOM.UIInput(null, 'checkbox', '', [
+            const i = new SIREPO.DOM.UIInput('text', s.value);
+            const c = new SIREPO.DOM.UIInput('checkbox', '', {attrs: [
                 new SIREPO.DOM.UIAttribute('checked'),
-            ]);
+            ]});
             table.addRow([s.name, i, c,]);
         }
     };
@@ -178,7 +177,7 @@ SIREPO.viewLogic('beamlineDataFileView', function(appState, nulineService, panel
 });
 
 SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
-    let rpt = new SIREPO.PLOTTING.SRReportHeatmap('sr-beamline-image-report', 'beamlineImageReport');
+    let rpt = new SIREPO.PLOTTING.SRReportHeatmap('beamlineImageReport', {id: 'sr-beamline-image-report', attrs:[]});
     let btn = new SIREPO.DOM.UIButton();
     btn.addClasses('btn btn-default');
 
@@ -238,39 +237,44 @@ SIREPO.app.directive('beamlineImageReport', function(appState, panelState) {
 
 SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, panelState, requestSender) {
 
-    let table = new SIREPO.DOM.UITable(null, [], 3);
+    let table = new SIREPO.DOM.UITable(3);
     table.addClasses('table table-hover');
     table.setHeader([
         'Setting Name',
         'Setting Value',
-        '',
+        'Active',
     ]);
     table.setColumnStyles(['width: 20ex']);
 
     return {
         restrict: 'A',
         scope: {
-            modelName: '@',
+            field: '=',
+            modelName: '=',
         },
 
-        template: [
-            table.toTemplate(),
-            //'<button data-ng-click="addItem()" id="sr-new-setting" class="btn btn-info btn-xs pull-right">Add Setting <span class="glyphicon glyphicon-plus"></span></button>',
-        ].join(''),
+        template:`
+            ${table.toTemplate()}
+        `,
         controller: function($scope, $element) {
-            srdbg($scope.modelName, appState.models);
-            $scope.model = appState.models[$scope.modelName];
+            const model = appState.models[$scope.modelName];
+            $scope.model = model;
             $scope.nulineService = nulineService;
 
             // this is where we need a link between model and view, so this gets done automatically
-            function changeEl(e) {
-                const c = table.getChild(e.target.id, true);
+            function changeEl(i) {
+                return e => {
+                    const c = table.getChild(e.target.id, true);
+                    const f = {text: 'value', checkbox: 'isActive'}[c.type]
+                    $scope.$apply(
+                        $scope.model.settings[i][f] = c.getValue()
+                    );
+                }
+                
             }
 
             function loadSettings() {
-                srdbg('LOAD SETTINGS', $scope.model);
-                $scope.model.activeSettings = [];
-                $scope.model.settings = [];
+                model.settings = [];
                 if (! appState.models.beamlineDataFile.dataFile) {
                     return;
                 }
@@ -284,10 +288,8 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                         image_name_in_header: true,
                     },
                     function(data) {
-                        $scope.model.settings = data.settings;
-                        for (let s of $scope.model.settings) {
-                            s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
-                        }
+                        model.settings = data.settings;
+                        setDefaultActive();
                         appState.models.beamlineImageReport.imageFile = data.imageFile;
                         appState.models.beamlineImageReport.imageType = data.imageType;
                         appState.saveChanges([$scope.modelName, 'beamlineImageReport'], () => {
@@ -296,43 +298,41 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
                     });
             }
 
+            function setDefaultActive() {
+                for (const s of model.settings) {
+                    s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
+                }
+            }
+
             function updateSettings() {
-                const settings = $scope.model.settings.filter(s => {
-                    return s.isActive;
-                });
                 table.clearRows();
-                let numRows = 0;
-                for (let s of settings) {
-                    let i = new SIREPO.DOM.UIInput(null, 'text', s.value);
-                    const c = new SIREPO.DOM.UIInput(null, 'checkbox', '', [
-                        new SIREPO.DOM.UIAttribute('checked'),
-                    ]);
-                    table.addRow([s.name, i, c,]);
-                    ++numRows;
+                for (let i = 0; i < model.settings.length; ++i) {
+                    const s = model.settings[i];
+                    let n = new SIREPO.DOM.UIInput('text', s.value);
+                    const c = new SIREPO.DOM.UICheckbox(s.isActive);
+                    table.addRow([s.name, n, c,]);
                 }
                 table.update();
-                // must wait to add listeners
-                for (let i = 0; i < numRows; ++i) {
+                // must wait until after update to add listeners
+                for (let i = 0; i < model.settings.length; ++i) {
                     for (let j = 0; j < table.numCols; ++j) {
                         let c = table.getCell(i, j).children[0];
-                        if (! c || ! (c.getChild() instanceof SIREPO.DOM.UIInput)) {
+                        if (! c || ! (c instanceof SIREPO.DOM.UIInput)) {
                             continue;
                         }
-                        c.setOnInput(changeEl);
+                        if (c.type === 'text') {
+                            c.setOnInput(changeEl(i));
+                        }
+                        if (c.type === 'checkbox') {
+                            c.setOnChange(changeEl(i));
+                        }
                     }
                 }
             }
 
-            $scope.$on('beamlineSettingsFileList.changed', () => {
-                for (let s of $scope.model.settings) {
-                    s.isActive = SIREPO.APP_SCHEMA.constants.defaultActiveSettings.includes(s);
-                }
-            });
+            $scope.$on('beamlineSettingsFileList.changed', setDefaultActive);
             $scope.$on('beamlineSettingsFile.changed', loadSettings);
-            $scope.$on(`${$scope.modelName}.editor.show`, () => {
-            });
 
-            loadSettings();
             updateSettings();
         },
     };
