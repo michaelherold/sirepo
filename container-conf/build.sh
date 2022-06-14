@@ -26,10 +26,10 @@ build_as_run_user() {
     umask 022
     sirepo_boot_init
     git clone -q --depth=50 \
-        ${RADIA_CI_BRANCH_PYKERN:+--branch=$RADIA_CI_BRANCH_PYKERN} \
+        ${RADIA_RUN_BRANCH_PYKERN:+--branch=$RADIA_RUN_BRANCH_PYKERN} \
         https://github.com/radiasoft/pykern
     git clone -q --depth=50 \
-        ${RADIA_CI_BRANCH_SIREPO:+--branch=$RADIA_CI_BRANCH_SIREPO} \
+        ${RADIA_RUN_BRANCH_SIREPO:+--branch=$RADIA_RUN_BRANCH_SIREPO} \
         https://github.com/radiasoft/sirepo
     cd sirepo
     sirepo_fix_srw
