@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 """Jupyter utilities
 
-:copyright: Copyright (c) 2018-2020 RadiaSoft LLC.  All Rights Reserved.
+:copyright: Copyright (c) 2018-2022 RadiaSoft LLC.  All Rights Reserved.
 :license: http://www.apache.org/licenses/LICENSE-2.0.html
 """
 from __future__ import absolute_import, division, print_function
 from pykern import pkconfig
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdc, pkdlog, pkdp
+import sys
 
 
 class Notebook(PKDict):
@@ -46,20 +47,23 @@ class Notebook(PKDict):
         return s + ("\n" if not s.endswith("\n") else "")
 
     def __init__(self, data):
+        v = sys.version_info.major
         super().__init__(
             cells=[],
             metadata=PKDict(
                 kernelspec=PKDict(
-                    display_name="Python 3", language="python", name="python3"
+                    display_name=f"Python {v}",
+                    language="python",
+                    name=f"python{v}",
                 ),
                 language_info=PKDict(
-                    codemirror_mode=PKDict(name="ipython", version=3),
+                    codemirror_mode=PKDict(name="ipython", version=v),
                     file_extension=".py",
                     mimetype="text/x-python",
                     name="python",
                     nbconvert_exporter="python",
-                    pygments_lexer="ipython3",
-                    version="3.7.2",
+                    pygments_lexer=f"ipython{v}",
+                    version=sys.version.split(" ")[0],
                 ),
             ),
             nbformat=4,
