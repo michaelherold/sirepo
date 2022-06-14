@@ -4,9 +4,6 @@ build_vars() {
     export sirepo_db_dir=/sirepo
     export sirepo_port=8000
     : ${build_image_base:=radiasoft/beamsim}
-    export build_passenv='TRAVIS_BRANCH TRAVIS_COMMIT'
-    : ${TRAVIS_BRANCH:=}
-    : ${TRAVIS_COMMIT:=}
     local boot_dir=$build_run_user_home/.radia-run
     sirepo_boot=$boot_dir/start
     build_is_public=1
@@ -31,13 +28,13 @@ build_as_run_user() {
     cd "$build_guest_conf"
     umask 022
     sirepo_boot_init
-    git clone -q --depth=50 https://github.com/radiasoft/pykern
-    git clone -q --depth=50 "--branch=${TRAVIS_BRANCH:-master}" \
+    git clone -q --depth=50 \
+        ${RADIA_CI_BRANCH_PYKERN:+--branch=$RADIA_CI_BRANCH_PYKERN} \
+        https://github.com/radiasoft/pykern
+    git clone -q --depth=50 \
+        ${RADIA_CI_BRANCH_SIREPO:+--branch=$RADIA_CI_BRANCH_SIREPO} \
         https://github.com/radiasoft/sirepo
     cd sirepo
-    if [[ ${TRAVIS_COMMIT:+1} ]]; then
-        git checkout -qf "$TRAVIS_COMMIT"
-    fi
     local p
     sirepo_fix_srw
     cd ../pykern
