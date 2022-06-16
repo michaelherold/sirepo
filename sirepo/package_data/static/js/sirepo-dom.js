@@ -134,7 +134,6 @@ class UIElement {  //extends UIOutput {
      * @param {[UIAttribute]} [attrs] - array of UIAttributes. If "id" is among them, it will be overwitten by the id param
      */
     constructor(tag, {id, attrs}=UIElement.defaultKwargs()) {
-        srdbg(tag, id, attrs);
         this.tag = tag;
 
         /** @member {Object<string:UIAttribute>} - dictionary of attributes keyed by name */
