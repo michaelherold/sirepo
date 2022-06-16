@@ -1607,6 +1607,10 @@ SIREPO.app.factory('panelState', function(appState, requestSender, simulationQue
         }
     }
 
+    self.hasData = name => {
+        return getPanelValue(name, 'data') ? true : false;
+    }
+
     self.addPendingRequest = function(name, requestFunction) {
         pendingRequests[name] = requestFunction;
     };

@@ -60,7 +60,7 @@ SIREPO.app.directive('advancedEditorPane', function(appState, panelState, utilit
               <br data-ng-if="pages" />
               <div data-ng-repeat="f in (activePage ? activePage.items : advancedFields)">
                 <div class="lead text-center" data-ng-if="::isLabel(f)" style="white-space: pre-wrap;"><span data-text-with-math="::labelText(f)"</span></div>
-                <div class="form-group form-group-sm" data-ng-if="::isField(f)" data-model-field="f" data-form="form" data-model-name="modelName" data-model-data="modelData" data-view-name="viewName"></div>
+                <div class="sr-form-field form-group form-group-sm" data-ng-if="::isField(f)" data-model-field="f" data-form="form" data-model-name="modelName" data-model-data="modelData" data-view-name="viewName"></div>
                 <div data-ng-if="::isColumnField(f)" data-column-editor="" data-column-fields="f" data-model-name="modelName" data-model-data="modelData"></div>
               </div>
               <div data-ng-if="wantButtons" class="row">
@@ -283,7 +283,7 @@ SIREPO.app.directive('buttons', function(appState, panelState) {
         },
         template: `
             <div data-ng-show="isFormDirty()">
-              <button data-ng-click="saveChanges()" class="btn btn-primary" data-ng-disabled="! isFormValid()">Save Changes</button>
+              <button data-ng-click="saveChanges()" class="btn btn-primary sr-btn-save-changes" data-ng-disabled="! isFormValid()">Save Changes</button>
               <button data-ng-click="cancelChanges()" class="btn btn-default">Cancel</button>
             </div>
         `,
@@ -1723,7 +1723,7 @@ SIREPO.app.directive('showLoadingAndError', function(panelState) {
             modelKey: '@',
         },
         template: `
-            <div data-ng-class="{\'sr-panel-loaded\': !panelState.isLoading(modelKey) && !panelState.isRunning(modelKey),  \'sr-panel-loading\': panelState.isLoading(modelKey), \'sr-panel-error\': panelState.getError(modelKey), \'sr-panel-running\': panelState.isRunning(modelKey), \'has-transclude\': hasTransclude()}" class="panel-body" data-ng-hide="panelState.isHidden(modelKey)">
+            <div data-ng-class="{\'sr-panel-loaded\': panelState.hasData(modelKey),  \'sr-panel-loading\': panelState.isLoading(modelKey), \'sr-panel-error\': panelState.getError(modelKey), \'sr-panel-running\': panelState.isRunning(modelKey), \'has-transclude\': hasTransclude()}" class="panel-body" data-ng-hide="panelState.isHidden(modelKey)">
               <div data-ng-show="panelState.isLoading(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-hourglass"></span> {{ panelState.getStatusText(modelKey) }}</div>
               <div data-ng-show="panelState.getError(modelKey)" class="lead sr-panel-wait"><span class="glyphicon glyphicon-exclamation-sign"></span> {{ panelState.getError(modelKey) }}</div>
               <div data-ng-transclude=""></div>
@@ -2393,9 +2393,9 @@ SIREPO.app.directive('appHeaderRight', function(appDataService, authState, appSt
                 <li class="sr-new-simulation-item"><a href data-ng-click="showSimulationModal()"><span
                         class="glyphicon glyphicon-plus sr-small-icon"></span><span class="glyphicon glyphicon-file"></span>
                   {{ newSimulationLabel() }}</a></li>
-                <li><a href data-ng-click="showNewFolderModal()"><span class="glyphicon glyphicon-plus sr-small-icon"></span><span
+                <li class="sr-nav-new-folder"><a href data-ng-click="showNewFolderModal()"><span class="glyphicon glyphicon-plus sr-small-icon"></span><span
                         class="glyphicon glyphicon-folder-close"></span> New Folder</a></li>
-                <li data-ng-transclude="appHeaderRightSimListSlot"></li>
+                <li class="sr-nav-import-item" data-ng-transclude="appHeaderRightSimListSlot"></li>
               </ul>
               <ul class="nav navbar-nav sr-navbar-right">
                 <li>
@@ -2615,7 +2615,7 @@ SIREPO.app.directive('settingsMenu', function(appDataService, appState, fileMana
         template: `
               <ul class="nav navbar-nav sr-navbar-right">
                 <li>
-                  <a href class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-cog"></span> <span class="caret"></span></a>
+                  <a href class="dropdown-toggle sr-settings-menu-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-cog"></span> <span class="caret"></span></a>
                   <ul class="dropdown-menu">
                     <li class="sr-settings-submenu" data-ng-transclude="appSettingsSlot"></li>
                     <li><a href data-ng-if="nav.modeIsDefault()" data-ng-click="showDocumentationUrl()"><span class="glyphicon glyphicon-book"></span> Simulation Documentation URL</a></li>
