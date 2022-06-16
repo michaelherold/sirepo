@@ -3095,7 +3095,6 @@ SIREPO.app.directive('heatmap', function(appState, layoutService, plotting, util
                         // we don't use the SVGPath directly, but it is a convenient way to build
                         // a path string
                         return new SIREPO.DOM.SVGPath(
-                            null,
                             d.data.map(c => {
                                 return [axes.x.scale(c[0]), axes.y.scale(c[1])];
                             })

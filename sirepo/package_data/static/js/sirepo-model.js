@@ -324,6 +324,14 @@ class SREnumEntry {
 
 class SREnum {
 
+    // schEntries is a dict:
+    // {
+    //    <enumName> : [
+    //      [<value>, <label>],
+    //      ...
+    //    ],
+    //    ...
+    // }
     static entriesFromSchema(schEntries) {
         let entries = {};
         for (let e of schEntries) {
@@ -333,14 +341,6 @@ class SREnum {
         return entries;
     }
 
-    // schEntries is a dict:
-    // {
-    //    <enumName> : [
-    //      [<value>, <label>],
-    //      ...
-    //    ],
-    //    ...
-    // }
     constructor(name, schema) {
         this.name = name;
         this.entries = {};
@@ -404,4 +404,5 @@ SIREPO.APP = {
     PanelState: PanelState,
     SRApp: SRApp,
     SREnum: SREnum,
+    SREnumEntry: SREnumEntry,
 };

@@ -958,7 +958,7 @@ class UIEnum extends UIElement {
      */
     constructor(srEnum, layout, {id, attrs}=UIElement.defaultKwargs()) {
         let props = layout ? UIEnum.ENUM_LAYOUT_PROPS(layout) : UIEnum.autoLayout(srEnum);
-        super(props.parentElement, `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`);
+        super(props.parentElement, {id: `sr-${SIREPO.UTILS.camelToKebabCase(srEnum.name)}`, attrs:attrs});
         this.srEnum = srEnum;
         this.layout = layout;
         this.layoutProps = props;
@@ -1008,7 +1008,7 @@ class UIEnum extends UIElement {
         this.clearChildren();
         this.srEnum.setEntries(schEntries);
         for (let e in this.srEnum.entries) {
-            this.addChild(new this.layoutProps.inputClass(null, this.srEnum.entries[e]));
+            this.addChild(new this.layoutProps.inputClass(this.srEnum.entries[e]));
         }
     }
 
@@ -1048,7 +1048,7 @@ class UIEnumButton extends UIElement {
                 'data-ng-class',
                 `{'active btn-primary': isSelectedValue('${v}'), 'btn-default': ! isSelectedValue('${v}')}`
             ),
-        )
+        );
         super('button', {id: id, attrs: attrs});
         this.setText(`${enumItem.label}`);
     }
@@ -1099,7 +1099,7 @@ class UISelectOption extends UIElement {
         attrs.push(
             new UIAttribute('label', label),
             new UIAttribute('value', value),
-        )
+        );
         super('option', {id: id, attrs: attrs});
     }
 }
@@ -1269,7 +1269,7 @@ class SVGContainer extends UIElement {
         attrs.push(
             new UIAttribute('width', `${width}`),
             new UIAttribute('height', `${height}`),
-        )
+        );
         super('svg', {id: id, attrs: attrs});
     }
 
@@ -1555,7 +1555,7 @@ class SVGText extends UIElement {
         attrs.push(
             new UIAttribute('x', `${x}`),
             new UIAttribute('y', `${y}`),
-        )
+        );
         super('text', {id: id, attrs: attrs});
         this.setText(text);
     }

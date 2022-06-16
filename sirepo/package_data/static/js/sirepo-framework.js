@@ -25,7 +25,7 @@ class SRPanelHeading extends SIREPO.DOM.UIDiv {
         this.toggle = new SIREPO.DOM.UIDiv();
         this.toggle.addClasses('sr-panel-options pull-right');
         this.addChild(this.toggle);
-        this.toggleButton = new SRAnchorButton(null, null, title);
+        this.toggleButton = new SRAnchorButton(null, title);
         this.isHidden = true;
         this.toggleButton.icon.addClasses('sr-panel-heading glyphicon');
         this.doToggle();
@@ -80,7 +80,7 @@ class SRPanel extends SIREPO.DOM.UIDiv {
      */
     constructor(title='', {id: id, attrs}={id: null, attrs: []}) {
         super({id: id, attrs: attrs});
-        this.heading = new SRPanelHeading(null, title);
+        this.heading = new SRPanelHeading(title);
         this.heading.addClasses('clearfix');
         this.body = new SIREPO.DOM.UIDiv();
         this.body.addClasses('panel-body');
@@ -117,8 +117,8 @@ class SRReport extends SRPanel {
      * @param {string} [id] - id for this div
      * @param {string} modelName - name of the model for this report
      */
-    constructor(modelName, {id, attrs}={id: null, attrs:[]}) {
-        super(modelName, {id: id, attrs: attrs});
+    constructor(modelName, title='Report', {id, attrs}={id: null, attrs:[]}) {
+        super(title, {id: id, attrs: attrs});
     }
 
 }
@@ -145,8 +145,8 @@ class SRPlotReport extends SRReport {
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
      */
-    constructor(modelName, {id, attrs}={id: null, attrs: []}) {
-        super(modelName, {id: id, attrs: attrs});
+    constructor(modelName, title='Plot Report', {id, attrs}={id: null, attrs: []}) {
+        super(modelName, title, {id: id, attrs: attrs});
         this.plot = new SIREPO.DOM.UIDiv({id: null, attrs: [
                 new SIREPO.DOM.UIAttribute('data-model-name', modelName),
                 new SIREPO.DOM.UIAttribute('data-report-id', 'reportId'),
@@ -169,7 +169,7 @@ class SRReport3D extends SRPlotReport {
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
      */
-    constructor(id , modelName) {
+    constructor(modelName, {id, attrs}={id: null, attrs: []}) {
         super(modelName, {id: id, attrs: attrs});
         this.plot.addAttribute( 'data-plot3d', '');
     }
@@ -183,7 +183,7 @@ class SRReportHeatmap extends SRPlotReport {
      * @param {string} [id] - id for this report
      * @param {string} modelName - name of the model for this report
      */
-    constructor(modelName, {id, attrs}={id: null, attrs: []}) {
+    constructor(modelName, title='Heatmap', {id, attrs}={id: null, attrs: []}) {
         super(modelName, {id: id, attrs: attrs});
         this.plot.addAttribute( 'data-heatmap', '');
     }

@@ -265,11 +265,11 @@ SIREPO.app.directive('beamlineSettingsTable', function(appState, nulineService, 
             function changeEl(i) {
                 return e => {
                     const c = table.getChild(e.target.id, true);
-                    const f = {text: 'value', checkbox: 'isActive'}[c.type]
+                    const f = {text: 'value', checkbox: 'isActive'}[c.type];
                     $scope.$apply(
                         $scope.model.settings[i][f] = c.getValue()
                     );
-                }
+                };
                 
             }
 
