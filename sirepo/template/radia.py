@@ -106,10 +106,10 @@ def background_percent_complete(report, run_dir, is_running):
     )
 
 
-def create_archive(sim):
+def create_archive(sim, sapi):
     from sirepo import http_reply
     if sim.filename.endswith('dat'):
-        return sirepo.http_reply.gen_file_as_attachment(
+        return sapi.reply_file(
             simulation_db.simulation_dir(SIM_TYPE, sid=sim.id).join(_DMP_FILE),
             content_type='application/octet-stream',
             filename=sim.filename,
@@ -165,7 +165,7 @@ def extract_report_data(run_dir, sim_in):
         )
 
 
-def get_data_file(run_dir, model, frame, options=None, **kwargs):
+def get_data_file(run_dir, model, frame, options):
     assert model in _REPORTS, 'model={}: unknown report'.format(model)
     data = simulation_db.read_json(run_dir.join(template_common.INPUT_BASE_NAME))
     sim = data.models.simulation
@@ -174,8 +174,7 @@ def get_data_file(run_dir, model, frame, options=None, **kwargs):
     beam_axis = _AXIS_ROTATIONS[sim.beamAxis]
     rpt = data.models[model]
     default_sfx = SCHEMA.constants.dataDownloads._default[0].suffix
-    sfx = (options.suffix or default_sfx) if options and 'suffix' in options else \
-        default_sfx
+    sfx = options.suffix or default_sfx
     f = f'{model}.{sfx}'
     if model == 'kickMapReport':
         km_dict = _read_or_generate_kick_map(_get_g_id(), data.models.kickMapReport)
