@@ -57,7 +57,10 @@ class Notebook(PKDict):
                     name=f"python{v}",
                 ),
                 language_info=PKDict(
-                    codemirror_mode=PKDict(name="ipython", version=v),
+                    codemirror_mode=PKDict(
+                        name="ipython",
+                        version=v,
+                    ),
                     file_extension=".py",
                     mimetype="text/x-python",
                     name="python",
