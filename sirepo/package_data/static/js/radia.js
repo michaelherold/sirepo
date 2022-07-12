@@ -2973,7 +2973,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function handlePick(callData) {
-                //srdbg('handle', callData);
+                srdbg('handle', callData);
                 if (renderer !== callData.pokedRenderer) {
                     return;
                 }
@@ -3054,7 +3054,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     var sid = pid * ns;
                     var sc = sArr.getData().slice(sid, sid + ns);
 
-                    //srdbg('SEL C', sc, selectedColor, 'AT', sid);
+                    srdbg('SEL C', sc, selectedColor, 'AT', sid);
                     //srdbg('SET OLD V COLOR');
                     selectedColor.forEach(function (c, i) {
                         sArr.getData()[selectedPointId * ns + i] = c;
@@ -3118,7 +3118,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                         } : null,
                     };
                 }
-
+                srdbg('selectedColor: ', selectedColor);
                 // for some reason scope changes are not immediately propagating, so we'll force the issue -
                 // apply() or digest() cause infinite digest loops
                 $scope.$broadcast('vtk.selected', vtkSelection);
@@ -3258,6 +3258,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 if (! renderer) {
                     return;
                 }
+                // srdbg('color in setEdgeColor: ', color);
                 info.actor.getProperty().setEdgeColor(...color);
                 setColor(info, SIREPO.APP_SCHEMA.constants.geomTypeLines, color);
                 $scope.vtkScene.render();
