@@ -64,6 +64,14 @@ def reset_examples():
         _delete(o)
 
 
+def restore_sims():
+    for sim_type, sims in _iterate_sims_by_users(feature_config.cfg().sim_types):
+        for s in sims[sim_type].keys():
+            sid = sims[sim_type][s].simulationId
+            f = simulation_db.sim_data_file(sim_type, sid)
+            pkdp("file: {}", f)
+
+
 # TODO(e-carlin): more than uid (ex email)
 def delete_user(uid):
     """Delete a user and all of their data across Sirepo and Jupyter
