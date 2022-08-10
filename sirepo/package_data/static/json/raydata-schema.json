@@ -37,6 +37,13 @@
                 "controller": "DataSourceController as dataSource",
                 "templateUrl": "/static/html/raydata-data-source.html"
           }
+        },
+        "replay": {
+            "route": "/replay/:simulationId",
+            "config": {
+                "controller": "ReplayController as replay",
+                "templateUrl": "/static/html/raydata-replay.html"
+          }
         }
     },
     "model": {

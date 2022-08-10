@@ -212,6 +212,11 @@ SIREPO.app.controller('DataSourceController', function() {
     return self;
 });
 
+SIREPO.app.controller('ReplayController', function() {
+    const self = this;
+    return self;
+});
+
 SIREPO.app.directive('analysisStatusPanel', function() {
     return {
         restrict: 'A',
@@ -476,6 +481,7 @@ SIREPO.app.directive('appHeader', function(appState) {
                 <div data-ng-if="nav.isLoaded()" data-sim-sections="">
                   <li class="sim-section" data-ng-class="{active: nav.isActive('data-source')}"><a href data-ng-click="nav.openSection('dataSource')"><span class="glyphicon glyphicon-picture"></span> Data Source</a></li>
                   <li class="sim-section" data-ng-if="haveScans()" data-ng-class="{active: nav.isActive('analysis')}"><a data-ng-href="{{ nav.sectionURL('analysis') }}"><span class="glyphicon glyphicon-picture"></span> Analysis</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive('replay')}"><a href data-ng-click="nav.openSection('replay')"><span class="glyphicon glyphicon-picture"></span> Replay</a></li>
                 </div>
               </app-header-right-sim-loaded>
             </div>
