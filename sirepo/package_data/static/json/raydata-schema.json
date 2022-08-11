@@ -98,6 +98,13 @@
             ],
             "advanced": []
         },
+        "replayPanel": {
+            "title": "Replay",
+            "advanced": [
+            ],
+            "basic": [
+            ]
+        },
         "simulationStatus": {
             "title": "Poll For New Scans",
             "advanced": [

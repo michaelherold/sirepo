@@ -418,7 +418,6 @@ SIREPO.app.directive('analysisStatusPanel', function() {
     };
 });
 
-
 SIREPO.app.factory('runMulti', function(panelState, requestSender) {
     const self = {};
 
@@ -572,6 +571,51 @@ SIREPO.app.directive('pngImage', function(plotting) {
             $scope.id = raydataService.nextPngImageId();
             raydataService.setPngDataUrl($element.children()[0], $scope.image);
         }
+    };
+});
+
+SIREPO.app.directive('replayPanel', function() {
+    return {
+        restrict: 'A',
+        scope: {
+            modelName: '=',
+        },
+        template: `
+          <form>
+            <div class="form-group">
+              <label for="newCatalog">Upload new catalog:</label>
+              <input type="file" id="newCatalog">
+            </div>
+            <div class="form-group">
+              <label for="sourceCatalog">Source catalog:</label>
+              <select id="sourceCatalog">
+                <option ng-repeat="catalog in catalogs">{{catalog}}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="numScans">Number of scans:</label>
+              <input type="text" id="numScans" required>
+            </div>
+            <div class="form-group">
+              <label for="analysisNotebook">Select analysis notebook to run:</label>
+              <select id="analysisNotebook">
+                <option ng-repeat="notebook in notebooks">{{notebook}}</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary" data-ng-click="">Start Replay</button>
+          </form>
+        `,
+        controller: function(appState, errorService, panelState, raydataService, requestSender, $scope) {
+            // TODO(rorour):
+            //  where to upload catalog? separate panels?
+            //  how to get uploaded/all available catalogs?
+            //  how does selected analysis notebook get saved with catalog? are there separate nbs (00-03) for csx and chx?
+            //  progress bar?
+            //  run notebook after replay?
+            //  how to get available notebooks?
+            $scope.catalogs = ['csx', 'chx'];
+            $scope.notebooks = ['00', '01'];
+        },
     };
 });
 
