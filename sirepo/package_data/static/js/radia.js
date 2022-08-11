@@ -3023,7 +3023,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 //var pos = posArr[aIdx];
                 var info = getInfoForActor(actor);
                 selectedInfo = info;
-                //srdbg('actor', actor, 'info', info);
+                srdbg('actor', actor, 'info', info);
                 if (! info || ! info.pData) {
                     return;
                 }
@@ -3105,7 +3105,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                             selectedObj && sharesGroup(getActor(id), actor) ? selectedColor.map(c =>  255 - c) : [0, 0, 0]
                         );
                     }
-
+                    srdbg('selectedObj:', selectedObj);
                     $scope.radiaObject = selectedObj;
                     vtkSelection = {
                         info: selectedObj ? selectedObj.name : '--',
