@@ -607,14 +607,33 @@ SIREPO.app.directive('replayPanel', function() {
         `,
         controller: function(appState, errorService, panelState, raydataService, requestSender, $scope) {
             // TODO(rorour):
-            //  where to upload catalog? separate panels?
-            //  how to get uploaded/all available catalogs?
             //  how does selected analysis notebook get saved with catalog? are there separate nbs (00-03) for csx and chx?
             //  progress bar?
             //  run notebook after replay?
             //  how to get available notebooks?
-            $scope.catalogs = ['csx', 'chx'];
+            $scope.catalogs = [];
             $scope.notebooks = ['00', '01'];
+
+            $scope.sendCatalogsRequest = function() {
+                requestSender.sendStatelessCompute(
+                    appState,
+                    (json) => {
+                        $scope.catalogs = json.data.catalogs;
+                    },
+                    {
+                        method: 'all_catalogs',
+                    },
+                    {
+                        modelName: $scope.modelName,
+                        onError: (data) => {
+                            errorService.alertText(data.error);
+                        },
+                        panelState: panelState,
+                    }
+                );
+            };
+
+            $scope.sendCatalogsRequest();
         },
     };
 });
