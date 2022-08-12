@@ -2651,7 +2651,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
 
             // stash the actor and associated info to avoid recalculation
             function addActor(id, group, actor, geomType, pickable) {
-                //srdbg('addActor', 'id', id, 'grp', group, 'geomType', geomType, 'pick', pickable);
+                // srdbg('addActor', 'id', id, 'grp', group, 'geomType', geomType, 'pick', pickable);
                 var pData = actor.getMapper().getInputData();
                 var info = {
                     actor: actor,
@@ -2701,6 +2701,9 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     var gName = `${name}.${i}`;
                     let sceneDatum = data[i];
                     let radiaId = sceneDatum.id;
+                    srdbg('sceneData: ', sceneData);
+                    srdbg('radiaId: ', radiaId);
+                    srdbg('sceneDatum: ,', sceneDatum);
                     let objId = (sceneData.idMap || {})[radiaId] || radiaId;
                     //srdbg(`radia id ${radiaId} maps to obj id ${objId}`);
 
@@ -2973,7 +2976,6 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function handlePick(callData) {
-                srdbg('handle', callData);
                 if (renderer !== callData.pokedRenderer) {
                     return;
                 }
@@ -2996,8 +2998,8 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 // we may get multiple actors
                 var cid = cPicker.getCellId();
                 //srdbg('Picked pt', point);
-                //srdbg('Picked pid', pid);
-                //srdbg('Picked cid', cid);
+                // srdbg('Picked pid', pid);
+                // srdbg('Picked cid', cid);
 
                 var picker;
                 if (appState.models.magnetDisplay.viewType === SIREPO.APP_SCHEMA.constants.viewTypeObjects && cid >= 0) {
@@ -3023,7 +3025,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 //var pos = posArr[aIdx];
                 var info = getInfoForActor(actor);
                 selectedInfo = info;
-                srdbg('actor', actor, 'info', info);
+                // srdbg('actor', actor, 'info', info);
                 if (! info || ! info.pData) {
                     return;
                 }
@@ -3087,8 +3089,10 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 else if (info.type === SIREPO.APP_SCHEMA.constants.geomTypePolys) {
                     var j = info.colorIndices[cid];
                     selectedColor = info.scalars.getData().slice(j, j + 3);  // 4 to get alpha
-
+                    srdbg('Picked pid', pid);
+                    srdbg('Picked cid', cid);
                     let g = radiaService.getObject(info.id);
+                    srdbg("g: ", g);
                     if (selectedObj === g) {
                         selectedObj = null;
                         savedObj = null;
@@ -3099,13 +3103,14 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                         selectedOutline = vtk.Filters.General.vtkOutlineFilter.newInstance();
                     }
 
+                    srdbg('actorInfo', actorInfo);
                     for (const id in actorInfo) {
                         setEdgeColor(
                             getActorInfo(id),
                             selectedObj && sharesGroup(getActor(id), actor) ? selectedColor.map(c =>  255 - c) : [0, 0, 0]
                         );
                     }
-                    srdbg('selectedObj.members:', selectedObj.members);
+                    srdbg('selectedObj', selectedObj);
                     $scope.radiaObject = selectedObj;
                     vtkSelection = {
                         info: selectedObj ? selectedObj.name : '--',
@@ -3117,8 +3122,10 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                             modelKey: 'radiaObject',
                         } : null,
                     };
+
+                    srdbg('vtkSelection: ', vtkSelection);
                 }
-                srdbg('selectedColor: ', selectedColor);
+                // srdbg('selectedColor: ', selectedColor);
                 // for some reason scope changes are not immediately propagating, so we'll force the issue -
                 // apply() or digest() cause infinite digest loops
                 $scope.$broadcast('vtk.selected', vtkSelection);
