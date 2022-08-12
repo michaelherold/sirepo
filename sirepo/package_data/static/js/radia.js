@@ -3105,7 +3105,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                             selectedObj && sharesGroup(getActor(id), actor) ? selectedColor.map(c =>  255 - c) : [0, 0, 0]
                         );
                     }
-                    srdbg('selectedObj:', selectedObj);
+                    srdbg('selectedObj.members:', selectedObj.members);
                     $scope.radiaObject = selectedObj;
                     vtkSelection = {
                         info: selectedObj ? selectedObj.name : '--',
