@@ -2841,6 +2841,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function getActorInfo(id) {
+                srdbg('id', id);
                 return actorInfo[id];
             }
 
@@ -2873,6 +2874,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function getInfoForActor(actor) {
+                srdbg('actor in getInfoForActor:', actor);
                 for (var n in actorInfo) {
                     if (getActor(n) === actor) {
                         return getActorInfo(n);
@@ -3025,7 +3027,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 //var pos = posArr[aIdx];
                 var info = getInfoForActor(actor);
                 selectedInfo = info;
-                // srdbg('actor', actor, 'info', info);
+                srdbg('actor', actor, 'info', info);
                 if (! info || ! info.pData) {
                     return;
                 }
@@ -3091,6 +3093,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     selectedColor = info.scalars.getData().slice(j, j + 3);  // 4 to get alpha
                     srdbg('Picked pid', pid);
                     srdbg('Picked cid', cid);
+                    srdbg('Picked pt', point);
                     let g = radiaService.getObject(info.id);
                     srdbg("g: ", g);
                     if (selectedObj === g) {
