@@ -2841,7 +2841,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function getActorInfo(id) {
-                srdbg('id', id);
+                // srdbg('id', id);
                 return actorInfo[id];
             }
 
@@ -2874,7 +2874,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function getInfoForActor(actor) {
-                srdbg('actor in getInfoForActor:', actor);
+                // srdbg('actor in getInfoForActor:', actor);
                 for (var n in actorInfo) {
                     if (getActor(n) === actor) {
                         return getActorInfo(n);
@@ -2977,6 +2977,22 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     '°  at (' + pt + ')';
             }
 
+            function drillDown(selection) {
+                // TODO (gurhar1133): if actorInfo can contain all the actors, then
+                // we can get the actor by id, call getBounds on that actor and drill down
+                // until point is in a object without members
+                if (Boolean(selection.members)){
+                    const m = radiaService.getObject(selection.members[selection.members.length - 1]);
+                    srdbg('m: ', m.objectBounds);
+                    return drillDown(m);
+                }
+                srdbg('selection.id: ', selection.id);
+                // srdbg('actorInfo: ', actorInfo);
+                // srdbg('info: ', info);
+                // srdbg('actor:', getActor(selection.id));
+                return selection;
+            }
+
             function handlePick(callData) {
                 if (renderer !== callData.pokedRenderer) {
                     return;
@@ -3016,8 +3032,6 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 }
 
                 var pas = picker.getActors();
-                //var posArr = view.cPicker.getPickedPositions();
-                //srdbg('pas', pas, 'positions', posArr);
 
                 var selectedValue = Number.NaN;
                 var highlightVectColor = [255, 0, 0];
@@ -3025,12 +3039,15 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 var actor = pas[0];
                 vtkSelection = {};
                 //var pos = posArr[aIdx];
+
                 var info = getInfoForActor(actor);
                 selectedInfo = info;
-                srdbg('actor', actor, 'info', info);
+                // srdbg('actor', actor, 'info', info);
                 if (! info || ! info.pData) {
                     return;
                 }
+
+
 
                 var pts = info.pData.getPoints();
 
@@ -3058,7 +3075,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     var sid = pid * ns;
                     var sc = sArr.getData().slice(sid, sid + ns);
 
-                    srdbg('SEL C', sc, selectedColor, 'AT', sid);
+                    // srdbg('SEL C', sc, selectedColor, 'AT', sid);
                     //srdbg('SET OLD V COLOR');
                     selectedColor.forEach(function (c, i) {
                         sArr.getData()[selectedPointId * ns + i] = c;
@@ -3091,22 +3108,25 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 else if (info.type === SIREPO.APP_SCHEMA.constants.geomTypePolys) {
                     var j = info.colorIndices[cid];
                     selectedColor = info.scalars.getData().slice(j, j + 3);  // 4 to get alpha
-                    srdbg('Picked pid', pid);
-                    srdbg('Picked cid', cid);
-                    srdbg('Picked pt', point);
+                    // srdbg('Picked pid', pid);
+                    // srdbg('Picked cid', cid);
+                    // srdbg('Picked pt', point);
                     let g = radiaService.getObject(info.id);
-                    srdbg("g: ", g);
+                    // srdbg("g: ", g);
                     if (selectedObj === g) {
                         selectedObj = null;
                         savedObj = null;
                     }
                     else {
                         selectedObj = g;
+                        var d = drillDown(selectedObj)
+                        srdbg('drill Down -> ', d);
+                        srdbg('actorInfo: ', actorInfo);
+                        selectedObj = d;
                         savedObj = appState.clone(g);
                         selectedOutline = vtk.Filters.General.vtkOutlineFilter.newInstance();
                     }
 
-                    srdbg('actorInfo', actorInfo);
                     for (const id in actorInfo) {
                         setEdgeColor(
                             getActorInfo(id),
