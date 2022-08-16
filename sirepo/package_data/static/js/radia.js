@@ -2688,7 +2688,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
             }
 
             function buildScene() {
-                //srdbg('buildScene', sceneData);
+                srdbg('buildScene', sceneData);
                 // scene -> multiple data -> multiple actors
                 let name = sceneData.name;
                 let data = sceneData.data;
@@ -2701,9 +2701,7 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                     var gName = `${name}.${i}`;
                     let sceneDatum = data[i];
                     let radiaId = sceneDatum.id;
-                    srdbg('sceneData: ', sceneData);
-                    srdbg('radiaId: ', radiaId);
-                    srdbg('sceneDatum: ,', sceneDatum);
+                    srdbg('actorInfo', actorInfo);
                     let objId = (sceneData.idMap || {})[radiaId] || radiaId;
                     //srdbg(`radia id ${radiaId} maps to obj id ${objId}`);
 
@@ -2982,6 +2980,8 @@ SIREPO.app.directive('radiaViewer', function(appState, errorService, frameCache,
                 // we can get the actor by id, call getBounds on that actor and drill down
                 // until point is in a object without members
                 if (Boolean(selection.members)){
+
+                    // NEED TO BE ABLE TO GET ACTOR BY ID SO I CAN .getBounds()
                     const m = radiaService.getObject(selection.members[selection.members.length - 1]);
                     srdbg('m: ', m.objectBounds);
                     return drillDown(m);
