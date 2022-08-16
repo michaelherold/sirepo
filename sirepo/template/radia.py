@@ -589,7 +589,13 @@ def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
         if field_type == radia_util.FIELD_TYPE_MAG_M:
             f = radia_util.get_magnetization(g_id)
         else:
-            f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
+            # TODO (gurhar1133): try with  with radia_util.MPI() as m:  block
+            # in sbatch mode
+            # assert 0, "GET FIELD IN TEMPLATE RADIA"
+            # print("\n\n\n\n\n GET FIELD IN TEMPLATE RADIA")
+            with radia_util.MPI() as m:
+                f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
+
         return radia_util.vector_field_to_data(
             g_id, name, f, radia_util.FIELD_UNITS[field_type]
         )
