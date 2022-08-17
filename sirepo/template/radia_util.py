@@ -371,6 +371,8 @@ def get_geom_tree(g_id, recurse_depth=0):
 
 # path is *flattened* array of positions in space ([x1, y1, z1,...xn, yn, zn])
 def get_field(g_id, f_type, path):
+    import mpi4py
+    pkdp('RANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
     if len(path) == 0:
         return []
     pv_arr = []

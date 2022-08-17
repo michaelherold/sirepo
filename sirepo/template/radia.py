@@ -653,9 +653,20 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     import jinja2
 
     report = data.get("report", "")
+    pkdp('\n\n\n REPORT: {}', report)
     rpt_out = f"{_REPORT_RES_MAP.get(report, report)}"
     res, v = template_common.generate_parameters_file(data)
     if rpt_out in _POST_SIM_REPORTS:
+        pkdp('\n\n\n rpt_out in _POST_SIM_REPORTS: {}, res: {}', rpt_out, res)
+        if report == 'fieldLineoutReport':
+            pkdp('\n\n\n HIT')
+            return res + """
+from sirepo.template import radia_util
+import mpi4py
+
+with radia_util.MPI() as m:
+    print(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
+            """
         return res
 
     g = data.models.geometryReport
@@ -672,6 +683,7 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
             do_generate = True
 
     if not do_generate:
+        pkdp('\n\n\n\ not do_generate with res: {}', res)
         return res
 
     # ensure old files are gone
@@ -769,6 +781,9 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     v.h5IdMapPath = _H5_PATH_ID_MAP
 
     j_file = RADIA_EXPORT_FILE if for_export else f"{rpt_out}.py"
+
+    if report == 'fieldLineoutReport':
+        pkdp('\n\n\n\n lineoutReport v={}', v)
     return template_common.render_jinja(
         SIM_TYPE,
         v,
