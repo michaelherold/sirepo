@@ -665,6 +665,7 @@ from sirepo.template import radia_util
 import mpi4py
 
 with radia_util.MPI() as m:
+    field = radia_util.get_field(108, 'H', [-0.0, -150.0, -0.0, 0.0, -149.0, 0.0, 0.0, -148.0, 0.0, 0.0, -147.0, 0.0, 0.0, -146.0, 0.0, 0.0, -145.0, 0.0, 0.0, -144.0, 0.0, 0.0, -143.0, 0.0, 0.0, -142.0, 0.0, 0.0, -141.0, 0.0])
     print(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
             """
         return res

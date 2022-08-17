@@ -372,14 +372,17 @@ def get_geom_tree(g_id, recurse_depth=0):
 # path is *flattened* array of positions in space ([x1, y1, z1,...xn, yn, zn])
 def get_field(g_id, f_type, path):
     import mpi4py
-    pkdp('RANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
+    pkdp('g_id {}, f_type {}, path {}, RANK {}', g_id, f_type, path, mpi4py.MPI.COMM_WORLD.Get_rank())
     if len(path) == 0:
         return []
     pv_arr = []
     p = numpy.reshape(path, (-1, 3)).tolist()
     b = []
     # get every component (meaning e.g. passing 'B' and not 'Bx' etc.)
-    f = radia.Fld(g_id, f_type, path)
+    try:
+        f = radia.Fld(g_id, f_type, path)
+    except Exception:
+        f = 0
     # a dummy value returned by parallel radia
     if f == 0:
         f = numpy.zeros(len(path))
