@@ -150,6 +150,8 @@ def _write_dmp(g_id, f_path):
         f.write(radia_util.dump_bin(g_id))
 
 with radia_util.MPI() as m:
+    import mpi4py
+    print(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
 {% if doReset %}
     radia_util.reset()
 {% endif %}

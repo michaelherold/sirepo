@@ -202,6 +202,7 @@ def get_data_file(run_dir, model, frame, options):
         return f
     if model == "fieldLineoutReport":
         f_type = rpt.fieldType
+        pkdp('\n\n\n HIT FOR LINEOUT REPORT')
         fd = _generate_field_data(sim_id, _get_g_id(), name, f_type, [rpt.fieldPath])
         v = fd.data[0].vectors
         if sfx == "sdds":
@@ -582,7 +583,6 @@ def _fit_poles_in_h_bend(**kwargs):
 
 
 def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
-    import mpi4py
     assert (
         field_type in radia_util.FIELD_TYPES
     ), "field_type={}: invalid field type".format(field_type)
@@ -591,8 +591,9 @@ def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
             f = radia_util.get_magnetization(g_id)
         else:
             with radia_util.MPI() as m:
+                import mpi4py
+                pkdp('\n\n\nRANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
                 f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
-                pkdp(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
         return radia_util.vector_field_to_data(
             g_id, name, f, radia_util.FIELD_UNITS[field_type]
         )
@@ -658,10 +659,11 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     pkdp('\n\n\n REPORT: {}', report)
     rpt_out = f"{_REPORT_RES_MAP.get(report, report)}"
     res, v = template_common.generate_parameters_file(data)
-    if rpt_out in _POST_SIM_REPORTS and report != 'fieldLineoutReport':
+    if rpt_out in _POST_SIM_REPORTS:
         return res
 
     g = data.models.geometryReport
+    pkdp('\n\n\n g: {}', g)
     v.simId = data.models.simulation.simulationId
 
     v.doSolve = "solver" in report or for_export
@@ -674,7 +676,7 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
         except sirepo.sim_data.SimDbFileNotFound:
             do_generate = True
 
-    if not do_generate and report != "fieldLineoutReport":
+    if not do_generate:
         pkdp('\n\n\n\ not do_generate with res: {}, report type: {}', res, report)
         return res
 
@@ -773,7 +775,9 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     v.h5IdMapPath = _H5_PATH_ID_MAP
 
     j_file = RADIA_EXPORT_FILE if for_export else f"{rpt_out}.py"
-
+    pkdp('\n\n j_file: {}', j_file)
+    data.models.fieldLineoutReport.sbatchCores = data.models.solverAnimation.sbatchCores
+    pkdp('\n\n\n --- fieldLineoutReport: {}', data.models.fieldLineoutReport)
     t = template_common.render_jinja(
         SIM_TYPE,
         v,

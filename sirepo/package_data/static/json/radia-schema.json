@@ -702,7 +702,11 @@
             "fieldPaths": ["Path", "FieldPaths", []],
             "fieldType": ["Field", "FieldType", "B"],
             "inProgressText": ["_", "String", "Calculating"],
-            "plotAxis": ["Plot Axis", "BeamAxis", "z"]
+            "plotAxis": ["Plot Axis", "BeamAxis", "z"],
+            "sbatchCores": ["Cores", "Integer", 1],
+            "sbatchHours": ["Hours", "Float", 0.4],
+            "sbatchQueue": ["Queue", "NERSCQueue", "debug"],
+            "sbatchProject": ["Project", "OptionalString", ""]
         },
         "fieldIntegralReport": {
             "lastCalculated": ["_", "Integer", -1]

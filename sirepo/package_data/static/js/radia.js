@@ -1560,7 +1560,7 @@ SIREPO.app.directive('fieldDownload', function(appState, geometry, panelState, r
 
                 });
             };
-
+            srdbg('appState.models:', appState.models);
             $scope.download = function() {
                 requestSender.newWindow('downloadDataFile', {
                     '<simulation_id>': appState.models.simulation.simulationId,
