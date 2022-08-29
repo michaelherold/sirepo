@@ -582,6 +582,7 @@ def _fit_poles_in_h_bend(**kwargs):
 
 
 def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
+    import mpi4py
     assert (
         field_type in radia_util.FIELD_TYPES
     ), "field_type={}: invalid field type".format(field_type)
@@ -591,6 +592,7 @@ def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
         else:
             with radia_util.MPI() as m:
                 f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
+                pkdp(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
         return radia_util.vector_field_to_data(
             g_id, name, f, radia_util.FIELD_UNITS[field_type]
         )
@@ -656,18 +658,7 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     pkdp('\n\n\n REPORT: {}', report)
     rpt_out = f"{_REPORT_RES_MAP.get(report, report)}"
     res, v = template_common.generate_parameters_file(data)
-    if rpt_out in _POST_SIM_REPORTS:
-        pkdp('\n\n\n rpt_out in _POST_SIM_REPORTS: {}, res: {}', rpt_out, res)
-        if report == 'fieldLineoutReport':
-            pkdp('\n\n\n HIT')
-            return res + """
-from sirepo.template import radia_util
-import mpi4py
-
-with radia_util.MPI() as m:
-    field = radia_util.get_field(108, 'H', [-0.0, -150.0, -0.0, 0.0, -149.0, 0.0, 0.0, -148.0, 0.0, 0.0, -147.0, 0.0, 0.0, -146.0, 0.0, 0.0, -145.0, 0.0, 0.0, -144.0, 0.0, 0.0, -143.0, 0.0, 0.0, -142.0, 0.0, 0.0, -141.0, 0.0])
-    print(f'RANK {mpi4py.MPI.COMM_WORLD.Get_rank()}')
-            """
+    if rpt_out in _POST_SIM_REPORTS and report != 'fieldLineoutReport':
         return res
 
     g = data.models.geometryReport
@@ -683,8 +674,8 @@ with radia_util.MPI() as m:
         except sirepo.sim_data.SimDbFileNotFound:
             do_generate = True
 
-    if not do_generate:
-        pkdp('\n\n\n\ not do_generate with res: {}', res)
+    if not do_generate and report != "fieldLineoutReport":
+        pkdp('\n\n\n\ not do_generate with res: {}, report type: {}', res, report)
         return res
 
     # ensure old files are gone
@@ -783,14 +774,15 @@ with radia_util.MPI() as m:
 
     j_file = RADIA_EXPORT_FILE if for_export else f"{rpt_out}.py"
 
-    if report == 'fieldLineoutReport':
-        pkdp('\n\n\n\n lineoutReport v={}', v)
-    return template_common.render_jinja(
+    t = template_common.render_jinja(
         SIM_TYPE,
         v,
         j_file,
         jinja_env=PKDict(loader=jinja2.PackageLoader("sirepo", "template")),
     )
+
+    pkdp('\n\n\n t: {}', t)
+    return t
 
 
 # "Length" is along the beam axis; "Height" is along the gap axis; "Width" is
