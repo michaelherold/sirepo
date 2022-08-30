@@ -470,7 +470,7 @@ def vector_field_to_data(g_id, name, pv_arr, units):
         v_data.vectors.magnitudes.append(n)
     v_data.vectors.range = [v_min, v_max]
     v_data.vectors.units = units
-
+    pkdp('\n\n\n g_id: {}', g_id)
     return PKDict(
         name=name + ".Field", id=g_id, data=[v_data], bounds=radia.ObjGeoLim(g_id)
     )

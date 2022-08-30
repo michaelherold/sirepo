@@ -170,16 +170,7 @@ def extract_report_data(run_dir, sim_in):
             run_dir=run_dir,
         )
     if "fieldLineoutReport" in sim_in.report:
-        template_common.write_sequential_result(
-            _field_lineout_plot(
-                sim_in.models.simulation.simulationId,
-                sim_in.models.simulation.name,
-                sim_in.models.fieldLineoutReport.fieldType,
-                sim_in.models.fieldLineoutReport.fieldPath,
-                sim_in.models.fieldLineoutReport.plotAxis,
-            ),
-            run_dir=run_dir,
-        )
+        _generate_parameters_file(sim_in, True, run_dir=run_dir)
 
 
 def get_data_file(run_dir, model, frame, options):
@@ -257,6 +248,7 @@ def python_source_for_model(data, model):
 
 
 def write_parameters(data, run_dir, is_parallel):
+    pkdp('\n\n\n In write_parameters, is_parallel: {}', is_parallel)
     pkio.write_text(
         run_dir.join(template_common.PARAMETERS_PYTHON_FILE),
         _generate_parameters_file(data, is_parallel, run_dir=run_dir),
@@ -511,9 +503,9 @@ _FIELD_PT_BUILDERS = {
 }
 
 
-def _field_lineout_plot(sim_id, name, f_type, f_path, plot_axis):
+def _field_lineout_plot(sim_id, name, f_type, f_path, plot_axis, gid):
     v = (
-        _generate_field_data(sim_id, _get_g_id(), name, f_type, [f_path])
+        _generate_field_data(sim_id, gid, name, f_type, [f_path])
         .data[0]
         .vectors
     )
@@ -590,10 +582,10 @@ def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
         if field_type == radia_util.FIELD_TYPE_MAG_M:
             f = radia_util.get_magnetization(g_id)
         else:
-            with radia_util.MPI() as m:
-                import mpi4py
-                pkdp('\n\n\nRANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
-                f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
+            # with radia_util.MPI() as m:
+            #     import mpi4py
+            #     pkdp('\n\n\nRANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
+            f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
         return radia_util.vector_field_to_data(
             g_id, name, f, radia_util.FIELD_UNITS[field_type]
         )
@@ -625,6 +617,7 @@ def _generate_data(sim_id, g_id, name, view_type, field_type, field_paths=None):
         if view_type == SCHEMA.constants.viewTypeObjects:
             return o
         elif view_type == SCHEMA.constants.viewTypeFields:
+            pkdp('\n\n\n HIT IN _GENERATE_DATA with view_type={}', view_type)
             g = _generate_field_data(sim_id, g_id, name, field_type, field_paths)
             _add_obj_lines(g, o)
             return g
@@ -659,8 +652,17 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     pkdp('\n\n\n REPORT: {}', report)
     rpt_out = f"{_REPORT_RES_MAP.get(report, report)}"
     res, v = template_common.generate_parameters_file(data)
-    if rpt_out in _POST_SIM_REPORTS:
+    if rpt_out in _POST_SIM_REPORTS and report != "fieldLineoutReport":
         return res
+
+    if report == "fieldLineoutReport":
+        v.sim_id = data.models.simulation.simulationId
+        v.name = data.models.simulation.name
+        v.f_type = data.models.fieldLineoutReport.fieldType
+        v.f_path = data.models.fieldLineoutReport.fieldPath
+        v.plot_axis = data.models.fieldLineoutReport.plotAxis
+        v.run_dir = run_dir
+        v.gid = _get_g_id()
 
     g = data.models.geometryReport
     pkdp('\n\n\n g: {}', g)
@@ -676,7 +678,7 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
         except sirepo.sim_data.SimDbFileNotFound:
             do_generate = True
 
-    if not do_generate:
+    if not do_generate and report != "fieldLineoutReport":
         pkdp('\n\n\n\ not do_generate with res: {}, report type: {}', res, report)
         return res
 
@@ -689,6 +691,7 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
 
     v.dmpOutputFile = _DMP_FILE
     if "dmpImportFile" in data.models.simulation:
+        pkdp("\n\n\n data.models.simulation.dmpImportFile: {}", data.models.simulation.dmpImportFile)
         v.dmpImportFile = (
             data.models.simulation.dmpImportFile
             if for_export
@@ -876,6 +879,7 @@ def _get_geom_data(
 ):
     assert view_type in VIEW_TYPES, "view_type={}: invalid view type".format(view_type)
     if view_type == SCHEMA.constants.viewTypeFields:
+        pkdp('\n\n\n HIT IN _GET_GEOM_DATA() with view_type={}', view_type)
         res = _generate_field_data(sim_id, g_id, name, field_type, field_paths)
         res.data += _get_geom_data(
             sim_id,
