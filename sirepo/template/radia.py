@@ -170,7 +170,16 @@ def extract_report_data(run_dir, sim_in):
             run_dir=run_dir,
         )
     if "fieldLineoutReport" in sim_in.report:
-        _generate_parameters_file(sim_in, True, run_dir=run_dir)
+        template_common.write_sequential_result(
+            _field_lineout_plot(
+                sim_in.models.simulation.simulationId,
+                sim_in.models.simulation.name,
+                sim_in.models.fieldLineoutReport.fieldType,
+                sim_in.models.fieldLineoutReport.fieldPath,
+                sim_in.models.fieldLineoutReport.plotAxis,
+            ),
+            run_dir=run_dir,
+        )
 
 
 def get_data_file(run_dir, model, frame, options):
@@ -503,12 +512,27 @@ _FIELD_PT_BUILDERS = {
 }
 
 
-def _field_lineout_plot(sim_id, name, f_type, f_path, plot_axis, gid):
-    v = (
-        _generate_field_data(sim_id, gid, name, f_type, [f_path])
-        .data[0]
-        .vectors
+def _field_lineout_plot(sim_id, name, f_type, f_path, plot_axis):
+    gid = _get_g_id()
+    data = PKDict (
+        report="fieldLineoutReport",
+        models=PKDict(
+            sim_id=sim_id,
+            gid=gid,
+            name=name,
+            f_type=f_type,
+            f_path=f_path,
     )
+    )
+    pkdp('\n\n\n --------- data: {}', data)
+    v = _generate_parameters_file(data, True)
+
+    # v = (
+    #     _generate_field_data(sim_id, gid, name, f_type, [f_path])
+    #     .data[0]
+    #     .vectors
+    # )
+
     pts = numpy.array(v.vertices).reshape(-1, 3)
     plots = []
     f = numpy.array(v.directions).reshape(-1, 3)
@@ -585,7 +609,9 @@ def _generate_field_data(sim_id, g_id, name, field_type, field_paths):
             # with radia_util.MPI() as m:
             #     import mpi4py
             #     pkdp('\n\n\nRANK {}', mpi4py.MPI.COMM_WORLD.Get_rank())
+
             f = radia_util.get_field(g_id, field_type, _build_field_points(field_paths))
+
         return radia_util.vector_field_to_data(
             g_id, name, f, radia_util.FIELD_UNITS[field_type]
         )
@@ -652,17 +678,23 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     pkdp('\n\n\n REPORT: {}', report)
     rpt_out = f"{_REPORT_RES_MAP.get(report, report)}"
     res, v = template_common.generate_parameters_file(data)
-    if rpt_out in _POST_SIM_REPORTS and report != "fieldLineoutReport":
-        return res
-
     if report == "fieldLineoutReport":
-        v.sim_id = data.models.simulation.simulationId
-        v.name = data.models.simulation.name
-        v.f_type = data.models.fieldLineoutReport.fieldType
-        v.f_path = data.models.fieldLineoutReport.fieldPath
-        v.plot_axis = data.models.fieldLineoutReport.plotAxis
-        v.run_dir = run_dir
-        v.gid = _get_g_id()
+        pkdp("\n\n\n DATA: {}", data)
+        if "sim_id" in data.models:
+            v.sim_id = data.models.sim_id
+            v.name = data.models.name
+            v.f_type = data.models.f_type
+            v.f_path = data.models.f_path
+            v.gid = data.models.gid
+            pkdp("\n\n\n v in fieldLinoutAnimation: {}", v)
+            return template_common.render_jinja(
+                SIM_TYPE,
+                v,
+                f"{rpt_out}.py",
+                jinja_env=PKDict(loader=jinja2.PackageLoader("sirepo", "template")),
+            )
+    if rpt_out in _POST_SIM_REPORTS:
+        return res
 
     g = data.models.geometryReport
     pkdp('\n\n\n g: {}', g)
