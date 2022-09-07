@@ -401,6 +401,36 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
     return self;
 });
 
+
+SIREPO.app.controller('RadiaOptimizationController', function (appState, frameCache, persistentSimulation, radiaService, $scope) {
+    var self = this;
+    self.simScope = $scope;
+    self.simAnalysisModel = 'optimizerAnimation';
+
+    self.simHandleStatus = function (data) {
+        if ('frameCount' in data && ! data.error) {
+            frameCache.setFrameCount(data.frameCount > 1 ? data.frameCount : 0);
+            self.simState.summaryData = data.summary;
+        }
+    };
+
+    self.hasOptFields = function() {
+        if (appState.isLoaded()) {
+            var optimizer = appState.applicationState().optimizer;
+            if (optimizer.fields) {
+                return optimizer.fields.length > 0;
+            }
+        }
+        return false;
+    };
+
+    self.simState = persistentSimulation.initSimulationState(self);
+
+    self.simState.runningMessage = function() {
+        return 'Completed run: ' + self.simState.getFrameCount();
+    };
+});
+
 SIREPO.app.controller('RadiaSourceController', function (appState, geometry, panelState, plotting, radiaService, utilities, validationService, vtkPlotting, $scope) {
     //TODO(mvk): a lot of this is specific to freehand magnets and should be moved to a directive
 
@@ -1200,6 +1230,7 @@ SIREPO.app.directive('appHeader', function(activeSection, appState, panelState, 
                 <div data-sim-sections="">
                   <li data-ng-if="! isImported()" class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a href data-ng-click="nav.openSection(\'source\')"><span class="glyphicon glyphicon-magnet"></span> Design</a></li>
                   <li class="sim-section" data-ng-class="{active: nav.isActive(\'visualization\')}"><a href data-ng-click="nav.openSection(\'visualization\')"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'optimization\')}"><a href data-ng-click="nav.openSection(\'optimization\')"><span class="glyphicon glyphicon-globe"></span> Visualization</a></li>
                 </div>
               </app-header-right-sim-loaded>
               <app-settings>

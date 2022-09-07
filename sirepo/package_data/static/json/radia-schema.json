@@ -386,6 +386,13 @@
         "magnetViewer": []
     },
     "localRoutes": {
+        "optimization": {
+            "route": "/optimization/:simulationId",
+            "config": {
+                "controller": "RadiaOptimizationController as optimization",
+                "templateUrl": "/static/html/radia-optimization.html"
+            }
+        },
         "source": {
             "route": "/source/:simulationId",
             "config": {
@@ -838,7 +845,7 @@
             "cutAxis": ["Cut Axis", "BeamAxis", "z", "Direction perpendicular to cross-section of interest"],
             "edge": ["Filleted Edge", "BevelEdge", "0", "Index of base shape edge to fillet, relative to the view axis"],
             "numSides": ["Number of Sides", "Integer", 10, "Resolution of the curved surface", 6],
-            "radius": ["Radius", "Float", 1.0]
+            "radius": ["Radius", "OptFloat", 1.0]
         },
         "objectBevel": {
             "_super": ["_", "model", "objectCut"],
@@ -858,6 +865,27 @@
          "objectShape": {
             "viewAxis": ["View Along Axis", "BeamAxis", "z"]
         },
+        "optimizer": {
+            "enabledFields": ["_", "Object", {}],
+            "objective": ["Objective Function", "ObjectiveFunction", "transparency"],
+            "tolerance": ["Tolerance", "Float", 0.001],
+            "timeLimit": ["Time Limit Per Run (s)", "Integer", 60],
+            "continuousFieldSteps": ["Continuous Field Divisions", "Integer", 20],
+            "initialSteps": ["Initial Simulation Steps", "Integer", 500],
+            "optimizerSteps": ["Optimizer Steps Between Tolerance Checks", "Integer", 250]
+        },
+        "optimizerAnimation": {
+            "x": ["Horizontal Value to Plot", "OptimizationField", 0],
+            "y": ["Vertical Value to Plot", "OptimizationField", 1],
+            "colorMap": ["Color Map", "ColorMap", "viridis"],
+            "notes": ["Notes", "Text", ""]
+        },
+        "optimizerField": {
+            "field": ["Field", "String"],
+            "minimum": ["Minimum", "Float"],
+            "maximum": ["Maximum", "Float"]
+        },
+        "optimizerStatus": {},
         "pointsReport": {
             "doSnap": ["Snap to Grid", "Boolean", "0"],
             "gridSize": ["Grid Size [mm]", "Float", "0.5", "", "0"]
@@ -1356,6 +1384,31 @@
                     "fillets"
                 ]]
             ]
+        },
+        "optimizer": {
+            "title": "Optimization Fields",
+            "advanced": [
+                "objectFillet.radius"
+            ]
+        },
+        "optimizerAnimation": {
+            "title": "Optimization Path",
+            "advanced": [
+                [
+                    ["Horizontal", [
+                        "x"
+                    ]],
+                    ["Vertical", [
+                        "y"
+                    ]]
+                ],
+                "colorMap",
+                "notes"
+            ]
+        },
+        "optimizerStatus": {
+            "title": "Optimization Status",
+            "advanced": []
         },
         "pointsReport": {
             "title": "Points",
