@@ -79,6 +79,57 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
         return 'fieldLineoutAnimation';
     };
 
+    function addOptimizeContainerFields(optFields, containerName, modelName, optFloatFields) {
+        const idx = {};
+        appState.models[containerName].forEach(function(m) {
+            let name;
+            if (m.name) {
+                name = m.name;
+            }
+            else {
+                const conductorTypeName = self.findConductorType(m.conductorTypeId).name;
+                idx[conductorTypeName] = (idx[conductorTypeName] || 0) + 1;
+                name = conductorTypeName + ' #' + idx[conductorTypeName];
+            }
+            $.each(m, function(fieldName, value) {
+                const field = appState.optFieldName(modelName, fieldName, m);
+                if (appState.models.optimizer.enabledFields[field]) {
+                    const label = optFloatFields[appState.optFieldName(modelName, fieldName)];
+                    optFields.push({
+                        field: appState.optFieldName(modelName, fieldName, m),
+                        label: name + ' ' + label,
+                        value: m[fieldName],
+                    });
+                }
+            });
+        });
+    }
+
+    function addOptimizeModelFields(optFields) {
+        const optFloatFields = {};
+
+        // look through schema for OptFloat types which have been enabled
+        $.each(SIREPO.APP_SCHEMA.model, function(modelName, modelInfo) {
+            $.each(modelInfo, (fieldName, fieldInfo) => {
+                if (fieldInfo[1] !== 'OptFloat') {
+                    return;
+                }
+                const m = appState.models[modelName];
+                srdbg(modelName, "OPT F", fieldName, fieldInfo, m);
+                const field = appState.optFieldName(modelName, fieldName);
+                optFloatFields[field] = fieldInfo[0];
+                if (appState.models.optimizer.enabledFields[field]) {
+                    optFields.push({
+                        field: field,
+                        label: fieldInfo[0],
+                        value: m[fieldName],
+                    });
+                }
+            });
+        });
+        return optFloatFields;
+    }
+
     appState.setAppService(self);
 
     self.axes = ['x', 'y', 'z'];
@@ -143,6 +194,14 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
     };
 
     self.axisIndex = axis => SIREPO.GEOMETRY.GeometryUtils.BASIS().indexOf(axis);
+
+    self.buildOptimizeFields = function() {
+        const optFields = [];
+        const optFloatFields = addOptimizeModelFields(optFields);
+        //addOptimizeContainerFields(optFields, 'conductorTypes', 'box', optFloatFields);
+        //addOptimizeContainerFields(optFields, 'conductors', 'conductorPosition', optFloatFields);
+        return optFields;
+    };
 
     self.calcWidthAxis = (depthAxis, heightAxis) => {
         return self.axes.filter((a) => {
@@ -1220,7 +1279,7 @@ SIREPO.app.directive('appHeader', function(activeSection, appState, panelState, 
                 <div data-sim-sections="">
                   <li data-ng-if="! isImported()" class="sim-section" data-ng-class="{active: nav.isActive(\'source\')}"><a href data-ng-click="nav.openSection(\'source\')"><span class="glyphicon glyphicon-magnet"></span> Design</a></li>
                   <li class="sim-section" data-ng-class="{active: nav.isActive(\'visualization\')}"><a href data-ng-click="nav.openSection(\'visualization\')"><span class="glyphicon glyphicon-picture"></span> Visualization</a></li>
-                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'optimization\')}"><a href data-ng-click="nav.openSection(\'optimization\')"><span class="glyphicon glyphicon-globe"></span> Visualization</a></li>
+                  <li class="sim-section" data-ng-class="{active: nav.isActive(\'optimization\')}"><a href data-ng-click="nav.openSection(\'optimization\')"><span class="glyphicon glyphicon-globe"></span> Optimization</a></li>
                 </div>
               </app-header-right-sim-loaded>
               <app-settings>
@@ -2297,6 +2356,255 @@ SIREPO.app.directive('kickMapReport', function(appState, panelState, plotting, r
                 $scope.dataCleared = false;
             });
 
+        },
+    };
+});
+
+SIREPO.app.directive('optimizationForm', function(appState, panelState, radiaService) {
+    return {
+        restrict: 'A',
+        scope: {},
+        template: `
+            <div class="well" data-ng-show="! optFields.length">
+            Select fields for optimization on the <i>Design</i> tab.
+            </div>
+            <form name="form" class="form-horizontal" data-ng-show="::optFields.length">
+            <div class="form-group form-group-sm">
+              <h4>Bounds</h4>
+              <table class="table table-striped table-condensed">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Minimum</th>
+                    <th>Maximum</th>
+                    <th> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-ng-repeat="optimizerField in appState.models.optimizer.fields track by $index">
+                    <td>
+                      <div class="form-control-static">{{ labelForField(optimizerField.field) }}</div>
+                    </td><td>
+                      <div class="row" data-field-editor="\'minimum\'" data-field-size="12" data-model-name="\'optimizerField\'" data-model="optimizerField"></div>
+                    </td><td>
+                      <div class="row" data-field-editor="\'maximum\'" data-field-size="12" data-model-name="\'optimizerField\'" data-model="optimizerField"></div>
+                    </td>
+                    <td style="vertical-align: middle">
+                      <button class="btn btn-danger btn-xs" data-ng-click="deleteField($index)" title="Delete Row"><span class="glyphicon glyphicon-remove"></span></button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <select class="input-sm form-control" data-ng-model="selectedField" data-ng-options="f.field as f.label for f in unboundedOptFields" data-ng-change="addField()"></select>
+                    </td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="form-group form-group-sm" data-ng-show="appState.models.optimizer.fields.length">
+              <h4>Constraints</h4>
+              <table class="table table-striped table-condensed">
+                <thead>
+                  <tr>
+                    <th>Bounded Field</th>
+                    <th> </th>
+                    <th>Field</th>
+                    <th> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-ng-repeat="constraint in appState.models.optimizer.constraints track by $index">
+                    <td>
+                      <div class="form-control-static">{{ labelForField(constraint[0]) }}</div>
+                    </td>
+                    <td style="vertical-align: middle">{{ constraint[1] }}</td>
+                    <td>
+                      <div class="form-control-static">{{ labelForField(constraint[2]) }}</div>
+                    </td>
+                    <td style="vertical-align: middle">
+                      <button class="btn btn-danger btn-xs" data-ng-click="deleteConstraint($index)" title="Delete Row"><span class="glyphicon glyphicon-remove"></span></button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <select class="input-sm form-control" data-ng-model="selectedConstraint" data-ng-options="f.field as labelForField(f.field) for f in appState.models.optimizer.fields"></select>
+                    </td>
+                    <td>=</td>
+                    <td>
+                      <select data-ng-show="selectedConstraint" class="input-sm form-control" data-ng-model="selectedConstraint2" data-ng-options="f.field as f.label for f in ::optFields" data-ng-change="addConstraint()"></select>
+                    </td>
+                    <td style="vertical-align: middle">
+                      <button  data-ng-show="selectedConstraint" class="btn btn-danger btn-xs" data-ng-click="deleteSelectedConstraint()" title="Delete Row"><span class="glyphicon glyphicon-remove"></span></button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="form-group form-group-sm">
+              <div data-model-field="\'objective\'" data-model-name="\'optimizer\'"></div>
+            </div>
+            <div class="col-sm-6 pull-right" data-ng-show="hasChanges()">
+              <button data-ng-click="saveChanges()" class="btn btn-primary" data-ng-disabled="! form.$valid">Save Changes</button>
+              <button data-ng-click="cancelChanges()" class="btn btn-default">Cancel</button>
+            </div>
+            </form>
+        `,
+        controller: function($scope, $element) {
+            $scope.form = angular.element($($element).find('form').eq(0));
+            $scope.appState = appState;
+            $scope.selectedField = null;
+            $scope.selectedConstraint = null;
+            $scope.selectedConstraint2 = null;
+
+            function buildOptimizeFields() {
+                $scope.optFields = radiaService.buildOptimizeFields();
+            }
+
+            function setDefaults(model) {
+                $scope.optFields.some(function(f) {
+                    if (f.field == model.field) {
+                        model.minimum = model.maximum = f.value;
+                        return true;
+                    }
+                });
+            }
+
+            function verifyBounds() {
+                var isField = {};
+                $scope.optFields.forEach(function(f) {
+                    isField[f.field] = true;
+                });
+                var list = [];
+                var isBoundedField = {};
+                appState.models.optimizer.fields.forEach(function(f) {
+                    if (isField[f.field]) {
+                        list.push(f);
+                        isBoundedField[f.field] = true;
+                    }
+                });
+                if (appState.models.optimizer.fields.length != list.length) {
+                    appState.models.optimizer.fields = list;
+                }
+                return isBoundedField;
+            }
+
+            function verifyBoundsAndConstraints() {
+                if ($scope.optFields) {
+                    verifyConstraints(verifyBounds());
+                }
+            }
+
+            function verifyConstraints(isBoundedField) {
+                $scope.unboundedOptFields = [];
+                $scope.optFields.forEach(function(f) {
+                    if (! isBoundedField[f.field]) {
+                        $scope.unboundedOptFields.push(f);
+                    }
+                });
+
+                var list = [];
+                appState.models.optimizer.constraints.forEach(function(c) {
+                    if (isBoundedField[c[0]] && ! isBoundedField[c[2]]) {
+                        list.push(c);
+                    }
+                });
+                if (appState.models.optimizer.constraints.length != list.length) {
+                    appState.models.optimizer.constraints = list;
+                }
+            }
+
+            $scope.addConstraint = function() {
+                if ($scope.selectedConstraint == $scope.selectedConstraint2) {
+                    return;
+                }
+                appState.models.optimizer.constraints.push(
+                    [$scope.selectedConstraint, '=', $scope.selectedConstraint2]);
+                $scope.selectedConstraint = null;
+                $scope.selectedConstraint2 = null;
+            };
+
+            $scope.addField = function() {
+                var m = {
+                    field: $scope.selectedField,
+                };
+                appState.models.optimizer.fields.push(m);
+                setDefaults(m);
+                $scope.selectedField = null;
+                verifyBoundsAndConstraints();
+            };
+
+            $scope.cancelChanges = function() {
+                appState.cancelChanges('optimizer');
+                verifyBoundsAndConstraints();
+                $scope.form.$setPristine();
+            };
+
+            $scope.deleteConstraint = function(idx) {
+                appState.models.optimizer.constraints.splice(idx, 1);
+                $scope.form.$setDirty();
+            };
+
+            $scope.deleteField = function(idx) {
+                var field = appState.models.optimizer.fields[idx].field;
+                appState.models.optimizer.fields.splice(idx, 1);
+                verifyBoundsAndConstraints();
+                $scope.form.$setDirty();
+            };
+
+            $scope.deleteSelectedConstraint = function() {
+                $scope.selectedConstraint = null;
+                $scope.selectedConstraint2 = null;
+            };
+
+            $scope.getBoundsFieldList = function() {
+                if (! $scope.optFields) {
+                    return null;
+                }
+                var existingFieldBounds = {};
+                appState.models.optimizer.fields.forEach(function(f) {
+                    existingFieldBounds[f.field] = true;
+                });
+                var list = [];
+                $scope.optFields.forEach(function(f) {
+                    if (! existingFieldBounds[f.field]) {
+                        list.push(f);
+                    }
+                });
+                return list;
+            };
+
+            $scope.hasChanges = function() {
+                if ($scope.form.$dirty) {
+                    return true;
+                }
+                return appState.areFieldsDirty('optimizer.fields') || appState.areFieldsDirty('optimizer.constraints');
+            };
+
+            $scope.labelForField = function(field) {
+                var res = '';
+                if ($scope.optFields) {
+                    $scope.optFields.some(function(f) {
+                        if (f.field == field) {
+                            res = f.label;
+                            return true;
+                        }
+                    });
+                }
+                return res;
+            };
+
+            $scope.saveChanges = function() {
+                appState.saveChanges('optimizer');
+                $scope.form.$setPristine();
+            };
+
+            appState.whenModelsLoaded($scope, function() {
+                buildOptimizeFields();
+                verifyBoundsAndConstraints();
+            });
         },
     };
 });
