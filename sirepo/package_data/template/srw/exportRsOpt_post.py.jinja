@@ -29,6 +29,7 @@ def main():
     with h5py.File("results.h5", "w") as f:
         m = f.create_dataset("metadata", data=param_vals)
         m.attrs.create("parameters",  [{{ rsOptFuctionSignature(true) }}])
+        m.attrs.create("ranges", numpy.load("ensemble/worker1/sim0/ranges.npy"))
         f.create_dataset("images", data=beams)
 
 

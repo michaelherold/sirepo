@@ -2229,6 +2229,7 @@ def _rsopt_jinja_context(data):
         rsOptParamsNoRot=_RSOPT_PARAMS_NO_ROT,
         rsOptOutFileName="scan_results",
         scanType=model.scanType,
+        simName=data.models.simulation.name,
         totalSamples=model.totalSamples,
     )
 

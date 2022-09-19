@@ -363,7 +363,7 @@ def _read_srw_file(filename):
             'labels': labels,
             'units': units}
     '''
-    return data
+    return ranges, data
 
 
 def rsopt_run({{ rsOptFuctionSignature() }}):
@@ -375,10 +375,11 @@ def rsopt_run({{ rsOptFuctionSignature() }}):
     )
     f[2] = 'res_int_se.dat'
 {{srwMain}}
-    beam = _read_srw_file(f[2])
+    r, beam = _read_srw_file(f[2])
     h = beam.shape[0]
     w = beam.shape[1]
     beam = beam.reshape(1, h, w)
+    numpy.save('ranges.npy', [r[3], r[4], r[6], r[7]])
     numpy.save('beam.npy', beam)
     numpy.save('params.npy', [{{ rsOptFuctionSignature(true) }}])
     numpy.save('values.npy', [{{ rsOptFuctionSignature() }}])
