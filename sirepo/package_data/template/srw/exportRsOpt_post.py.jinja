@@ -27,9 +27,11 @@ def main():
         )
         param_vals.append(r["x"])
     with h5py.File("results.h5", "w") as f:
+        f.attrs.create("simulation", "{{ simName }}")
         m = f.create_dataset("metadata", data=param_vals)
         m.attrs.create("parameters",  [{{ rsOptFuctionSignature(true) }}])
         m.attrs.create("ranges", numpy.load("ensemble/worker1/sim0/ranges.npy"))
+        m.attrs.create("characteristic", "{{ rsOptCharacteristic }}")
         f.create_dataset("images", data=beams)
 
 

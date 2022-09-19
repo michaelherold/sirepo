@@ -11,6 +11,7 @@ from pykern.pkdebug import pkdc, pkdexc, pkdlog, pkdp
 from sirepo import crystal
 from sirepo import job
 from sirepo import simulation_db
+from sirepo import srschema
 from sirepo.template import srw_common
 from sirepo.template import template_common
 import array
@@ -2215,6 +2216,7 @@ def _rsopt_jinja_context(data):
     model = data.models[_SIM_DATA.EXPORT_RSOPT]
     e = _process_rsopt_elements(model.elements)
     return PKDict(
+        rsOptCharacteristic=_enum_text("Characteristic", model, "characteristic"),
         fileBase=_SIM_DATA.EXPORT_RSOPT,
         forRSOpt=True,
         libFiles=_SIM_DATA.lib_file_basenames(data),

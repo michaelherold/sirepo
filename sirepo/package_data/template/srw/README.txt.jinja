@@ -26,8 +26,12 @@ It has the following structure:
     - "/metadata": array of size {{ totalSamples }} containing the parameter values for each run
     - "/images": array of size {{ totalSamples }} containing the propagated single-electron intensity
         distribution vs horizontal and vertical position for each run
-The parameter names are stored in an attribute named "parameters" on the metadata dataset
-in the format <element name>_<param name>, e.g. "Aperture_horizontalSize".
+The simulation name ("{{ simName }}") is stored in an attribute named "simulation" at the root level.
+The metadata dataset also has several attributes:
+    - "parameters": the parameter names in the format <element name>_<param name>, e.g. "Aperture_horizontalSize"
+    - "characteristic": the characteristic used ("{{ rsOptCharacteristic }}")
+    - "ranges": the horizontal and vertical extent of the images in meters, in the format
+        [horizontal min, horizontal max, vertical min, vertical max]
 
 Intermediate output is also available under the ensemble/worker[n]/sim[m] directories:
 
