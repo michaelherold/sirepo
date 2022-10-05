@@ -12,7 +12,8 @@ END
         dnf install -y postfix procmail
         postconf -e \
             'mydestination=$myhostname, localhost.$mydomain, localhost, localhost.localdomain' \
-            mailbox_command=/usr/bin/procmail
+            mailbox_command=/usr/bin/procmail \
+            inet_protocols=ipv4
         systemctl enable postfix
         systemctl restart postfix
 END
