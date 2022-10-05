@@ -10,10 +10,12 @@ mail/.
 END
     sudo su - <<'END'
         dnf install -y postfix procmail
+        # Necessary or on docker on Ubuntu tries to open ipv6
+        sed -i '/^::1\s/d' /etc/hosts
         postconf -e \
             'mydestination=$myhostname, localhost.$mydomain, localhost, localhost.localdomain' \
             mailbox_command=/usr/bin/procmail \
-            inet_protocols=ipv4
+            recipient_delimiter=+
         systemctl enable postfix
         systemctl restart postfix
 END
