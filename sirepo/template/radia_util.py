@@ -283,8 +283,11 @@ def apply_fillet(g_id, **kwargs):
     return build_container([g_id, c_id])
 
 
-def multiply_vector_by_matrix(v, m):
-    return numpy.array(m).dot(numpy.array(v)).tolist()
+def multiply_vector_by_matrix(v, m, abs_value=False, d_type=float):
+    mv = numpy.array(m).dot(numpy.array(v))
+    if d_type == int:
+        mv = numpy.rint(mv)
+    return (numpy.abs(mv) if abs_value else mv).astype(d_type).tolist()
 
 
 def apply_transform(g_id, xform):

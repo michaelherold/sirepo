@@ -144,10 +144,10 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
 
     self.axisIndex = axis => SIREPO.GEOMETRY.GeometryUtils.BASIS().indexOf(axis);
 
-    self.calcWidthAxis = (depthAxis, heightAxis) => {
-        return self.axes.filter((a) => {
-            return a !== depthAxis && a !== heightAxis;
-        })[0];
+    self.calcAxes = (depthAxis) => {
+        const w = SIREPO.GEOMETRY.GeometryUtils.nextAxis(depthAxis);
+        const h = SIREPO.GEOMETRY.GeometryUtils.nextAxis(w);
+        return [w, h];
     };
 
     self.centerExtrudedPoints = o =>  {
@@ -219,11 +219,12 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
         };
     };
 
-    self.getGeomDirections = function (depthAxis, heightAxis) {
+    self.getGeomDirections = function (depthAxis) {
+        const [w, h] = self.calcAxes(depthAxis);
         return {
             depth: geometry.basisVectors[depthAxis],
-            height: geometry.basisVectors[heightAxis],
-            width: geometry.basisVectors[self.calcWidthAxis(depthAxis, heightAxis)],
+            height: geometry.basisVectors[h],
+            width: geometry.basisVectors[w],
         };
     };
 
@@ -286,11 +287,6 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
             appState.saveChanges('geometryReport', callback);
         }
         self.syncReports();
-    };
-
-    self.setWidthAxis = function() {
-        const sim = appState.models.simulation;
-        sim.widthAxis = self.calcWidthAxis(sim.beamAxis, sim.heightAxis);
     };
 
     self.setSelectedObject = function(o) {
@@ -1335,9 +1331,7 @@ SIREPO.app.directive('bevelTable', function(appState, panelState, radiaService) 
                     $scope.selectedItem = null;
                     let m = appState.models[modelName];
                     const d = m.cutAxis;
-                    const h = SIREPO.APP_SCHEMA.constants.heightAxisMap[d];
-                    const w = radiaService.calcWidthAxis(d, h);
-                    const dirs = radiaService.getGeomDirections(d, h, w);
+                    const dirs = radiaService.getGeomDirections(d);
                     m.cutDir = dirs.depth;
                     m.heightDir = dirs.height;
                     m.widthDir = dirs.width;
@@ -1470,10 +1464,7 @@ SIREPO.app.directive('filletTable', function(appState, panelState, radiaService)
                     }
                     $scope.selectedItem = null;
                     let m = appState.models[modelName];
-                    const d = m.cutAxis;
-                    const h = SIREPO.APP_SCHEMA.constants.heightAxisMap[d];
-                    const w = radiaService.calcWidthAxis(d, h);
-                    const dirs = radiaService.getGeomDirections(d, h, w);
+                    const dirs = radiaService.getGeomDirections(m.cutAxis);
                     m.cutDir = dirs.depth;
                     appState.saveQuietly(modelName);
                     if (! isEditing) {
@@ -4204,19 +4195,22 @@ SIREPO.viewLogic('simulationView', function(activeSection, appState, panelState,
         // the magnet to be built incorrectly. For now set those values and disable the fields
         if (isDipole) {
             model.beamAxis = 'x';
-            model.heightAxis = 'z';
         }
+        const [w, h] = radiaService.calcAxes(model.beamAxis);
+        model.widthAxis = w;
+        model.heightAxis = h;
         panelState.enableField(
             $scope.modelName,
             'beamAxis',
             enableAxes
         );
-        updateHeightAxis(enableAxes);
+        for (const a of ['widthAxis', 'heightAxis']) {
+            panelState.enableField($scope.modelName, a, false);
+        }
     }
 
     $scope.watchFields = [
         ['simulation.beamAxis', 'simulation.magnetType'], updateSimEditor,
-        ['simulation.heightAxis'], radiaService.setWidthAxis,
     ];
 
 

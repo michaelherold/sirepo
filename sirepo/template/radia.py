@@ -213,7 +213,7 @@ def extract_report_data(run_dir, sim_in):
                 beam_axis=sim_in.models.simulation.beamAxis,
                 width_axis=sim_in.models.simulation.widthAxis,
                 height_axis=sim_in.models.simulation.heightAxis,
-                rotation=_rotate_axis(
+                rotation=_axis_rotation(
                     to_axis="y", from_axis=sim_in.models.simulation.beamAxis
                 ),
             )
@@ -236,7 +236,7 @@ def get_data_file(run_dir, model, frame, options):
     sim = data.models.simulation
     name = sim.name
     sim_id = sim.simulationId
-    beam_axis = _rotate_axis(to_axis="z", from_axis=sim.beamAxis)
+    beam_axis_rotation = _axis_rotation(to_axis="z", from_axis=sim.beamAxis)
     rpt = data.models[model]
     sfx = options.suffix or SCHEMA.constants.dataDownloads._default[0].suffix
     f = f"{model}.{sfx}"
@@ -260,15 +260,15 @@ def get_data_file(run_dir, model, frame, options):
         fd = generate_field_data(sim_id, get_g_id(), name, f_type, [rpt.fieldPath])
         v = fd.data[0].vectors
         if sfx == "sdds":
-            return _save_fm_sdds(name, v, beam_axis, f)
+            return _save_fm_sdds(name, v, beam_axis_rotation, f)
         if sfx == "csv":
-            return _save_field_csv(f_type, v, beam_axis, f)
+            return _save_field_csv(f_type, v, beam_axis_rotation, f)
         if sfx == "zip":
             return _save_field_srw(
                 f_type,
                 data.models[data.models.simulation.undulatorType].gap,
                 v,
-                beam_axis,
+                beam_axis_rotation,
                 pkio.py_path(f),
             )
         return f
@@ -288,14 +288,15 @@ def import_file(req, tmp_dir=None, **kwargs):
 
 def new_simulation(data, new_sim_data):
     _prep_new_sim(data, new_sim_data=new_sim_data)
-    dirs = _geom_directions(new_sim_data.beamAxis, new_sim_data.heightAxis)
+    dirs = _geom_directions(new_sim_data.beamAxis)
     t = new_sim_data.get("magnetType", "freehand")
     s = new_sim_data[f"{t}Type"]
     m = data.models[s]
     pkinspect.module_functions("_build_")[f"_build_{t}_objects"](
         data.models.geometryReport.objects,
         m,
-        matrix=_get_coord_matrix(dirs, data.models.simulation.coordinateSystem),
+        beam_axis=new_sim_data.beamAxis,
+        matrix=_get_coord_matrix(data.models.simulation.coordinateSystem, beam_axis=new_sim_data.beamAxis),
         height_dir=dirs.height_dir,
         length_dir=dirs.length_dir,
         width_dir=dirs.width_dir,
@@ -559,6 +560,7 @@ def _build_undulator_objects(geom_objs, model, **kwargs):
                 size=radia_util.multiply_vector_by_matrix(
                     sirepo.util.split_comma_delimited_string(o.size, float),
                     kwargs["matrix"],
+                    abs_value=True,
                 ),
             )
             t_grp.append(o)
@@ -852,10 +854,9 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
     v.exampleName = data.models.simulation.get("exampleName", None)
     v.is_raw = v.exampleName in SCHEMA.constants.rawExamples
     v.magnetType = data.models.simulation.get("magnetType", "freehand")
-    dirs = _geom_directions(
-        data.models.simulation.beamAxis, data.models.simulation.heightAxis
-    )
-    v.matrix = _get_coord_matrix(dirs, data.models.simulation.coordinateSystem)
+    dirs = _geom_directions(data.models.simulation.beamAxis)
+    v.matrix = _get_coord_matrix(data.models.simulation.coordinateSystem, beam_axis=data.models.simulation.beamAxis)
+    v.rotationXform = _rotation_xform(v.matrix)
     st = f"{v.magnetType}Type"
     v[st] = data.models.simulation[st]
     if not v.is_raw:
@@ -934,17 +935,13 @@ def _generate_parameters_file(data, is_parallel, for_export=False, run_dir=None)
 
 # "Length" is along the beam axis; "Height" is along the gap axis; "Width" is
 # along the remaining axis
-def _geom_directions(beam_axis, height_axis):
-    beam_dir = radia_util.AXIS_VECTORS[beam_axis]
-    if not height_axis or height_axis == beam_axis:
-        height_axis = SCHEMA.constants.heightAxisMap[beam_axis]
-    height_dir = radia_util.AXIS_VECTORS[height_axis]
-
-    # we don't care about the direction of the cross product
+def _geom_directions(beam_axis):
+    w = radia_util.next_axis(beam_axis)
+    h = radia_util.next_axis(w)
     return PKDict(
-        length_dir=beam_dir,
-        height_dir=height_dir,
-        width_dir=abs(numpy.cross(beam_dir, height_dir)),
+        length_dir=radia_util.AXIS_VECTORS[beam_axis],
+        height_dir=radia_util.AXIS_VECTORS[h],
+        width_dir=radia_util.AXIS_VECTORS[w],
     )
 
 
@@ -975,14 +972,22 @@ def _get_cee_points(o, stemmed_info):
     )
 
 
-def _get_coord_matrix(dirs, coords_type):
+#def _get_coord_matrix(dirs, coords_type):
+#    i = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+#    return PKDict(
+#        beam=[
+#            dirs.width_dir.tolist(),
+#            dirs.height_dir.tolist(),
+#            dirs.length_dir.tolist(),
+#        ],
+#        standard=i,
+#    ).get(coords_type, i)
+
+
+def _get_coord_matrix(coords_type, beam_axis="z"):
     i = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     return PKDict(
-        beam=[
-            dirs.width_dir.tolist(),
-            dirs.height_dir.tolist(),
-            dirs.length_dir.tolist(),
-        ],
+        beam=_axis_rotation(to_axis=beam_axis, from_axis="z").as_matrix().tolist(),
         standard=i,
     ).get(coords_type, i)
 
@@ -1258,7 +1263,7 @@ def _read_solution():
     return PKDict(steps=s[3], time=s[0], maxM=s[1], maxH=s[2])
 
 
-def _rotate_axis(to_axis="z", from_axis="x"):
+def _axis_rotation(to_axis="z", from_axis="x"):
     return _AXIS_ROTATIONS[to_axis][from_axis]
 
 
@@ -1275,6 +1280,15 @@ def _rotate_fields(vectors, scipy_rotation, do_flatten):
 
 def _rotate_flat_vector_list(vectors, scipy_rotation):
     return scipy_rotation.apply(numpy.reshape(vectors, (-1, 3)))
+
+
+def _rotation_xform(matrix):
+    xform = PKDict(model="rotate")
+    _SIM_DATA.update_model_defaults(xform, "rotate")
+    axis = Rotation.from_matrix(matrix).as_rotvec(degrees=True)
+    xform.axis = sirepo.util.to_comma_delimited_string(axis)
+    xform.angle = numpy.linalg.norm(axis)
+    return xform
 
 
 def _save_field_csv(field_type, vectors, scipy_rotation, path):

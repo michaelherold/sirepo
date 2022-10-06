@@ -898,14 +898,14 @@
         "reset": {
         },
         "rotate": {
-            "angle": ["Angle (deg)", "Float", "0.0"],
+            "angle": ["Angle [deg]", "Float", "0.0"],
             "axis": ["Axis", "FloatStringArray", "0.0, 0.0, 1.0", "", "x, y, z"],
             "center": ["Center", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
             "name": ["Name", "String", "Rotate"]
         },
         "rotateClone": {
             "id": ["_", "RandomId", ""],
-            "angle": ["Angle (deg)", "Float", "0.0"],
+            "angle": ["Angle [deg]", "Float", "0.0"],
             "axis": ["Axis", "FloatStringArray", "0.0, 0.0, 1.0", "", "x, y, z"],
             "center": ["Center", "FloatStringArray", "0.0, 0.0, 0.0", "", "x, y, z"],
             "name": ["Name", "String", "Rotate"]
@@ -1474,6 +1474,7 @@
                 "dipoleType",
                 "undulatorType",
                 "beamAxis",
+                "widthAxis",
                 "heightAxis",
                 "enableKickMaps"
             ]

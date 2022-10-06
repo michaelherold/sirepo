@@ -46,7 +46,7 @@ def _add_object(o, radia_objs, id_map):
         ctr = split_comma_delimited_string(o["center"], float)
         sz = split_comma_delimited_string(o["size"], float)
         m = multiply_vector_by_matrix(split_comma_delimited_string(o["magnetization"], float), mat)
-        segs = multiply_vector_by_matrix(split_comma_delimited_string(o["segments"], int), mat)
+        segs = multiply_vector_by_matrix(split_comma_delimited_string(o["segments"], int), mat, abs_value=True, d_type=int)
     if t == _MODEL_CUBOID:
         g_id = build_cuboid(
             center=ctr,
