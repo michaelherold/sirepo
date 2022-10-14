@@ -68,7 +68,7 @@ class MPI:
             pass
 
     def __enter__(self):
-        self._uti_mpi("in")
+        self.rank = self._uti_mpi("in") or 0
         return self
 
     def __exit__(self, t, value, traceback):
@@ -76,6 +76,9 @@ class MPI:
 
     def barrier(self):
         self._uti_mpi("barrier")
+
+    def share(self):
+        self._uti_mpi("share")
 
 
 def _apply_clone(g_id, xform):
