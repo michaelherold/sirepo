@@ -1,8 +1,9 @@
 import h5py
 import os
 import re
-from pykern.pkcollections import PKDict
 import sirepo.mpi
+import time
+from pykern.pkcollections import PKDict
 from sirepo.template import radia_examples
 
 VIEW_TYPE_OBJ = "objects"
@@ -163,34 +164,46 @@ def _build_radia_geom():
     return g_id, id_map
 
 # ** Begin **
-g_id, id_map = _build_radia_geom()
+with MPI() as m:
+    g_id, id_map = _build_radia_geom()
 
-print(f"Solving {g_id}...")
-res = radia.Solve(g_id, {{ solvePrec }}, {{ solveMaxIter }}, {{ solveMethod }})
-print(f"done: {res[3]} steps ({1000 * res[0]}ms); max |M| {res[1]} A/m; max |H| {res[2]} A/m")
-
-print("Dumping to {{ dmpOutputFile }}")
-with open("{{ dmpOutputFile }}", "wb") as f:
-    f.write(dump_bin(g_id))
+# Solve is not yet parallelized
+    print(f"Solving {g_id}...")
+    res = radia.Solve(g_id, {{ solvePrec }}, {{ solveMaxIter }}, {{ solveMethod }})
+    print(f"done: {res[3]} steps ({1000 * res[0]}ms); max |M| {res[1]} A/m; max |H| {res[2]} A/m")
+    m.barrier()
 
 # ** Field Calculations **
-print("Calculating Fields")
-m = get_magnetization(g_id)
+    print(f"Rank {m.rank} calculating M")
+    s = time.time()
+    mag = get_magnetization(g_id)
+    print(f"Rank {m.rank} M in {time.time() - s}")
 
 {% if fieldPoints %}
-field_points = {{ fieldPoints }}
+    field_points = {{ fieldPoints }}
 {% for fieldType in POINT_FIELD_TYPES %}
-{{ fieldType.lower() }} = get_field(g_id, "{{ fieldType }}", field_points)
+    print(f"Rank {m.rank} calculating {{ fieldType }}")
+    s = time.time()
+    {{ fieldType.lower() }} = get_field(g_id, "{{ fieldType }}", field_points)
+    print(f"Rank {m.rank} {{ fieldType }} in {time.time() - s}")
 {% endfor %}
 {% endif %}
 
 {% for fp in fieldPaths %}
 {% if fp["type"] == "line" %}
-p1 = [{{ fp["begin"] }}]
-p2 = [{{ fp["end"] }}]
+    p1 = [{{ fp["begin"] }}]
+    p2 = [{{ fp["end"] }}]
 {% for fieldType in INTEGRABLE_FIELD_TYPES %}
-{{ fieldType.lower() }} = field_integral(g_id, "{{ fieldType }}", p1, p2)
+    print(f"Rank {m.rank} calculating integral of {{ fieldType }}")
+    {{ fieldType.lower() }}_integral = field_integral(g_id, "{{ fieldType }}", p1, p2)
 {% endfor %}
 {% endif %}
 {% endfor %}
+
+    if m.rank == 0:
+        print("Dumping to {{ dmpOutputFile }}")
+        with open("{{ dmpOutputFile }}", "wb") as f:
+            f.write(dump_bin(g_id))
+
+
 
