@@ -338,6 +338,9 @@
             ["AFK1", "Aperam 1 (nonlinnear isotropic)"],
             ["custom", "Custom"]
         ],
+        "ObjectiveFunction": [
+            ["fieldQuality", "Field Quality"]
+        ],
         "ObjectType": [
             ["cuboid", "Cuboid"],
             ["cylinder", "Cylinder"],
@@ -880,7 +883,7 @@
         },
         "optimizer": {
             "enabledFields": ["_", "Object", {}],
-            "objective": ["Objective Function", "ObjectiveFunction", "transparency"],
+            "objective": ["Objective Function", "ObjectiveFunction", "fieldQuality"],
             "tolerance": ["Tolerance", "Float", 0.001],
             "timeLimit": ["Time Limit Per Run (s)", "Integer", 60],
             "continuousFieldSteps": ["Continuous Field Divisions", "Integer", 20],

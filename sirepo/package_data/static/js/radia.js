@@ -41,6 +41,9 @@ SIREPO.app.config(function() {
         <div data-ng-switch-when="ObjectType" class="col-sm-7">
             <div data-shape-selector="" data-model-name="modelName" data-model="model" data-field="model[field]" data-field-class="fieldClass" data-parent-controller="parentController" data-view-name="viewName" data-object="viewLogic.getBaseObject()"></div>
         </div>
+        <div data-ng-switch-when="OptimizationField" data-ng-class="fieldClass">
+          <div data-optimization-field-picker="" field="field" data-model="model"></div>
+        </div>
         <div data-ng-switch-when="MaterialType" data-ng-class="fieldClass">
           <select number-to-string class="form-control" data-ng-model="model[field]" data-ng-options="item[0] as item[1] for item in enum[info[1]]"></select>
             <div class="sr-input-warning">
@@ -115,7 +118,6 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
                     return;
                 }
                 const m = appState.models[modelName];
-                srdbg(modelName, "OPT F", fieldName, fieldInfo, m);
                 const field = appState.optFieldName(modelName, fieldName);
                 optFloatFields[field] = fieldInfo[0];
                 if (appState.models.optimizer.enabledFields[field]) {
@@ -198,8 +200,6 @@ SIREPO.app.factory('radiaService', function(appState, fileUpload, geometry, pane
     self.buildOptimizeFields = function() {
         const optFields = [];
         const optFloatFields = addOptimizeModelFields(optFields);
-        //addOptimizeContainerFields(optFields, 'conductorTypes', 'box', optFloatFields);
-        //addOptimizeContainerFields(optFields, 'conductors', 'conductorPosition', optFloatFields);
         return optFields;
     };
 
@@ -475,7 +475,10 @@ SIREPO.app.controller('RadiaOptimizationController', function (appState, frameCa
 
     self.hasOptFields = function() {
         if (appState.isLoaded()) {
-            var optimizer = appState.applicationState().optimizer;
+            const optimizer = appState.applicationState().optimizer;
+            if (! optimizer.fields) {
+                optimizer.fields = [];
+            }
             if (optimizer.fields) {
                 return optimizer.fields.length > 0;
             }
@@ -2360,6 +2363,45 @@ SIREPO.app.directive('kickMapReport', function(appState, panelState, plotting, r
     };
 });
 
+SIREPO.app.directive('optimizationFieldPicker', function(appState, warpvndService) {
+    return {
+        restrict: 'A',
+        scope: {
+            model: '=',
+            field: '=',
+        },
+        template: `
+            <div class="input-group">
+              <select class="form-control" data-ng-model="model[field]" data-ng-options="item.index as item.name for item in optimizationFields()"></select>
+            </div>
+        `,
+        controller: function($scope) {
+            var list = null;
+
+            function buildList() {
+                var labelMap = {};
+                warpvndService.buildOptimizeFields().forEach(function(f) {
+                    labelMap[f.field] = f.label;
+                });
+                list = [];
+                appState.models.optimizer.fields.forEach(function(f, idx) {
+                    list.push({
+                        index: idx,
+                        name: labelMap[f.field] ? labelMap[f.field] : '',
+                    });
+                });
+            }
+
+            $scope.optimizationFields = function() {
+                return list;
+            };
+
+            appState.whenModelsLoaded($scope, buildList);
+            $scope.$on('optimizer.changed', buildList);
+        },
+    };
+});
+
 SIREPO.app.directive('optimizationForm', function(appState, panelState, radiaService) {
     return {
         restrict: 'A',
@@ -2474,20 +2516,26 @@ SIREPO.app.directive('optimizationForm', function(appState, panelState, radiaSer
 
             function verifyBounds() {
                 var isField = {};
-                $scope.optFields.forEach(function(f) {
-                    isField[f.field] = true;
-                });
                 var list = [];
                 var isBoundedField = {};
+                $scope.optFields.forEach(function(f) {
+                    srdbg(f.field);
+                    isField[f.field] = true;
+                    isBoundedField[f.field] = true;
+                    list.push(f);
+                });
+
                 appState.models.optimizer.fields.forEach(function(f) {
                     if (isField[f.field]) {
                         list.push(f);
                         isBoundedField[f.field] = true;
                     }
                 });
+                srdbg(list);
                 if (appState.models.optimizer.fields.length != list.length) {
                     appState.models.optimizer.fields = list;
                 }
+                srdbg(isBoundedField);
                 return isBoundedField;
             }
 

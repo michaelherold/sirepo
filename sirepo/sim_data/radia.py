@@ -108,6 +108,8 @@ class SimData(sirepo.sim_data.SimDataBase):
             cls._fixup_example(dm)
         if dm.simulation.magnetType == "undulator":
             cls._fixup_undulator(dm)
+        if not dm.get("objectFillet"):
+            cls.update_model_defaults({}, "objectFillet")
         cls._fixup_obj_types(dm)
         for o in dm.geometryReport.objects:
             if o.get("points") is not None and not o.get("triangulationLevel"):
